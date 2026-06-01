@@ -1,5 +1,6 @@
 import { Email } from '@domain/value-objects/email.vo';
 import { User } from './user.entity';
+
 describe('User', () => {
   it('creates user', () => {
     const user = User.create({ email: 'A@EXAMPLE.COM', passwordHash: 'password' });

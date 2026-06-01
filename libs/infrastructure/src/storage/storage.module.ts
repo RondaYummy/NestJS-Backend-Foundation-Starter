@@ -4,6 +4,7 @@ import { InfrastructureConfigModule } from '../config/infrastructure-config.modu
 import { AppConfigService } from '../config/app-config.service';
 import { LocalStorageAdapter } from './local-storage.adapter';
 import { S3StorageAdapter } from './s3-storage.adapter';
+
 @Module({
   imports: [InfrastructureConfigModule],
   providers: [

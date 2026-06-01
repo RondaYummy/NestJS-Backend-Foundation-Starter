@@ -6,7 +6,8 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: app
     ports: ["5432:5432"]
-    volumes: [postgres_data:/var/lib/postgresql/data]
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d app"]
       interval: 5s
@@ -23,9 +24,13 @@ services:
       retries: 10
 
   migrations:
+    image: nestjs-backend-foundation-starter:local
     build: .
     command: npm run db:migrate
     env_file: .env
+    volumes:
+      - .:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
@@ -33,6 +38,7 @@ services:
       - tools
 
   api:
+    image: nestjs-backend-foundation-starter:local
     build: .
     command: npm run start:api
     env_file: .env
@@ -41,10 +47,13 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   worker:
+    image: nestjs-backend-foundation-starter:local
     build: .
     command: npm run start:worker
     env_file: .env
@@ -52,10 +61,13 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   cron:
+    image: nestjs-backend-foundation-starter:local
     build: .
     command: npm run start:cron
     env_file: .env
@@ -63,8 +75,10 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres: { condition: service_healthy }
-      redis: { condition: service_healthy }
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
 volumes:
   postgres_data:

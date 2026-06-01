@@ -1,5 +1,5 @@
-import { TransactionContext } from "@contracts/transactions/transaction-manager";
-import { User } from "@domain/entities/user.entity";
+import { type TransactionContext } from '@contracts/transactions/transaction-manager';
+import type { User } from '@domain/entities/user.entity';
 
 export interface IUserRepository {
   findById(id: string, trx?: TransactionContext): Promise<User | null>;

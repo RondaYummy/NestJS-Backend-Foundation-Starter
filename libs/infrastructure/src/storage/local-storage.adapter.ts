@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import type { IStorageGateway } from '@contracts/storage/storage-gateway';
 import { AppConfigService } from '../config/app-config.service';
+
 @Injectable()
 export class LocalStorageAdapter implements IStorageGateway {
   constructor(private readonly config: AppConfigService) {}
@@ -25,7 +26,7 @@ export class LocalStorageAdapter implements IStorageGateway {
     await rm(this.path(key), { force: true });
   }
   async getSignedUrl(key: string): Promise<string> {
-    return this.path(key);
+    return Promise.resolve(this.path(key));
   }
   private path(key: string): string {
     return join(this.config.getString('storage.localPath'), key);

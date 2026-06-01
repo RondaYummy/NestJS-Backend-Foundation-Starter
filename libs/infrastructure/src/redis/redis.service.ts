@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from './redis.tokens';
+
 @Injectable()
 export class RedisService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
@@ -8,9 +9,12 @@ export class RedisService {
     return this.redis.get(key);
   }
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
-    ttlSeconds
-      ? await this.redis.set(key, value, 'EX', ttlSeconds)
-      : await this.redis.set(key, value);
+    if (ttlSeconds !== undefined) {
+      await this.redis.set(key, value, 'EX', ttlSeconds);
+      return;
+    }
+
+    await this.redis.set(key, value);
   }
   async del(key: string): Promise<void> {
     await this.redis.del(key);

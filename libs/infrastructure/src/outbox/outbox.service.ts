@@ -22,7 +22,7 @@ export class OutboxService {
       .values({ id: randomUUID(), eventName: event.name, payload: event });
   }
   async processPending(): Promise<void> {
-    this.auditLogger.log({
+    await this.auditLogger.log({
       actorType: 'system',
       action: 'outbox.processPending',
       entityType: 'outbox',
