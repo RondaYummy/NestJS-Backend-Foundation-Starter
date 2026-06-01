@@ -1,0 +1,16 @@
+export const TOKENS = {
+  UserRepository: Symbol('IUserRepository'),
+  AuthTokenService: Symbol('IAuthTokenService'),
+  PasswordHasher: Symbol('IPasswordHasher'),
+  SessionStore: Symbol('ISessionStore'),
+  CacheGateway: Symbol('ICacheGateway'),
+  QueueGateway: Symbol('IQueueGateway'),
+  EmailGateway: Symbol('IEmailGateway'),
+  StorageGateway: Symbol('IStorageGateway'),
+  TransactionManager: Symbol('ITransactionManager'),
+  EventBus: Symbol('IEventBus'),
+  AuditLogger: Symbol('IAuditLogger'),
+  RateLimiter: Symbol('IRateLimiter'),
+  DistributedLock: Symbol('IDistributedLock'),
+  IdempotencyService: Symbol('IIdempotencyService'),
+} as const;

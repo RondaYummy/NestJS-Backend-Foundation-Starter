@@ -1,0 +1,6 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "outDir": "../../dist/apps/cron" },
+  "include": ["src/**/*.ts", "../../libs/**/*.ts"],
+  "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
+}
