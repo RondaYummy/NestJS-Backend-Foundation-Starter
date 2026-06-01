@@ -4,6 +4,7 @@ import { Queue, type JobsOptions } from 'bullmq';
 import type { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { AppConfigService } from '../config/app-config.service';
 import { QUEUES } from './queues';
+
 @Injectable()
 export class BullQueueGateway implements IQueueGateway {
   private readonly queues: Record<string, Queue>;

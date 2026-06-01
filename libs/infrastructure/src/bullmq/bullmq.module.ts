@@ -5,6 +5,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { TOKENS } from '@contracts/tokens';
 import { QUEUES } from './queues';
 import { BullQueueGateway } from './queue.gateway';
+
 @Module({
   imports: [
     InfrastructureConfigModule,

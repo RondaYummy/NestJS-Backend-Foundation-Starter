@@ -1,4 +1,5 @@
 import { jsonb, pgTable, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
+
 export const idempotencyKeys = pgTable('idempotency_keys', {
   id: uuid('id').primaryKey(),
   key: varchar('key', { length: 255 }).notNull(),

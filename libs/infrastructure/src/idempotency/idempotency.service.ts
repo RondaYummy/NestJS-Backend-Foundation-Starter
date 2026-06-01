@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { IIdempotencyService } from '@contracts/idempotency/idempotency-service';
 import { RedisService } from '../redis/redis.service';
+
 @Injectable()
 export class RedisIdempotencyService implements IIdempotencyService {
   constructor(private readonly redis: RedisService) {}

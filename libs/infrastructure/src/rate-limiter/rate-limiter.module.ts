@@ -4,6 +4,7 @@ import { InfrastructureConfigModule } from '../config/infrastructure-config.modu
 import { RedisModule } from '../redis/redis.module';
 import { RedisRateLimiter } from './redis-rate-limiter';
 import { RateLimiterGuard } from './rate-limiter.guard';
+
 @Module({
   imports: [RedisModule, InfrastructureConfigModule],
   providers: [

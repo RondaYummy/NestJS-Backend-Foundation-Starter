@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 import type { IEmailGateway } from '@contracts/mail/email-gateway';
 import { AppConfigService } from '../config/app-config.service';
+
 @Injectable()
 export class SmtpMailAdapter implements IEmailGateway {
   constructor(private readonly config: AppConfigService) {}

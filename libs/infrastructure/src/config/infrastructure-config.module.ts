@@ -58,7 +58,12 @@ import { AppConfigService } from './app-config.service';
             refreshSecret: e.JWT_REFRESH_SECRET,
             refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
           },
-          rateLimit: { ttl: e.RATE_LIMIT_TTL, max: e.RATE_LIMIT_MAX },
+          rateLimit: {
+            ttl: e.RATE_LIMIT_TTL,
+            max: e.RATE_LIMIT_MAX,
+            authTtl: e.RATE_LIMIT_AUTH_TTL,
+            authMax: e.RATE_LIMIT_AUTH_MAX,
+          },
           logger: { level: e.LOGGER_LEVEL },
         };
       },

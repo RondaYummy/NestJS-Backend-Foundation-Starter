@@ -4,6 +4,7 @@ import type { Request } from 'express';
 import type { IIdempotencyService } from '@contracts/idempotency/idempotency-service';
 import { TOKENS } from '@contracts/tokens';
 import { hashObject } from '@shared/utils/hash-object';
+
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
   constructor(@Inject(TOKENS.IdempotencyService) private readonly idem: IIdempotencyService) {}

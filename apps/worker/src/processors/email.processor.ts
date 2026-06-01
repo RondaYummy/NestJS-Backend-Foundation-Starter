@@ -4,6 +4,7 @@ import type { Job } from 'bullmq';
 import type { IEmailGateway } from '@contracts/mail/email-gateway';
 import { TOKENS } from '@contracts/tokens';
 import { QUEUES } from '@contracts/queues/queue-names';
+
 @Processor(QUEUES.EMAIL)
 export class EmailProcessor extends WorkerHost {
   constructor(@Inject(TOKENS.EmailGateway) private readonly mail: IEmailGateway) {

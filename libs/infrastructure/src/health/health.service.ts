@@ -3,6 +3,7 @@ import { sql } from 'drizzle-orm';
 import type Redis from 'ioredis';
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import { REDIS_CLIENT } from '../redis/redis.tokens';
+
 @Injectable()
 export class HealthService {
   constructor(

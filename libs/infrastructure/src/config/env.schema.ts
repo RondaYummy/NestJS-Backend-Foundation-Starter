@@ -24,6 +24,8 @@ export const envSchema = z.object({
   S3_SECRET_ACCESS_KEY: z.string().optional().default(''),
   RATE_LIMIT_TTL: z.coerce.number().default(60),
   RATE_LIMIT_MAX: z.coerce.number().default(100),
+  RATE_LIMIT_AUTH_TTL: z.coerce.number().default(60),
+  RATE_LIMIT_AUTH_MAX: z.coerce.number().default(5),
   LOGGER_LEVEL: z.string().default('info'),
   AUTH_DRIVER: z.enum(['jwt', 'session']).default('jwt'),
   AUTH_ACCESS_TOKEN_TTL: z.string().default('15m'),

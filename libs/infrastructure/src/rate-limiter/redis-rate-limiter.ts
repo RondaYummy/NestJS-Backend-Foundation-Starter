@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { IRateLimiter } from '@contracts/rate-limiter/rate-limiter';
 import { RedisService } from '../redis/redis.service';
+
 @Injectable()
 export class RedisRateLimiter implements IRateLimiter {
   constructor(private readonly redis: RedisService) {}

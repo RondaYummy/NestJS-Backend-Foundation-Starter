@@ -1,4 +1,5 @@
 import { integer, jsonb, pgTable, timestamp, uuid, varchar, text } from 'drizzle-orm/pg-core';
+
 export const outboxEvents = pgTable('outbox_events', {
   id: uuid('id').primaryKey(),
   eventName: varchar('event_name', { length: 255 }).notNull(),

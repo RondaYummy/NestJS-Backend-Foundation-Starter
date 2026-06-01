@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import type { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { TOKENS } from '@contracts/tokens';
 import { QUEUES } from '@contracts/queues/queue-names';
+
 @Injectable()
 export class OutboxSchedule {
   constructor(@Inject(TOKENS.QueueGateway) private readonly queues: IQueueGateway) {}

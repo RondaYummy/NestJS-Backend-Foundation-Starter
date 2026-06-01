@@ -29,7 +29,7 @@ type ConfigShape = {
     passwordSaltRounds: number;
   };
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
-  rateLimit: { ttl: number; max: number };
+  rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
   logger: { level: string };
 };
 

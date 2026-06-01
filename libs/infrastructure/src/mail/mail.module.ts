@@ -4,6 +4,7 @@ import { InfrastructureConfigModule } from '../config/infrastructure-config.modu
 import { AppConfigService } from '../config/app-config.service';
 import { NullMailAdapter } from './null-mail.adapter';
 import { SmtpMailAdapter } from './smtp-mail.adapter';
+
 @Module({
   imports: [InfrastructureConfigModule],
   providers: [

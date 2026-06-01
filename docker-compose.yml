@@ -34,8 +34,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    profiles:
-      - tools
+    # profiles:
+    #   - tools
 
   api:
     image: nestjs-backend-foundation-starter:local

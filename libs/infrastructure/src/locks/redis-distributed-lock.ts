@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
 import type { IDistributedLock, LockHandle } from '@contracts/locks/distributed-lock';
 import { REDIS_CLIENT } from '../redis/redis.tokens';
+
 @Injectable()
 export class RedisDistributedLock implements IDistributedLock {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
