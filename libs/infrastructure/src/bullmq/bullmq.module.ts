@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Global, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
 import { AppConfigService } from '../config/app-config.service';
@@ -6,6 +6,7 @@ import { TOKENS } from '@contracts/tokens';
 import { QUEUES } from './queues';
 import { BullQueueGateway } from './queue.gateway';
 
+@Global()
 @Module({
   imports: [
     InfrastructureConfigModule,

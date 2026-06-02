@@ -22,7 +22,7 @@ export default [
   eslint.configs.recommended,
 
   {
-    files: ['**/*.ts'],
+    files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsParser,
       parserOptions: {

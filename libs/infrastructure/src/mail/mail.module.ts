@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
 import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
 import { AppConfigService } from '../config/app-config.service';
+import { MailTemplateService } from './mail-template.service';
 import { NullMailAdapter } from './null-mail.adapter';
 import { SmtpMailAdapter } from './smtp-mail.adapter';
 
 @Module({
   imports: [InfrastructureConfigModule],
   providers: [
+    MailTemplateService,
     NullMailAdapter,
     SmtpMailAdapter,
     {
@@ -17,6 +19,6 @@ import { SmtpMailAdapter } from './smtp-mail.adapter';
         config.getString('mail.driver') === 'smtp' ? smtp : nullMail,
     },
   ],
-  exports: [TOKENS.EmailGateway],
+  exports: [TOKENS.EmailGateway, MailTemplateService],
 })
 export class MailModule {}

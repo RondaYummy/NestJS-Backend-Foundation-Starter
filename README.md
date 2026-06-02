@@ -17,7 +17,7 @@ Starter включає:
 - cache layer;
 - health checks;
 - global exception handling;
-- mail module;
+- mail module (React Email templates);
 - storage module;
 - transaction manager;
 - event bus;
@@ -819,50 +819,90 @@ HTTP response має виглядати так:
 
 ```txt
 libs/infrastructure/src/mail
+  components/          # React Email UI primitives (Layout, Block, Title, …)
+  config/              # TailwindConfig для @react-email/components
+  templates/           # листи як React-компоненти (*.email.tsx)
+  mail-template.service.ts
+  mail-template.registry.tsx
+  smtp-mail.adapter.ts
+  null-mail.adapter.ts
 ```
 
 Призначення:
 
-- відправка email;
-- SMTP adapter;
-- NullMailAdapter для development/test;
-- можливість у майбутньому додати SES/SendGrid.
+- відправка email через `IEmailGateway` (SMTP / null adapter);
+- **React Email** — верстка листів компонентами (`@react-email/components`, `@react-email/render`);
+- рендер `html` + `text` у worker, не в use case;
+- типізовані шаблони в contracts (`EMAIL_TEMPLATE`, `EmailTemplateDataMap`).
 
-Контракт:
+### Контракти
 
-```ts
-IEmailGateway
+```txt
+libs/contracts/src/mail/
+  email-gateway.ts       # IEmailGateway.send({ to, subject, html, text })
+  email-template-id.ts   # EMAIL_TEMPLATE.WELCOME, …
+  email-template-data.ts # дані для кожного шаблону
+  email-job.ts           # payload для черги EMAIL (template + data | raw html)
 ```
 
-Метод:
+### Потік відправки (рекомендовано)
 
-```ts
-send(input: {
-  to: string | string[];
-  subject: string;
-  html?: string;
-  text?: string;
-  from?: string;
-}): Promise<void>
+```txt
+HTTP -> use-case -> queue EMAIL (template + data)
+  -> EmailProcessor -> MailTemplateService.render()
+  -> IEmailGateway.send({ html, text })
 ```
 
-Приклад:
+Use case **не** містить HTML — лише `template` і `data`:
 
 ```ts
-await emailGateway.send({
-  to: 'user@example.com',
+import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
+
+await queueGateway.add(QUEUES.EMAIL, 'send-welcome', {
+  to: user.email,
   subject: 'Welcome',
-  html: '<h1>Welcome!</h1>',
+  template: EMAIL_TEMPLATE.WELCOME,
+  data: { email: user.email },
 });
 ```
 
-Email краще відправляти через queue:
+### Новий лист (React Email)
 
-```txt
-HTTP request -> use-case -> queue EMAIL -> email processor -> mail gateway
+1. Додати id у `email-template-id.ts` і тип даних у `email-template-data.ts`.
+2. Створити `libs/infrastructure/src/mail/templates/my-feature.email.tsx` з компонентами з `../components`.
+3. Зареєструвати в `mail-template.registry.tsx`.
+4. Поставити job у use case з `template` + `data`.
+
+Приклад шаблону:
+
+```tsx
+import { Block, Layout, Paragraph, Signoff, Title } from '../components';
+
+export const WelcomeEmail = ({ email }: { email: string }) => (
+  <Layout>
+    <Block>
+      <Title>Welcome!</Title>
+    </Block>
+    <Block>
+      <Paragraph>Account {email} is ready.</Paragraph>
+    </Block>
+    <Block disableMargin>
+      <Signoff from="Support Team" />
+    </Block>
+  </Layout>
+);
 ```
 
-Так API не чекає SMTP і швидше відповідає клієнту.
+### Env
+
+```env
+MAIL_DRIVER=null   # dev: листи не відправляються (NullMailAdapter)
+MAIL_DRIVER=smtp   # prod: SMTP_*
+```
+
+Worker має бути запущений: `npm run start:dev:worker`.
+
+Детальніше: [EXAMPLES.md](./EXAMPLES.md) (розділ про email).
 
 ---
 

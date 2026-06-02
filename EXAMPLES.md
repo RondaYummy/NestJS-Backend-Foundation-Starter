@@ -12,9 +12,10 @@
 6. [Rate limit на endpoint](#6-rate-limit-на-endpoint)
 7. [Idempotency для POST/PUT/PATCH](#7-idempotency-для-postputpatch)
 8. [Додати змінну оточення](#8-додати-змінну-оточення)
-9. [Додати BullMQ job (worker)](#9-додати-bullmq-job-worker)
-10. [Додати cron-задачу](#10-додати-cron-задачу)
-11. [Корисні команди](#11-корисні-команди)
+9. [Email — React Email шаблони](#9-email--react-email-шаблони)
+10. [Додати BullMQ job (worker)](#10-додати-bullmq-job-worker)
+11. [Додати cron-задачу](#11-додати-cron-задачу)
+12. [Корисні команди](#12-корисні-команди)
 
 ---
 
@@ -266,7 +267,65 @@ Content-Type: application/json
 
 ---
 
-## 9. Додати BullMQ job (worker)
+## 9. Email — React Email шаблони
+
+### Потік
+
+```txt
+use-case → QUEUES.EMAIL (template + data) → EmailProcessor → MailTemplateService → SMTP
+```
+
+### Відправити welcome після реєстрації
+
+```ts
+import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
+
+await this.queueGateway.add(QUEUES.EMAIL, 'send-welcome', {
+  to: input.email,
+  subject: 'Welcome',
+  template: EMAIL_TEMPLATE.WELCOME,
+  data: { email: user.email.toString() },
+});
+```
+
+### Додати новий шаблон
+
+1. `libs/contracts/src/mail/email-template-id.ts` — константа, напр. `PASSWORD_RESET: 'password-reset'`.
+2. `libs/contracts/src/mail/email-template-data.ts` — тип даних.
+3. `libs/infrastructure/src/mail/templates/password-reset.email.tsx` — React-компонент.
+4. `libs/infrastructure/src/mail/mail-template.registry.tsx` — `case` у `switch`.
+5. Use case — `template` + `data` у job.
+
+Структура листа (як у ваших проєктах):
+
+```tsx
+import { Block, Layout, Paragraph, Signoff, Title } from '../components';
+
+export const PasswordResetEmail = ({ resetUrl }: { resetUrl: string }) => (
+  <Layout>
+    <Block>
+      <Title>Reset password</Title>
+    </Block>
+    <Block>
+      <Paragraph>Open this link: {resetUrl}</Paragraph>
+    </Block>
+    <Block disableMargin>
+      <Signoff from="Support Team" />
+    </Block>
+  </Layout>
+);
+```
+
+UI-примітиви: `libs/infrastructure/src/mail/components/` (`Layout`, `Block`, `Title`, `OtpCode`, …).  
+Стилі: `libs/infrastructure/src/mail/config/tailwind-config.tsx`.
+
+**Не** передавайте HTML з use case — лише `template` + `data`.
+
+Запуск: Redis + `npm run start:dev:worker` + `MAIL_DRIVER=smtp` (або `null` для dev).
+
+---
+
+## 10. Додати BullMQ job (worker)
 
 ### 1. Ім'я черги
 
@@ -317,7 +376,7 @@ npm run start:dev:worker
 
 ---
 
-## 10. Додати cron-задачу
+## 11. Додати cron-задачу
 
 `apps/cron/src/schedules/my.schedule.ts`:
 
@@ -342,7 +401,7 @@ npm run start:dev:cron
 
 ---
 
-## 11. Корисні команди
+## 12. Корисні команди
 
 | Задача | Команда |
 |--------|---------|
