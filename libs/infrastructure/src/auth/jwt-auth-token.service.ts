@@ -8,6 +8,7 @@ import { AuthTokens, IAuthTokenService } from '@contracts/auth/auth-token.servic
 
 type RefreshTokenPayload = CurrentUser & {
   type: 'refresh';
+  jti: string;
 };
 
 @Injectable()

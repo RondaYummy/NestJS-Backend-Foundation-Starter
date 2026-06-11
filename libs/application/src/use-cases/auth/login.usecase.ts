@@ -4,6 +4,7 @@ import { TOKENS } from '@contracts/tokens';
 import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
 import { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { ValidationError } from '@domain/errors/domain-errors';
+import { Email } from '@domain/value-objects/email.vo';
 
 type LoginInput = {
   email: string;
@@ -24,7 +25,8 @@ export class LoginUseCase {
   ) {}
 
   async execute(input: LoginInput) {
-    const user = await this.userRepository.findByEmail(input.email);
+    const normalizedEmail = Email.create(input.email).toString();
+    const user = await this.userRepository.findByEmail(normalizedEmail);
 
     if (!user) {
       throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');

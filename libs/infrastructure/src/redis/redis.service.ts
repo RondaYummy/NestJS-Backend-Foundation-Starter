@@ -5,6 +5,7 @@ import { REDIS_CLIENT } from './redis.tokens';
 @Injectable()
 export class RedisService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+
   get(key: string): Promise<string | null> {
     return this.redis.get(key);
   }
@@ -35,5 +36,18 @@ export class RedisService {
     const result = await this.redis.set(key, value, 'EX', ttlSeconds, 'NX');
 
     return result === 'OK';
+  }
+  async compareAndDelete(key: string, expectedValue: string): Promise<boolean> {
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("del", KEYS[1])
+      end
+  
+      return 0
+    `;
+
+    const result = await this.redis.eval(script, 1, key, expectedValue);
+
+    return result === 1;
   }
 }

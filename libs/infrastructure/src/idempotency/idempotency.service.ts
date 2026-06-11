@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import type { IIdempotencyService } from '@contracts/idempotency/idempotency-service';
@@ -31,7 +32,9 @@ export class RedisIdempotencyService implements IIdempotencyService {
       return this.parseStoredResult<T>(cached, input.requestHash);
     }
 
-    const lockAcquired = await this.redis.setIfNotExists(lockKey, input.requestHash, 30);
+    const lockToken = randomUUID();
+
+    const lockAcquired = await this.redis.setIfNotExists(lockKey, lockToken, 30);
 
     if (!lockAcquired) {
       return this.waitForResult<T>({
@@ -58,7 +61,7 @@ export class RedisIdempotencyService implements IIdempotencyService {
 
       return result;
     } finally {
-      await this.redis.del(lockKey);
+      await this.redis.compareAndDelete(lockKey, lockToken);
     }
   }
 

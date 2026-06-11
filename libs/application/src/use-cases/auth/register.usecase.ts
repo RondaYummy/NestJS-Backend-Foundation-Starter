@@ -8,6 +8,7 @@ import { ConflictError } from '@domain/errors/domain-errors';
 import { Inject, Injectable } from '@nestjs/common';
 import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import { UserRegisteredEvent } from '@domain/events/user-registered.event';
+import { Email } from '@domain/value-objects/email.vo';
 
 type RegisterInput = {
   email: string;
@@ -35,16 +36,17 @@ export class RegisterUseCase {
 
   async execute(input: RegisterInput) {
     const passwordHash = await this.passwordHasher.hash(input.password);
+    const email = Email.create(input.email);
 
     const user = await this.transactionManager.run(async (trx) => {
-      const existingUser = await this.userRepository.findByEmail(input.email, trx);
+      const existingUser = await this.userRepository.findByEmail(email.toString(), trx);
 
       if (existingUser) {
         throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
       }
 
       const newUser = User.create({
-        email: input.email,
+        email: email.toString(),
         passwordHash,
         roles: ['user'],
       });

@@ -16,6 +16,7 @@ import { TransactionContext } from '@contracts/transactions/transaction-manager'
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
+const LOCK_TTL_MS = 5 * 60 * 1000;
 
 type OutboxRow = typeof outboxEvents.$inferSelect;
 type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
@@ -87,15 +88,27 @@ export class OutboxService {
   }
 
   private async claimPendingBatch(): Promise<OutboxRow[]> {
+    const workerId = randomUUID();
+    const now = new Date();
+    const expiredLockAt = new Date(now.getTime() - LOCK_TTL_MS);
+
     return this.db.transaction(async (trx) => {
       const rows = await trx
         .select()
         .from(outboxEvents)
         .where(
           and(
-            eq(outboxEvents.status, 'pending'),
-            lte(outboxEvents.availableAt, new Date()),
+            lte(outboxEvents.availableAt, now),
             lte(outboxEvents.attempts, MAX_ATTEMPTS - 1),
+            sql`
+              (
+                ${outboxEvents.status} = 'pending'
+                OR (
+                  ${outboxEvents.status} = 'processing'
+                  AND ${outboxEvents.lockedAt} < ${expiredLockAt}
+                )
+              )
+            `,
           ),
         )
         .orderBy(asc(outboxEvents.createdAt))
@@ -108,13 +121,15 @@ export class OutboxService {
         return [];
       }
 
-      const ids = rows.map((row: OutboxRow) => row.id);
+      const ids = rows.map((row) => row.id);
 
       await trx
         .update(outboxEvents)
         .set({
           status: 'processing',
-          updatedAt: new Date(),
+          lockedAt: now,
+          lockedBy: workerId,
+          updatedAt: now,
         })
         .where(sql`${outboxEvents.id} = ANY(${ids})`);
 
@@ -144,6 +159,8 @@ export class OutboxService {
       .set({
         status: 'processed',
         processedAt: new Date(),
+        lockedAt: null,
+        lockedBy: null,
         error: null,
         updatedAt: new Date(),
       })
@@ -162,6 +179,8 @@ export class OutboxService {
         attempts,
         error: this.getErrorMessage(error),
         availableAt: new Date(Date.now() + retryDelaySeconds * 1000),
+        lockedAt: null,
+        lockedBy: null,
         updatedAt: new Date(),
       })
       .where(eq(outboxEvents.id, event.id));
