@@ -1,6 +1,6 @@
 # NestJS Backend Foundation Starter
 
-Production-ready starter-kit для NestJS-проєктів, побудований у стилі **Onion Architecture** та **Multi-entrypoint Architecture**.
+Starter-kit для NestJS-проєктів, побудований у стилі **Onion Architecture** та **Multi-entrypoint Architecture**.
 
 Цей проєкт не є простим boilerplate. Його ціль — бути переносимою backend foundation-платформою, яку можна копіювати в новий проєкт і одразу починати писати бізнес-логіку, не витрачаючи час на повторне налаштування базових інфраструктурних модулів.
 
@@ -48,11 +48,13 @@ domain -> application -> contracts <- infrastructure
 
 Тобто:
 
-- `domain` не знає нічого про NestJS, Drizzle, Redis, HTTP, env, logger;
+- `domain` не знає нічого про Drizzle, Redis, HTTP, env, logger;
 - `application` працює тільки через контракти;
 - `contracts` описують інтерфейси;
 - `infrastructure` реалізує ці інтерфейси;
 - `apps/*` збирають потрібні модулі під конкретний entrypoint.
+
+Domain і contracts є framework-independent. Application use cases використовують NestJS DI decorators для зручної композиції, але не залежать від infrastructure implementations.
 
 ---
 
