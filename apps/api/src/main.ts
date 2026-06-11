@@ -25,12 +25,21 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  const config = app.get(AppConfigService);
+
+  const allowedOrigins = config.getString('app.allowedOrigins').split(',');
+
   app.enableCors({
-    origin: true,
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Origin is not allowed'));
+    },
     credentials: true,
   });
-
-  const config = app.get(AppConfigService);
 
   await app.listen(config.getNumber('app.port'));
 }

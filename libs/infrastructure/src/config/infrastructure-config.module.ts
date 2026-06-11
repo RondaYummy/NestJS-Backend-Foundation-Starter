@@ -12,7 +12,7 @@ import { AppConfigService } from './app-config.service';
         if (!parsed.success) throw new Error(`Invalid env: ${parsed.error.message}`);
         const e = parsed.data;
         return {
-          app: { env: e.NODE_ENV, port: e.APP_PORT },
+          app: { env: e.NODE_ENV, port: e.APP_PORT, allowedOrigins: e.CORS_ORIGINS },
           database: { url: e.DATABASE_URL },
           redis: {
             host: e.REDIS_HOST,

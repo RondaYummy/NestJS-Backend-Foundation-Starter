@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 type ConfigShape = {
-  app: { env: string; port: number };
+  app: { env: string; port: number; allowedOrigins: string };
   database: { url: string };
   redis: { host: string; port: number; password?: string; db: number };
   bullmq: { defaultAttempts: number; backoffDelay: number };

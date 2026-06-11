@@ -12,10 +12,19 @@ export class RedisDistributedLock implements IDistributedLock {
     const result = await this.redis.set(`lock:${key}`, token, 'PX', ttlMs, 'NX');
     return result === 'OK' ? { key, token } : null;
   }
+
+  private readonly releaseScript = `
+  if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+  end
+
+  return 0
+`;
+
   async release(handle: LockHandle): Promise<void> {
-    const value = await this.redis.get(`lock:${handle.key}`);
-    if (value === handle.token) await this.redis.del(`lock:${handle.key}`);
+    await this.redis.eval(this.releaseScript, 1, `lock:${handle.key}`, handle.token);
   }
+
   async runWithLock<T>(key: string, ttlMs: number, handler: () => Promise<T>): Promise<T> {
     const lock = await this.acquire(key, ttlMs);
     if (!lock) throw new Error(`Cannot acquire lock: ${key}`);

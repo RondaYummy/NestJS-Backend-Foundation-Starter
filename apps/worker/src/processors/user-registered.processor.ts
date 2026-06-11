@@ -13,6 +13,7 @@ type OutboxJob = {
   eventName: string;
   payload: unknown;
 };
+type UserRegisteredPayload = { userId: string; email: string };
 
 @Injectable()
 @Processor(QUEUES.EVENTS)
@@ -27,14 +28,7 @@ export class DomainEventsProcessor extends WorkerHost {
   async process(job: Job<OutboxJob>): Promise<void> {
     switch (job.data.eventName) {
       case 'user.registered':
-        await this.handleUserRegistered(
-          job.data.payload as {
-            payload: {
-              userId: string;
-              email: string;
-            };
-          },
-        );
+        await this.handleUserRegistered(job.data.payload as UserRegisteredPayload);
         return;
 
       default:
@@ -42,18 +36,13 @@ export class DomainEventsProcessor extends WorkerHost {
     }
   }
 
-  private async handleUserRegistered(event: {
-    payload: {
-      userId: string;
-      email: string;
-    };
-  }): Promise<void> {
+  private async handleUserRegistered(payload: { userId: string; email: string }): Promise<void> {
     await this.emailGateway.send({
-      to: event.payload.email,
+      to: payload.email,
       subject: 'Welcome',
       template: EMAIL_TEMPLATE.WELCOME,
       data: {
-        email: event.payload.email,
+        email: payload.email,
       },
     });
   }

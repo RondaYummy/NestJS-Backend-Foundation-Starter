@@ -39,7 +39,7 @@ export class OutboxService {
     await db.insert(outboxEvents).values({
       id: randomUUID(),
       eventName: event.name,
-      payload: event,
+      payload: event.payload,
       status: 'pending',
       attempts: 0,
       availableAt: new Date(),

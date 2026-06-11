@@ -34,5 +34,6 @@ export const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(1),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   PASSWORD_SALT_ROUNDS: z.coerce.number().default(10),
+  CORS_ORIGINS: z.string().default('http://localhost:3000'),
 });
 export type Env = z.infer<typeof envSchema>;
