@@ -521,7 +521,6 @@ database/
       users.schema.ts
       audit-logs.schema.ts
       outbox-events.schema.ts
-      idempotency-keys.schema.ts
     migrations/
 ```
 

@@ -13,6 +13,7 @@ import { RateLimiterGuard } from '@infrastructure/rate-limiter/rate-limiter.guar
 import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
@@ -22,6 +23,7 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
     private readonly refreshAuthSessionUseCase: RefreshAuthSessionUseCase,
+    private readonly config: ConfigService,
   ) {}
 
   @UseGuards(RateLimiterGuard)
@@ -67,7 +69,7 @@ export class AuthController {
     res.clearCookie('sid', {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.config.get<string>('app.env') === 'production',
     });
 
     return {
@@ -117,7 +119,7 @@ export class AuthController {
     res.cookie('sid', auth.sessionId, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: this.config.get<string>('app.env') === 'production',
       expires: auth.expiresAt,
     });
   }
