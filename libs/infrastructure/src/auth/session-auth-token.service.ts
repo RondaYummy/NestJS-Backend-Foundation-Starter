@@ -34,6 +34,8 @@ export class SessionAuthTokenService implements IAuthTokenService {
   }
 
   async refreshAuthSession(_refreshToken: string): Promise<AuthTokens> {
-    return Promise.reject(new UnauthorizedException('Refresh token is not supported for session authentication'));
+    return Promise.reject(
+      new UnauthorizedException('Refresh token is not supported for session authentication'),
+    );
   }
 }

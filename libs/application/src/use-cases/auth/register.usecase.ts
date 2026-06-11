@@ -6,9 +6,6 @@ import { TOKENS } from '@contracts/tokens';
 import { User } from '@domain/entities/user.entity';
 import { ConflictError } from '@domain/errors/domain-errors';
 import { Inject, Injectable } from '@nestjs/common';
-import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
-import { QUEUES } from '@contracts/queues/queue-names';
-import { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import { UserRegisteredEvent } from '@domain/events/user-registered.event';
 
@@ -31,9 +28,6 @@ export class RegisterUseCase {
 
     @Inject(TOKENS.TransactionManager)
     private readonly transactionManager: ITransactionManager,
-
-    @Inject(TOKENS.QueueGateway)
-    private readonly queueGateway: IQueueGateway,
 
     @Inject(TOKENS.OutboxWriter)
     private readonly outboxWriter: IOutboxWriter,
@@ -72,15 +66,6 @@ export class RegisterUseCase {
       id: user.id,
       email: user.email.toString(),
       roles: user.roles,
-    });
-
-    await this.queueGateway.add(QUEUES.EMAIL, 'send-welcome', {
-      to: input.email,
-      subject: 'Welcome',
-      template: EMAIL_TEMPLATE.WELCOME,
-      data: {
-        email: user.email.toString(),
-      },
     });
 
     return {

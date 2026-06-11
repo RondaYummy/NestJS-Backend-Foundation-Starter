@@ -17,6 +17,7 @@ const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
 
 type OutboxRow = typeof outboxEvents.$inferSelect;
+type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
 
 @Injectable()
 export class OutboxService {
@@ -31,10 +32,10 @@ export class OutboxService {
     private readonly db: DrizzleDb,
   ) {}
 
-  async append(event: DomainEvent, transaction?: DrizzleDb): Promise<void> {
-    const executor = transaction ?? this.db;
+  async append(event: DomainEvent, trx?: DrizzleTransactionContext): Promise<void> {
+    const db = trx?.tx ?? this.db;
 
-    await executor.insert(outboxEvents).values({
+    await db.insert(outboxEvents).values({
       id: randomUUID(),
       eventName: event.name,
       payload: event,

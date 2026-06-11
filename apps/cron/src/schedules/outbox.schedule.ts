@@ -7,7 +7,16 @@ import { QUEUES } from '@contracts/queues/queue-names';
 @Injectable()
 export class OutboxSchedule {
   constructor(@Inject(TOKENS.QueueGateway) private readonly queues: IQueueGateway) {}
-  @Cron(CronExpression.EVERY_10_SECONDS) async tick(): Promise<void> {
-    await this.queues.add(QUEUES.OUTBOX, 'process-pending-outbox-events', {});
+  @Cron(CronExpression.EVERY_MINUTE) async tick(): Promise<void> {
+    await this.queues.add(
+      QUEUES.OUTBOX,
+      'process-pending-outbox-events',
+      {},
+      {
+        jobId: 'outbox:process-pending',
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
   }
 }
