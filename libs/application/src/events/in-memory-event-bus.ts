@@ -4,10 +4,7 @@ import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class InMemoryEventBus implements IEventBus {
-  private readonly handlers = new Map<
-    string,
-    Array<(event: DomainEvent) => Promise<void>>
-  >();
+  private readonly handlers = new Map<string, Array<(event: DomainEvent) => Promise<void>>>();
 
   async publish(event: DomainEvent): Promise<void> {
     const handlers = this.handlers.get(event.name) ?? [];
@@ -23,10 +20,7 @@ export class InMemoryEventBus implements IEventBus {
     }
   }
 
-  subscribe(
-    eventName: string,
-    handler: (event: DomainEvent) => Promise<void>,
-  ): void {
+  subscribe(eventName: string, handler: (event: DomainEvent) => Promise<void>): void {
     const handlers = this.handlers.get(eventName) ?? [];
     handlers.push(handler);
     this.handlers.set(eventName, handlers);

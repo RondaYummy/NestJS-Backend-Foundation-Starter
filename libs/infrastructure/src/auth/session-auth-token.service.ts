@@ -32,4 +32,8 @@ export class SessionAuthTokenService implements IAuthTokenService {
   async revoke(sessionId: string): Promise<void> {
     await this.sessionStore.delete(sessionId);
   }
+
+  async refreshAuthSession(_refreshToken: string): Promise<AuthTokens> {
+    throw new Error('Refresh token is not supported for session authentication');
+  }
 }

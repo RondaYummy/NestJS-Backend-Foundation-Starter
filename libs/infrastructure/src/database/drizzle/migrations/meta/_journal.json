@@ -8,6 +8,13 @@
       "when": 1780300233952,
       "tag": "0000_bumpy_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1781166420775,
+      "tag": "0001_oval_cable",
+      "breakpoints": true
     }
   ]
 }

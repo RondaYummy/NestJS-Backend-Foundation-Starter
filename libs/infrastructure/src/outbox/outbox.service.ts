@@ -1,36 +1,181 @@
 import { randomUUID } from 'node:crypto';
+
 import { Inject, Injectable } from '@nestjs/common';
+import { and, asc, eq, lte, sql } from 'drizzle-orm';
+
+import type { IAuditLogger } from '@contracts/audit/audit-logger';
+import type { IQueueGateway } from '@contracts/queues/queue-gateway';
+import { QUEUES } from '@contracts/queues/queue-names';
+import { TOKENS } from '@contracts/tokens';
 import type { DomainEvent } from '@domain/events/domain-event';
+
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
-import { TOKENS } from '@contracts/tokens';
-import { IAuditLogger } from '@contracts/audit/audit-logger';
+
+import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
+import { UserRegisteredEvent } from '@domain/events/user-registered.event';
+
+const MAX_ATTEMPTS = 10;
+const BATCH_SIZE = 50;
+
+type OutboxRow = typeof outboxEvents.$inferSelect;
 
 @Injectable()
 export class OutboxService {
   constructor(
     @Inject(TOKENS.AuditLogger)
     private readonly auditLogger: IAuditLogger,
+
+    @Inject(TOKENS.QueueGateway)
+    private readonly queueGateway: IQueueGateway,
+
     @Inject(DRIZZLE_DB)
-    private readonly db: {
-      insert: (table: unknown) => { values: (value: unknown) => Promise<unknown> };
-    },
+    private readonly db: any,
+
+    @Inject(TOKENS.OutboxWriter)
+    private readonly outboxWriter: IOutboxWriter,
   ) {}
-  async append(event: DomainEvent): Promise<void> {
-    await this.db
-      .insert(outboxEvents)
-      .values({ id: randomUUID(), eventName: event.name, payload: event });
+
+  async append(event: DomainEvent, transaction?: any): Promise<void> {
+    const executor = transaction ?? this.db;
+
+    await executor.insert(outboxEvents).values({
+      id: randomUUID(),
+      eventName: event.name,
+      payload: event,
+      status: 'pending',
+      attempts: 0,
+      availableAt: new Date(),
+    });
   }
-  async processPending(): Promise<void> {
+
+  async processPending(): Promise<{
+    selected: number;
+    processed: number;
+    failed: number;
+  }> {
+    const events = await this.claimPendingBatch();
+
+    let processed = 0;
+    let failed = 0;
+
+    for (const event of events) {
+      try {
+        await this.publishEvent(event);
+        await this.markProcessed(event.id);
+        processed += 1;
+      } catch (error) {
+        await this.markFailed(event, error);
+        failed += 1;
+      }
+    }
+
     await this.auditLogger.log({
       actorType: 'system',
       action: 'outbox.processPending',
       entityType: 'outbox',
-      entityId: 'outbox',
+      entityId: 'batch',
       metadata: {
-        count: 0,
+        selected: events.length,
+        processed,
+        failed,
       },
     });
-    /* TODO: select pending rows with locking and publish */
+
+    return {
+      selected: events.length,
+      processed,
+      failed,
+    };
+  }
+
+  private async claimPendingBatch(): Promise<OutboxRow[]> {
+    return this.db.transaction(async (trx: any) => {
+      const rows = await trx
+        .select()
+        .from(outboxEvents)
+        .where(
+          and(
+            eq(outboxEvents.status, 'pending'),
+            lte(outboxEvents.availableAt, new Date()),
+            lte(outboxEvents.attempts, MAX_ATTEMPTS - 1),
+          ),
+        )
+        .orderBy(asc(outboxEvents.createdAt))
+        .limit(BATCH_SIZE)
+        .for('update', {
+          skipLocked: true,
+        });
+
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const ids = rows.map((row: OutboxRow) => row.id);
+
+      await trx
+        .update(outboxEvents)
+        .set({
+          status: 'processing',
+          updatedAt: new Date(),
+        })
+        .where(sql`${outboxEvents.id} = ANY(${ids})`);
+
+      return rows;
+    });
+  }
+
+  private async publishEvent(event: OutboxRow): Promise<void> {
+    await this.queueGateway.add(
+      QUEUES.EVENTS,
+      event.eventName,
+      {
+        outboxEventId: event.id,
+        eventName: event.eventName,
+        payload: event.payload,
+        createdAt: event.createdAt,
+        jobId: `outbox:${event.id}`,
+      },
+      // {
+      //   jobId: `outbox:${event.id}`,
+      // },
+    );
+  }
+
+  private async markProcessed(id: string): Promise<void> {
+    await this.db
+      .update(outboxEvents)
+      .set({
+        status: 'processed',
+        processedAt: new Date(),
+        error: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(outboxEvents.id, id));
+  }
+
+  private async markFailed(event: OutboxRow, error: unknown): Promise<void> {
+    const attempts = event.attempts + 1;
+    const retryDelaySeconds = Math.min(2 ** attempts * 30, 3600);
+    const permanentlyFailed = attempts >= MAX_ATTEMPTS;
+
+    await this.db
+      .update(outboxEvents)
+      .set({
+        status: permanentlyFailed ? 'failed' : 'pending',
+        attempts,
+        error: this.getErrorMessage(error),
+        availableAt: new Date(Date.now() + retryDelaySeconds * 1000),
+        updatedAt: new Date(),
+      })
+      .where(eq(outboxEvents.id, event.id));
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message.slice(0, 5000);
+    }
+
+    return String(error).slice(0, 5000);
   }
 }

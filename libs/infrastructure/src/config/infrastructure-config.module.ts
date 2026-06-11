@@ -47,8 +47,6 @@ import { AppConfigService } from './app-config.service';
           },
           auth: {
             driver: e.AUTH_DRIVER,
-            accessTokenTtl: e.AUTH_ACCESS_TOKEN_TTL,
-            refreshTokenTtl: e.AUTH_REFRESH_TOKEN_TTL,
             sessionTtlSeconds: e.AUTH_SESSION_TTL_SECONDS,
             passwordSaltRounds: e.PASSWORD_SALT_ROUNDS,
           },

@@ -30,10 +30,7 @@ export class LoginUseCase {
       throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
-    const passwordValid = await this.passwordHasher.compare(
-      input.password,
-      user.passwordHash,
-    );
+    const passwordValid = await this.passwordHasher.compare(input.password, user.passwordHash);
 
     if (!passwordValid) {
       throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');

@@ -6,14 +6,14 @@
 
 Він відповідає за:
 
-* реєстрацію користувача;
-* логін користувача;
-* отримання поточного авторизованого користувача;
-* хешування паролів;
-* створення авторизаційної сесії;
-* перевірку доступу до захищених endpoint-ів;
-* підтримку ролей;
-* можливість перемикання між `JWT` та `session` режимом авторизації.
+- реєстрацію користувача;
+- логін користувача;
+- отримання поточного авторизованого користувача;
+- хешування паролів;
+- створення авторизаційної сесії;
+- перевірку доступу до захищених endpoint-ів;
+- підтримку ролей;
+- можливість перемикання між `JWT` та `session` режимом авторизації.
 
 Головна ідея модуля — дати starter-проєкту базову, але правильну foundation-авторизацію, яку можна переносити між різними NestJS-проєктами.
 
@@ -50,11 +50,11 @@ Authorization: Bearer <accessToken>
 
 Цей режим зручний для:
 
-* SPA frontend;
-* mobile app;
-* public API;
-* stateless API;
-* мікросервісної архітектури.
+- SPA frontend;
+- mobile app;
+- public API;
+- stateless API;
+- мікросервісної архітектури.
 
 При login/register користувач отримує:
 
@@ -77,10 +77,10 @@ sid=<sessionId>
 
 Цей режим зручний для:
 
-* класичних web-додатків;
-* backend-rendered apps;
-* систем, де потрібно легко відкликати сесію;
-* випадків, де важливо контролювати активні сесії користувача.
+- класичних web-додатків;
+- backend-rendered apps;
+- систем, де потрібно легко відкликати сесію;
+- випадків, де важливо контролювати активні сесії користувача.
 
 ---
 
@@ -164,12 +164,12 @@ Domain errors
 
 Domain не знає нічого про:
 
-* JWT;
-* Redis;
-* bcrypt;
-* HTTP;
-* cookies;
-* NestJS guards.
+- JWT;
+- Redis;
+- bcrypt;
+- HTTP;
+- cookies;
+- NestJS guards.
 
 ## Application
 
@@ -219,8 +219,8 @@ RedisSessionStore
 
 Саме тут вирішується, як створювати auth session:
 
-* через JWT;
-* або через Redis session.
+- через JWT;
+- або через Redis session.
 
 ## API
 
@@ -237,8 +237,6 @@ Controller не містить бізнес-логіки. Він тільки п
 ```env
 # Auth
 AUTH_DRIVER=jwt
-AUTH_ACCESS_TOKEN_TTL=15m
-AUTH_REFRESH_TOKEN_TTL=7d
 AUTH_SESSION_TTL_SECONDS=604800
 
 JWT_SECRET=dev-secret
@@ -260,26 +258,6 @@ PASSWORD_SALT_ROUNDS=10
 ```txt
 jwt
 session
-```
-
-### `AUTH_ACCESS_TOKEN_TTL`
-
-Час життя access token.
-
-Приклад:
-
-```env
-AUTH_ACCESS_TOKEN_TTL=15m
-```
-
-### `AUTH_REFRESH_TOKEN_TTL`
-
-Час життя refresh token.
-
-Приклад:
-
-```env
-AUTH_REFRESH_TOKEN_TTL=7d
 ```
 
 ### `AUTH_SESSION_TTL_SECONDS`
@@ -647,15 +625,15 @@ Register/Login
 
 Плюси:
 
-* простіше масштабувати;
-* не потрібно зберігати session на backend;
-* зручно для mobile і SPA.
+- простіше масштабувати;
+- не потрібно зберігати session на backend;
+- зручно для mobile і SPA.
 
 Мінуси:
 
-* складніше миттєво відкликати access token;
-* потрібно правильно організувати refresh token flow;
-* потрібно уважно працювати з безпекою зберігання токенів.
+- складніше миттєво відкликати access token;
+- потрібно правильно організувати refresh token flow;
+- потрібно уважно працювати з безпекою зберігання токенів.
 
 ---
 
@@ -686,16 +664,16 @@ Register/Login
 
 Плюси:
 
-* легко зробити logout;
-* легко відкликати сесію;
-* можна бачити активні сесії;
-* добре підходить для web apps.
+- легко зробити logout;
+- легко відкликати сесію;
+- можна бачити активні сесії;
+- добре підходить для web apps.
 
 Мінуси:
 
-* потрібен Redis або інше session storage;
-* backend стає stateful;
-* потрібно правильно налаштувати cookies, CORS і CSRF-захист.
+- потрібен Redis або інше session storage;
+- backend стає stateful;
+- потрібно правильно налаштувати cookies, CORS і CSRF-захист.
 
 ---
 
@@ -741,13 +719,8 @@ TOKENS.SessionStore
 
 ```ts
 @Module({
-  imports: [
-    InfrastructureModule,
-    ApplicationModule,
-  ],
-  controllers: [
-    AuthController,
-  ],
+  imports: [InfrastructureModule, ApplicationModule],
+  controllers: [AuthController],
 })
 export class ApiModule {}
 ```
@@ -853,18 +826,18 @@ curl http://localhost:3000/auth/me \
 
 Для production важливо:
 
-* використовувати складний `JWT_SECRET`;
-* використовувати окремий `JWT_REFRESH_SECRET`;
-* не зберігати plain password;
-* зберігати тільки `password_hash`;
-* використовувати `httpOnly` cookies для session;
-* використовувати `secure: true` cookies на HTTPS;
-* налаштувати `sameSite`;
-* додати CSRF-захист для cookie-based session;
-* додати rate limit на login/register;
-* не повертати детальні помилки типу “email exists” у login;
-* додати audit log для login/logout;
-* додати lockout або throttle після багатьох невдалих login-спроб.
+- використовувати складний `JWT_SECRET`;
+- використовувати окремий `JWT_REFRESH_SECRET`;
+- не зберігати plain password;
+- зберігати тільки `password_hash`;
+- використовувати `httpOnly` cookies для session;
+- використовувати `secure: true` cookies на HTTPS;
+- налаштувати `sameSite`;
+- додати CSRF-захист для cookie-based session;
+- додати rate limit на login/register;
+- не повертати детальні помилки типу “email exists” у login;
+- додати audit log для login/logout;
+- додати lockout або throttle після багатьох невдалих login-спроб.
 
 ---
 

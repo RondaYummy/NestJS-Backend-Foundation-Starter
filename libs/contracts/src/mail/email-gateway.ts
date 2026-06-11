@@ -1,3 +1,5 @@
+import { EmailTemplateId } from '@contracts/mail/email-template-id';
+
 export interface IEmailGateway {
   send(input: {
     to: string | string[];
@@ -5,5 +7,7 @@ export interface IEmailGateway {
     html?: string;
     text?: string;
     from?: string;
+    template?: EmailTemplateId;
+    data?: Record<string, unknown>;
   }): Promise<void>;
 }

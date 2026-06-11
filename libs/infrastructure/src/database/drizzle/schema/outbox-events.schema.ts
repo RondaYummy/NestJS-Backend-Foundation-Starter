@@ -6,9 +6,29 @@ export const outboxEvents = pgTable('outbox_events', {
   payload: jsonb('payload').notNull(),
   status: varchar('status', { length: 50 }).notNull().default('pending'),
   attempts: integer('attempts').notNull().default(0),
-  availableAt: timestamp('available_at', { withTimezone: true }).notNull().defaultNow(),
-  processedAt: timestamp('processed_at', { withTimezone: true }),
+  availableAt: timestamp('available_at', {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+  lockedAt: timestamp('locked_at', {
+    withTimezone: true,
+  }),
+  lockedBy: varchar('locked_by', {
+    length: 255,
+  }),
+  processedAt: timestamp('processed_at', {
+    withTimezone: true,
+  }),
   error: text('error'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
 });

@@ -1,8 +1,4 @@
-import {
-  Tailwind,
-  type TailwindProps,
-  pixelBasedPreset,
-} from '@react-email/components';
+import { Tailwind, type TailwindProps, pixelBasedPreset } from '@react-email/components';
 import type { ReactNode } from 'react';
 
 type TailwindConfigProps = TailwindProps & {

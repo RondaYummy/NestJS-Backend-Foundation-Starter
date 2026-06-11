@@ -11,11 +11,7 @@ export class RedisSessionStore implements ISessionStore {
   async create(user: CurrentUser, ttlSeconds: number): Promise<string> {
     const sessionId = randomUUID();
 
-    await this.redisService.set(
-      `sessions:${sessionId}`,
-      JSON.stringify(user),
-      ttlSeconds,
-    );
+    await this.redisService.set(`sessions:${sessionId}`, JSON.stringify(user), ttlSeconds);
 
     return sessionId;
   }

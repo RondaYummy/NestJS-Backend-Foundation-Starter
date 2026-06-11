@@ -28,8 +28,6 @@ export const envSchema = z.object({
   RATE_LIMIT_AUTH_MAX: z.coerce.number().default(5),
   LOGGER_LEVEL: z.string().default('info'),
   AUTH_DRIVER: z.enum(['jwt', 'session']).default('jwt'),
-  AUTH_ACCESS_TOKEN_TTL: z.string().default('15m'),
-  AUTH_REFRESH_TOKEN_TTL: z.string().default('7d'),
   AUTH_SESSION_TTL_SECONDS: z.coerce.number().default(604800),
   JWT_SECRET: z.string().min(1),
   JWT_EXPIRES_IN: z.string().default('15m'),

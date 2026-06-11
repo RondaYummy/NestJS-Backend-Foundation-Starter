@@ -9,7 +9,7 @@ export function resolveEmailTemplate<T extends EmailTemplateId>(
 ): ReactElement {
   switch (template) {
     case EMAIL_TEMPLATE.WELCOME:
-      return <WelcomeEmail {...(data as EmailTemplateDataMap['welcome'])} />;
+      return <WelcomeEmail {...data} />;
     default:
       throw new Error(`Unknown email template: ${String(template)}`);
   }

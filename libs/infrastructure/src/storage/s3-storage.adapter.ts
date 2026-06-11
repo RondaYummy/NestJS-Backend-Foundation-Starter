@@ -50,9 +50,13 @@ export class S3StorageAdapter implements IStorageGateway {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket(), Key: key }));
   }
   async getSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
-    return await getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket(), Key: key }), {
-      expiresIn: expiresInSeconds,
-    });
+    return await getSignedUrl(
+      this.client,
+      new GetObjectCommand({ Bucket: this.bucket(), Key: key }),
+      {
+        expiresIn: expiresInSeconds,
+      },
+    );
   }
   private bucket(): string {
     return this.config.getString('storage.s3.bucket');

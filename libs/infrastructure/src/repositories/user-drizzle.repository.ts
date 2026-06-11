@@ -20,32 +20,18 @@ export class UserDrizzleRepository implements IUserRepository {
     private readonly db: DrizzleDb,
   ) {}
 
-  async findById(
-    id: string,
-    trx?: DrizzleTransactionContext,
-  ): Promise<User | null> {
+  async findById(id: string, trx?: DrizzleTransactionContext): Promise<User | null> {
     const db = trx?.tx ?? this.db;
 
-    const [row] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
+    const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
 
     return row ? UserMapper.toDomain(row) : null;
   }
 
-  async findByEmail(
-    email: string,
-    trx?: DrizzleTransactionContext,
-  ): Promise<User | null> {
+  async findByEmail(email: string, trx?: DrizzleTransactionContext): Promise<User | null> {
     const db = trx?.tx ?? this.db;
 
-    const [row] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email))
-      .limit(1);
+    const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
     return row ? UserMapper.toDomain(row) : null;
   }

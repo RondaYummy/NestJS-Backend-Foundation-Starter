@@ -317,7 +317,7 @@ libs/application/src/use-cases/users/create-user.usecase.ts
 Use-case не знає, де саме зберігається користувач — у PostgreSQL, MongoDB, API чи mock repository. Він знає тільки контракт:
 
 ```ts
-IUserRepository
+IUserRepository;
 ```
 
 ---
@@ -438,13 +438,13 @@ const attempts = configService.get('bullmq.defaultAttempts');
 У бізнес-коді не потрібно використовувати:
 
 ```ts
-process.env.DATABASE_URL
+process.env.DATABASE_URL;
 ```
 
 Правильно:
 
 ```ts
-configService.get('database.url')
+configService.get('database.url');
 ```
 
 Але навіть `configService` має використовуватись переважно в infrastructure-шарі, а не в domain/application.
@@ -693,7 +693,7 @@ libs/infrastructure/src/cache
 Application бачить тільки контракт:
 
 ```ts
-ICacheGateway
+ICacheGateway;
 ```
 
 Методи:
@@ -785,10 +785,10 @@ libs/infrastructure/src/exceptions
 Domain/application можуть кидати:
 
 ```ts
-BusinessError
-ValidationError
-NotFoundError
-ConflictError
+BusinessError;
+ValidationError;
+NotFoundError;
+ConflictError;
 ```
 
 HTTP response має виглядати так:
@@ -925,7 +925,7 @@ libs/infrastructure/src/storage
 Контракт:
 
 ```ts
-IStorageGateway
+IStorageGateway;
 ```
 
 Методи:
@@ -975,7 +975,7 @@ libs/infrastructure/src/transactions
 Контракт:
 
 ```ts
-ITransactionManager
+ITransactionManager;
 ```
 
 Метод:
@@ -1020,7 +1020,7 @@ libs/infrastructure/src/events
 Контракт:
 
 ```ts
-IEventBus
+IEventBus;
 ```
 
 Методи:
@@ -1166,7 +1166,7 @@ created_at
 Контракт:
 
 ```ts
-IAuditLogger
+IAuditLogger;
 ```
 
 Метод:
@@ -1213,7 +1213,7 @@ libs/infrastructure/src/rate-limiter
 Контракт:
 
 ```ts
-IRateLimiter
+IRateLimiter;
 ```
 
 Метод:
@@ -1267,7 +1267,7 @@ libs/infrastructure/src/locks
 Контракт:
 
 ```ts
-IDistributedLock
+IDistributedLock;
 ```
 
 Методи:
@@ -1313,25 +1313,7 @@ libs/infrastructure/src/idempotency
 - захист від повторного виконання critical jobs;
 - повернення збереженої відповіді для однакового request.
 
-Таблиця:
-
-```txt
-idempotency_keys
-```
-
-Поля:
-
-```txt
-id
-key
-scope
-request_hash
-response_payload
-status
-locked_until
-created_at
-updated_at
-```
+Поточна idempotency-реалізація використовує Redis. Вона добре підходить для звичайних API-операцій. Для фінансово критичних операцій рекомендується durable PostgreSQL implementation.
 
 Статуси:
 
@@ -1345,7 +1327,7 @@ expired
 Контракт:
 
 ```ts
-IIdempotencyService
+IIdempotencyService;
 ```
 
 Метод:

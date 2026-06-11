@@ -9,7 +9,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
 import { QUEUES } from '@contracts/queues/queue-names';
 import { IQueueGateway } from '@contracts/queues/queue-gateway';
-
+import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
+import { UserRegisteredEvent } from '@domain/events/user-registered.event';
 
 type RegisterInput = {
   email: string;
@@ -33,6 +34,9 @@ export class RegisterUseCase {
 
     @Inject(TOKENS.QueueGateway)
     private readonly queueGateway: IQueueGateway,
+
+    @Inject(TOKENS.OutboxWriter)
+    private readonly outboxWriter: IOutboxWriter,
   ) {}
 
   async execute(input: RegisterInput) {
@@ -52,6 +56,14 @@ export class RegisterUseCase {
       });
 
       await this.userRepository.save(newUser, trx);
+
+      await this.outboxWriter.append(
+        new UserRegisteredEvent({
+          userId: newUser.id,
+          email: newUser.email.toString(),
+        }),
+        trx,
+      );
 
       return newUser;
     });

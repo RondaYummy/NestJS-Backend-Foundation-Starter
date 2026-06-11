@@ -1,6 +1,6 @@
 {
-  "id": "faeaa5e3-a3f3-4dd8-8169-0c91db314a5e",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "bb988573-8ed4-4cf0-8749-28150c71cd73",
+  "prevId": "faeaa5e3-a3f3-4dd8-8169-0c91db314a5e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -75,8 +75,8 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "public.idempotency_keys": {
-      "name": "idempotency_keys",
+    "public.users": {
+      "name": "users",
       "schema": "",
       "columns": {
         "id": {
@@ -85,41 +85,24 @@
           "primaryKey": true,
           "notNull": true
         },
-        "key": {
-          "name": "key",
+        "email": {
+          "name": "email",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         },
-        "scope": {
-          "name": "scope",
+        "password_hash": {
+          "name": "password_hash",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
         },
-        "request_hash": {
-          "name": "request_hash",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "response_payload": {
-          "name": "response_payload",
+        "roles": {
+          "name": "roles",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "locked_until": {
-          "name": "locked_until",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": "'[\"user\"]'::jsonb"
         },
         "created_at": {
           "name": "created_at",
@@ -139,7 +122,13 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {}
+      "uniqueConstraints": {
+        "users_email_unique": {
+          "name": "users_email_unique",
+          "nullsNotDistinct": false,
+          "columns": ["email"]
+        }
+      }
     },
     "public.outbox_events": {
       "name": "outbox_events",
@@ -183,6 +172,18 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "locked_at": {
+          "name": "locked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locked_by": {
+          "name": "locked_by",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
         },
         "processed_at": {
           "name": "processed_at",
@@ -256,61 +257,6 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
-    },
-    "public.users": {
-      "name": "users",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "email": {
-          "name": "email",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "password_hash": {
-          "name": "password_hash",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "roles": {
-          "name": "roles",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'[\"user\"]'::jsonb"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "users_email_unique": {
-          "name": "users_email_unique",
-          "nullsNotDistinct": false,
-          "columns": ["email"]
-        }
-      }
     }
   },
   "enums": {},

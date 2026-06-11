@@ -403,17 +403,17 @@ npm run start:dev:cron
 
 ## 12. Корисні команди
 
-| Задача | Команда |
-|--------|---------|
-| API (dev) | `npm run start:dev:api` |
-| Worker (dev) | `npm run start:dev:worker` |
-| Cron (dev) | `npm run start:dev:cron` |
-| Збірка всіх apps | `npm run build` |
-| Lint | `npm run lint` |
-| Unit-тести | `npm run test:unit` |
-| Міграції | `npm run db:generate` → `npm run db:migrate` |
-| Docker | `docker compose up -d --build` |
-| Health | `GET http://localhost:3000/health` |
+| Задача           | Команда                                      |
+| ---------------- | -------------------------------------------- |
+| API (dev)        | `npm run start:dev:api`                      |
+| Worker (dev)     | `npm run start:dev:worker`                   |
+| Cron (dev)       | `npm run start:dev:cron`                     |
+| Збірка всіх apps | `npm run build`                              |
+| Lint             | `npm run lint`                               |
+| Unit-тести       | `npm run test:unit`                          |
+| Міграції         | `npm run db:generate` → `npm run db:migrate` |
+| Docker           | `docker compose up -d --build`               |
+| Health           | `GET http://localhost:3000/health`           |
 
 ---
 

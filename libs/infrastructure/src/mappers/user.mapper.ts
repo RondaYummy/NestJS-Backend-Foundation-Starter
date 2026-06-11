@@ -1,5 +1,5 @@
-import { User } from "@domain/entities/user.entity";
-import { Email } from "@domain/value-objects/email.vo";
+import { User } from '@domain/entities/user.entity';
+import { Email } from '@domain/value-objects/email.vo';
 
 export class UserMapper {
   static toDomain(row: {

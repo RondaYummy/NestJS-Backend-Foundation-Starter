@@ -1,4 +1,3 @@
-
 import type { CurrentUser } from './current-user';
 
 export interface AuthTokens {
@@ -11,7 +10,9 @@ export interface AuthTokens {
 export interface IAuthTokenService {
   createAuthSession(user: CurrentUser): Promise<AuthTokens>;
 
+  refreshAuthSession(refreshToken: string): Promise<AuthTokens>;
+
   verifyAccessToken(token: string): Promise<CurrentUser | null>;
 
-  revoke?(tokenOrSessionId: string): Promise<void>;
+  revoke(tokenOrSessionId: string): Promise<void>;
 }

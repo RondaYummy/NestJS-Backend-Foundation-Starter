@@ -6,6 +6,10 @@ import { AppConfigService } from '../config/app-config.service';
 import { CurrentUser } from '@contracts/auth/current-user';
 import { AuthTokens, IAuthTokenService } from '@contracts/auth/auth-token.service';
 
+type RefreshTokenPayload = CurrentUser & {
+  type: 'refresh';
+};
+
 @Injectable()
 export class JwtAuthTokenService implements IAuthTokenService {
   constructor(
@@ -53,5 +57,26 @@ export class JwtAuthTokenService implements IAuthTokenService {
     } catch {
       return null;
     }
+  }
+
+  async refreshAuthSession(refreshToken: string): Promise<AuthTokens> {
+    const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
+      secret: this.config.getString('jwt.refreshSecret'),
+    });
+
+    if (payload.type !== 'refresh') {
+      throw new Error('Invalid refresh token type');
+    }
+
+    return this.createAuthSession({
+      id: payload.id,
+      email: payload.email,
+      roles: payload.roles,
+    });
+  }
+
+  async revoke(_token: string): Promise<void> {
+    // JWT access token є stateless.
+    // Без token blacklist сервер не може фізично відкликати вже виданий JWT.
   }
 }

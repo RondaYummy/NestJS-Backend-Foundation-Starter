@@ -31,4 +31,9 @@ export class RedisService {
   async expire(key: string, seconds: number): Promise<void> {
     await this.redis.expire(key, seconds);
   }
+  async setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.redis.set(key, value, 'EX', ttlSeconds, 'NX');
+
+    return result === 'OK';
+  }
 }

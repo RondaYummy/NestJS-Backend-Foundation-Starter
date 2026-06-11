@@ -59,10 +59,7 @@ export default [
       '@typescript-eslint/require-await': 'error',
       '@typescript-eslint/no-unnecessary-type-assertion': 'error',
 
-      '@typescript-eslint/consistent-type-imports': [
-        'error',
-        { prefer: 'type-imports' },
-      ],
+      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports' }],
 
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -164,10 +161,8 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          selector:
-            "MemberExpression[object.name='process'][property.name='env']",
-          message:
-            'Domain must be pure TypeScript. Do not use process.env in domain.',
+          selector: "MemberExpression[object.name='process'][property.name='env']",
+          message: 'Domain must be pure TypeScript. Do not use process.env in domain.',
         },
       ],
     },
@@ -196,10 +191,8 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          selector:
-            "MemberExpression[object.name='process'][property.name='env']",
-          message:
-            'Application layer must use contracts and typed config, not process.env.',
+          selector: "MemberExpression[object.name='process'][property.name='env']",
+          message: 'Application layer must use contracts and typed config, not process.env.',
         },
       ],
     },
@@ -262,10 +255,7 @@ export default [
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            '@app/domain/*',
-            '@domain/*',
-          ],
+          patterns: ['@app/domain/*', '@domain/*'],
         },
       ],
     },

@@ -16,9 +16,7 @@ export const WelcomeEmail = ({ email }: WelcomeEmailProps) => (
       </Paragraph>
     </Block>
     <Block>
-      <Paragraph>
-        If you did not create this account, please contact our support team.
-      </Paragraph>
+      <Paragraph>If you did not create this account, please contact our support team.</Paragraph>
     </Block>
     <Block disableMargin>
       <Signoff from="Support Team" />

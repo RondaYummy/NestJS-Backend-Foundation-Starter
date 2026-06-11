@@ -13,4 +13,5 @@ export const TOKENS = {
   RateLimiter: Symbol('IRateLimiter'),
   DistributedLock: Symbol('IDistributedLock'),
   IdempotencyService: Symbol('IIdempotencyService'),
+  OutboxWriter: Symbol('IOutboxWriter'),
 } as const;

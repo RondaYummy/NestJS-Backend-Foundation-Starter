@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { LoginDto } from '../dto/auth/login.dto';
 import { RegisterUseCase } from '@application/use-cases/auth/register.usecase';
@@ -10,13 +10,18 @@ import { AuthGuard } from '../guards/auth.guard';
 import { RegisterDto } from '../dto/auth/register.dto';
 import { RateLimit } from '@infrastructure/rate-limiter/rate-limit.decorator';
 import { RateLimiterGuard } from '@infrastructure/rate-limiter/rate-limiter.guard';
+import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
+import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
+import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly registerUseCase: RegisterUseCase,
     private readonly loginUseCase: LoginUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
+    private readonly refreshAuthSessionUseCase: RefreshAuthSessionUseCase,
   ) {}
 
   @UseGuards(RateLimiterGuard)
@@ -40,6 +45,42 @@ export class AuthController {
     const result = await this.loginUseCase.execute(dto);
 
     this.attachSessionCookieIfNeeded(res, result.auth);
+
+    return {
+      success: true,
+      data: result,
+    };
+  }
+
+  @UseGuards(AuthGuard)
+  @Post('logout')
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ success: true }> {
+    const token = this.extractAuthToken(req);
+
+    if (token) {
+      await this.logoutUseCase.execute(token);
+    }
+
+    res.clearCookie('sid', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+
+    return {
+      success: true,
+    };
+  }
+
+  @Post('refresh')
+  async refresh(@Body() dto: RefreshTokenDto): Promise<{
+    success: true;
+    data: Awaited<ReturnType<RefreshAuthSessionUseCase['execute']>>;
+  }> {
+    const result = await this.refreshAuthSessionUseCase.execute(dto.refreshToken);
 
     return {
       success: true,
@@ -79,5 +120,22 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       expires: auth.expiresAt,
     });
+  }
+
+  private extractAuthToken(req: Request): string | null {
+    const sessionId = (req as Request & { cookies?: { sid?: string } }).cookies?.sid;
+
+    if (sessionId) {
+      return sessionId;
+    }
+
+    const authorization = (req as Request & { headers?: { authorization?: string } }).headers
+      ?.authorization;
+
+    if (!authorization?.startsWith('Bearer ')) {
+      return null;
+    }
+
+    return authorization.slice('Bearer '.length);
   }
 }
