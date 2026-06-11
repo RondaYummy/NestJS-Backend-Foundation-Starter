@@ -12,6 +12,7 @@ import type { DomainEvent } from '@domain/events/domain-event';
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
 import { DrizzleDb } from '@infrastructure/database/drizzle/drizzle.types';
+import { TransactionContext } from '@contracts/transactions/transaction-manager';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
