@@ -8,7 +8,6 @@ export const TOKENS = {
   EmailGateway: Symbol('IEmailGateway'),
   StorageGateway: Symbol('IStorageGateway'),
   TransactionManager: Symbol('ITransactionManager'),
-  EventBus: Symbol('IEventBus'),
   AuditLogger: Symbol('IAuditLogger'),
   RateLimiter: Symbol('IRateLimiter'),
   DistributedLock: Symbol('IDistributedLock'),

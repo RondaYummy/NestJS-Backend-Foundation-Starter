@@ -352,7 +352,6 @@ libs/contracts/src/tokens.ts
 ```ts
 export const TOKENS = {
   UserRepository: Symbol('IUserRepository'),
-  EventBus: Symbol('IEventBus'),
   QueueGateway: Symbol('IQueueGateway'),
   CacheGateway: Symbol('ICacheGateway'),
   TransactionManager: Symbol('ITransactionManager'),
@@ -1004,7 +1003,7 @@ await transactionManager.run(async (trx) => {
 
 ---
 
-## 5.12. Event Bus Module
+## 5.12. Event Bus Module ( не готовий )
 
 Шляхи:
 
