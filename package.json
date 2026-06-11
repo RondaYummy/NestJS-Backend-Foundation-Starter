@@ -6,8 +6,8 @@
   "license": "ISC",
   "description": "NestJS starter-kit with Onion Architecture and multi-entrypoint API/Worker/Cron.",
   "engines": {
-    "node": "^24",
-    "npm": ">= 11.7.0"
+    "node": ">=22 <25",
+    "npm": ">=10"
   },
   "scripts": {
     "start:api": "nest start api",

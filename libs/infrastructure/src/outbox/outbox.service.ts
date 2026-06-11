@@ -11,9 +11,7 @@ import type { DomainEvent } from '@domain/events/domain-event';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
-
-import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
-import { UserRegisteredEvent } from '@domain/events/user-registered.event';
+import { DrizzleDb } from '@infrastructure/database/drizzle/drizzle.types';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
@@ -30,13 +28,10 @@ export class OutboxService {
     private readonly queueGateway: IQueueGateway,
 
     @Inject(DRIZZLE_DB)
-    private readonly db: any,
-
-    @Inject(TOKENS.OutboxWriter)
-    private readonly outboxWriter: IOutboxWriter,
+    private readonly db: DrizzleDb,
   ) {}
 
-  async append(event: DomainEvent, transaction?: any): Promise<void> {
+  async append(event: DomainEvent, transaction?: DrizzleDb): Promise<void> {
     const executor = transaction ?? this.db;
 
     await executor.insert(outboxEvents).values({
@@ -90,7 +85,7 @@ export class OutboxService {
   }
 
   private async claimPendingBatch(): Promise<OutboxRow[]> {
-    return this.db.transaction(async (trx: any) => {
+    return this.db.transaction(async (trx) => {
       const rows = await trx
         .select()
         .from(outboxEvents)
@@ -134,11 +129,10 @@ export class OutboxService {
         eventName: event.eventName,
         payload: event.payload,
         createdAt: event.createdAt,
+      },
+      {
         jobId: `outbox:${event.id}`,
       },
-      // {
-      //   jobId: `outbox:${event.id}`,
-      // },
     );
   }
 

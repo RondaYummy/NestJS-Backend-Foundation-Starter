@@ -1,4 +1,4 @@
-import { EmailTemplateId } from '@contracts/mail/email-template-id';
+import { type EmailTemplateId } from '@contracts/mail/email-template-id';
 
 export interface IEmailGateway {
   send(input: {

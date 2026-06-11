@@ -9,6 +9,7 @@ export interface QueueJobOptions {
   backoff?: QueueJobBackoffOptions;
   removeOnComplete?: boolean | number;
   removeOnFail?: boolean | number;
+  jobId?: string;
 }
 
 export interface IQueueGateway {
