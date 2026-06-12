@@ -1,28 +1,31 @@
 import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 
 import type { IAuditLogger } from '@contracts/audit/audit-logger';
+import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
+import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import type { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { QUEUES } from '@contracts/queues/queue-names';
 import { TOKENS } from '@contracts/tokens';
+import type { TransactionContext } from '@contracts/transactions/transaction-manager';
 import type { DomainEvent } from '@domain/events/domain-event';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
+import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
-import { DrizzleDb } from '@infrastructure/database/drizzle/drizzle.types';
-import { TransactionContext } from '@contracts/transactions/transaction-manager';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
 const LOCK_TTL_MS = 5 * 60 * 1000;
 
 type OutboxRow = typeof outboxEvents.$inferSelect;
+
 type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
 
 @Injectable()
-export class OutboxService {
+export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor {
   constructor(
     @Inject(TOKENS.AuditLogger)
     private readonly auditLogger: IAuditLogger,
@@ -38,20 +41,23 @@ export class OutboxService {
     const db = trx?.tx ?? this.db;
 
     await db.insert(outboxEvents).values({
-      id: randomUUID(),
+      id: event.id,
       eventName: event.name,
       payload: event.payload,
+
+      /**
+       * Час, коли domain-подія фактично виникла.
+       * Це не те саме, що createdAt outbox-запису.
+       */
+      occurredAt: event.occurredAt,
+
       status: 'pending',
       attempts: 0,
       availableAt: new Date(),
     });
   }
 
-  async processPending(): Promise<{
-    selected: number;
-    processed: number;
-    failed: number;
-  }> {
+  async processPending(): Promise<ProcessOutboxResult> {
     const events = await this.claimPendingBatch();
 
     let processed = 0;
@@ -61,9 +67,11 @@ export class OutboxService {
       try {
         await this.publishEvent(event);
         await this.markProcessed(event.id);
+
         processed += 1;
       } catch (error) {
         await this.markFailed(event, error);
+
         failed += 1;
       }
     }
@@ -90,6 +98,7 @@ export class OutboxService {
   private async claimPendingBatch(): Promise<OutboxRow[]> {
     const workerId = randomUUID();
     const now = new Date();
+
     const expiredLockAt = new Date(now.getTime() - LOCK_TTL_MS);
 
     return this.db.transaction(async (trx) => {
@@ -105,7 +114,10 @@ export class OutboxService {
                 ${outboxEvents.status} = 'pending'
                 OR (
                   ${outboxEvents.status} = 'processing'
-                  AND ${outboxEvents.lockedAt} < ${expiredLockAt}
+                  AND (
+                    ${outboxEvents.lockedAt} IS NULL
+                    OR ${outboxEvents.lockedAt} < ${expiredLockAt}
+                  )
                 )
               )
             `,
@@ -131,8 +143,14 @@ export class OutboxService {
           lockedBy: workerId,
           updatedAt: now,
         })
-        .where(sql`${outboxEvents.id} = ANY(${ids})`);
+        .where(inArray(outboxEvents.id, ids));
 
+      /**
+       * Повертаємо snapshot вибраних рядків.
+       *
+       * attempts у них ще старий, і це нормально:
+       * attempts збільшується лише після помилки.
+       */
       return rows;
     });
   }
@@ -145,43 +163,62 @@ export class OutboxService {
         outboxEventId: event.id,
         eventName: event.eventName,
         payload: event.payload,
-        createdAt: event.createdAt,
+
+        /**
+         * Передаємо час виникнення domain event,
+         * а не час створення outbox-запису.
+         */
+        occurredAt: event.occurredAt,
       },
       {
+        /**
+         * Одна outbox-подія повинна створювати
+         * одну логічну BullMQ job.
+         */
         jobId: `outbox-${event.id}`,
       },
     );
   }
 
   private async markProcessed(id: string): Promise<void> {
+    const now = new Date();
+
     await this.db
       .update(outboxEvents)
       .set({
         status: 'processed',
-        processedAt: new Date(),
+        processedAt: now,
         lockedAt: null,
         lockedBy: null,
         error: null,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(eq(outboxEvents.id, id));
   }
 
   private async markFailed(event: OutboxRow, error: unknown): Promise<void> {
     const attempts = event.attempts + 1;
+
     const retryDelaySeconds = Math.min(2 ** attempts * 30, 3600);
+
     const permanentlyFailed = attempts >= MAX_ATTEMPTS;
+
+    const now = new Date();
 
     await this.db
       .update(outboxEvents)
       .set({
         status: permanentlyFailed ? 'failed' : 'pending',
+
         attempts,
+
         error: this.getErrorMessage(error),
-        availableAt: new Date(Date.now() + retryDelaySeconds * 1000),
+
+        availableAt: permanentlyFailed ? now : new Date(now.getTime() + retryDelaySeconds * 1000),
+
         lockedAt: null,
         lockedBy: null,
-        updatedAt: new Date(),
+        updatedAt: now,
       })
       .where(eq(outboxEvents.id, event.id));
   }

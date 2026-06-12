@@ -10,7 +10,7 @@ import type {
   RevokeAuthSessionInput,
 } from '@contracts/auth/auth-token.service';
 import type { CurrentUser } from '@contracts/auth/current-user';
-import type { IJwtTokenStore } from './jwt-token-store.service';
+import type { IJwtTokenStore } from '@contracts/auth/jwt-token-store.service';
 import { TOKENS } from '@contracts/tokens';
 
 import { AppConfigService } from '../config/app-config.service';
@@ -140,36 +140,53 @@ export class JwtAuthTokenService implements IAuthTokenService {
     };
   }
 
-  async revoke(input: RevokeAuthSessionInput): Promise<void> {
-    if (!input.accessToken) {
-      throw new BadRequestException('Access token is required for JWT logout');
-    }
+  private async tryVerifyAccessTokenForRevocation(
+    token: string,
+  ): Promise<AccessTokenPayload | null> {
+    try {
+      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+        secret: this.config.getString('jwt.secret'),
+        ignoreExpiration: true,
+      });
 
+      if (payload.type !== 'access' || !payload.jti) {
+        return null;
+      }
+
+      return payload;
+    } catch {
+      return null;
+    }
+  }
+
+  async revoke(input: RevokeAuthSessionInput): Promise<void> {
     if (!input.refreshToken) {
       throw new BadRequestException('Refresh token is required for JWT logout');
     }
 
-    const accessPayload = await this.verifyAccessTokenForRevocation(input.accessToken);
-
     const refreshPayload = await this.verifyRefreshTokenForRevocation(input.refreshToken);
 
-    /**
-     * Не дозволяємо передати access token одного
-     * користувача та refresh token іншого.
-     */
-    if (accessPayload.id !== refreshPayload.id) {
-      throw new UnauthorizedException(
-        'Access token and refresh token do not belong to the same user',
-      );
+    let accessPayload: AccessTokenPayload | null = null;
+
+    if (input.accessToken) {
+      accessPayload = await this.tryVerifyAccessTokenForRevocation(input.accessToken);
+
+      if (accessPayload && accessPayload.id !== refreshPayload.id) {
+        throw new UnauthorizedException(
+          'Access token and refresh token do not belong to the same user',
+        );
+      }
     }
 
-    const accessTokenTtlSeconds = this.getRemainingTtlSeconds(accessPayload.exp);
+    await this.tokenStore.revokeRefreshTokenFamily(refreshPayload.familyId);
 
-    await Promise.all([
-      this.tokenStore.revokeAccessToken(accessPayload.jti, accessTokenTtlSeconds),
+    if (!accessPayload) {
+      return;
+    }
 
-      this.tokenStore.revokeRefreshTokenFamily(refreshPayload.familyId),
-    ]);
+    const ttlSeconds = this.getRemainingTtlSeconds(accessPayload.exp);
+
+    await this.tokenStore.revokeAccessToken(accessPayload.jti, ttlSeconds);
   }
 
   private async issueTokenPair(user: CurrentUser, familyId: string): Promise<TokenPair> {
@@ -218,26 +235,6 @@ export class JwtAuthTokenService implements IAuthTokenService {
       refreshTokenId,
       refreshTokenTtlSeconds: this.parseDurationToSeconds(refreshExpiresIn),
     };
-  }
-
-  private async verifyAccessTokenForRevocation(token: string): Promise<AccessTokenPayload> {
-    try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.config.getString('jwt.secret'),
-      });
-
-      if (payload.type !== 'access' || !payload.jti) {
-        throw new UnauthorizedException('Invalid access token');
-      }
-
-      return payload;
-    } catch (error) {
-      if (error instanceof UnauthorizedException) {
-        throw error;
-      }
-
-      throw new UnauthorizedException('Invalid or expired access token');
-    }
   }
 
   private async verifyRefreshTokenForRevocation(token: string): Promise<RefreshTokenPayload> {

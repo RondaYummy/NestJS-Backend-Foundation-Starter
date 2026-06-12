@@ -1,4 +1,5 @@
 import { z } from 'zod';
+
 export const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_PORT: z.coerce.number().default(3000),
@@ -36,4 +37,5 @@ export const envSchema = z.object({
   PASSWORD_SALT_ROUNDS: z.coerce.number().default(10),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
 });
+
 export type Env = z.infer<typeof envSchema>;

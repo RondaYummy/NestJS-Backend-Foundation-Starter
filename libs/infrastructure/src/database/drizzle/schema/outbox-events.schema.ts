@@ -14,6 +14,11 @@ export const outboxEvents = pgTable('outbox_events', {
   lockedAt: timestamp('locked_at', {
     withTimezone: true,
   }),
+  occurredAt: timestamp('occurred_at', {
+    withTimezone: true,
+  })
+    .notNull()
+    .defaultNow(),
   lockedBy: varchar('locked_by', {
     length: 255,
   }),

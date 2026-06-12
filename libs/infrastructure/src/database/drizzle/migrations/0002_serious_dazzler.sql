@@ -1,0 +1,1 @@
+ALTER TABLE "outbox_events" ADD COLUMN "occurred_at" timestamp with time zone DEFAULT now() NOT NULL;

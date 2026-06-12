@@ -16,7 +16,12 @@ import { OutboxService } from './outbox.service';
       provide: TOKENS.OutboxWriter,
       useExisting: OutboxService,
     },
+
+    {
+      provide: TOKENS.OutboxProcessor,
+      useExisting: OutboxService,
+    },
   ],
-  exports: [OutboxService, TOKENS.OutboxWriter],
+  exports: [OutboxService, TOKENS.OutboxWriter, TOKENS.OutboxProcessor],
 })
 export class OutboxModule {}

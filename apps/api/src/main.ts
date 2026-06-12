@@ -19,7 +19,7 @@ async function bootstrap(): Promise<void> {
   app.use(cookieParser());
 
   app.enableShutdownHooks();
-  
+
   app.useLogger(app.get(AppLogger));
 
   app.useGlobalPipes(
@@ -32,7 +32,11 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get(AppConfigService);
 
-  const allowedOrigins = config.getString('app.allowedOrigins').split(',');
+  const allowedOrigins = config
+    .getString('app.allowedOrigins')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
   app.enableCors({
     origin(origin, callback) {

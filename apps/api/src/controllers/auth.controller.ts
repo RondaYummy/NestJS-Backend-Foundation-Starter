@@ -13,9 +13,9 @@ import { RateLimiterGuard } from '@infrastructure/rate-limiter/rate-limiter.guar
 import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
-import { ConfigService } from '@nestjs/config';
 import { LogoutDto } from '../dto/auth/logout.dto';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { AppConfigService } from '@infrastructure/config/app-config.service';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +25,7 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
     private readonly refreshAuthSessionUseCase: RefreshAuthSessionUseCase,
-    private readonly config: ConfigService,
+    private readonly config: AppConfigService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -57,7 +57,6 @@ export class AuthController {
     };
   }
 
-  @UseGuards(AuthGuard)
   @Post('logout')
   async logout(
     @Body() dto: LogoutDto,
@@ -77,7 +76,7 @@ export class AuthController {
     res.clearCookie('sid', {
       httpOnly: true,
       sameSite: 'lax',
-      secure: this.config.get<string>('app.env') === 'production',
+      secure: this.config.getString('app.env') === 'production',
     });
 
     return {
@@ -85,6 +84,12 @@ export class AuthController {
     };
   }
 
+  @UseGuards(RateLimiterGuard)
+  @RateLimit({
+    keyPrefix: 'auth:refresh',
+    limit: 10,
+    ttlSeconds: 60,
+  })
   @Post('refresh')
   async refresh(@Body() dto: RefreshTokenDto): Promise<{
     success: true;
@@ -98,16 +103,18 @@ export class AuthController {
     };
   }
 
-  @UseGuards(RateLimiterGuard)
-  @RateLimit({ keyPrefix: 'auth:me', limit: 3, ttlSeconds: 300 })
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, RateLimiterGuard)
+  @RateLimit({
+    keyPrefix: 'auth:me',
+    limit: 3,
+    ttlSeconds: 300,
+  })
   @Get('me')
-  async me( @Req() req: Request, @CurrentUser() user: RequestUser) {
+  async me(@CurrentUser() user: RequestUser) {
     const result = await this.getCurrentUserUseCase.execute(user.id);
 
-    this.logger.log({
-      message: 'Auth me request',
-      requestId: req.requestId,
+    this.logger.info('Auth me request', {
+      userId: user.id,
     });
 
     return {
@@ -132,7 +139,7 @@ export class AuthController {
     res.cookie('sid', auth.sessionId, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: this.config.get<string>('app.env') === 'production',
+      secure: this.config.getString('app.env') === 'production',
       expires: auth.expiresAt,
     });
   }

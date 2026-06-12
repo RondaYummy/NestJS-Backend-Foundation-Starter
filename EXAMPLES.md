@@ -212,6 +212,101 @@ async me(@CurrentUser() user: RequestUser) {
 
 ---
 
+## 5.1. JWT login, refresh і logout
+
+### Login
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com",
+    "password": "StrongPassword123!"
+  }'
+```
+
+Приклад відповіді:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "<user-id>",
+      "email": "user@example.com",
+      "roles": ["user"]
+    },
+    "auth": {
+      "accessToken": "<access-token>",
+      "refreshToken": "<refresh-token>"
+    }
+  }
+}
+```
+
+### Поточний користувач
+
+```bash
+curl http://localhost:3000/auth/me \
+  -H "Authorization: Bearer <access-token>"
+```
+
+### Refresh
+
+```bash
+curl -X POST http://localhost:3000/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "<current-refresh-token>"
+  }'
+```
+
+Після успішного refresh сервер повертає нову пару:
+
+```json
+{
+  "success": true,
+  "data": {
+    "accessToken": "<new-access-token>",
+    "refreshToken": "<new-refresh-token>"
+  }
+}
+```
+
+Потрібно замінити обидва старі токени. Старий refresh token більше не використовується.
+
+### Logout
+
+```bash
+curl -X POST http://localhost:3000/auth/logout \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "<current-refresh-token>"
+  }'
+```
+
+Після logout:
+
+- refresh-token family відкликана;
+- переданий access token доданий у blacklist;
+- старий access token повертає `401`;
+- старий refresh token повертає `401`.
+
+### Logout без access token
+
+Якщо access token уже протермінований:
+
+```bash
+curl -X POST http://localhost:3000/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "<current-refresh-token>"
+  }'
+```
+
+Refresh-token family все одно буде відкликана.
+
 ## 6. Rate limit на endpoint
 
 ```ts
@@ -246,14 +341,30 @@ RATE_LIMIT_MAX=100
 Глобально в `ApiModule` підключений `IdempotencyInterceptor`. Для мутацій передайте заголовок:
 
 ```http
-POST /auth/register
+POST /orders
 Idempotency-Key: 550e8400-e29b-41d4-a716-446655440000
 Content-Type: application/json
 
-{ "email": "...", "password": "..." }
+{
+  "productId": "product-id",
+  "quantity": 1
+}
 ```
 
-Повторний запит з тим самим ключем і тілом поверне збережений результат. `GET` ігнорується.
+Повторний запит з тим самим ключем і тим самим payload поверне збережене тіло відповіді.
+
+@Idempotent() не слід застосовувати до endpoint-ів, які:
+
+- встановлюють або очищують cookies;
+- повертають файли або stream;
+- використовують dynamic response headers;
+- можуть повертати різні успішні HTTP status codes.
+
+Тому decorator не використовується на:
+POST /auth/register
+POST /auth/login
+POST /auth/logout
+POST /auth/refresh
 
 ---
 
@@ -351,7 +462,9 @@ import { QUEUES } from '@contracts/queues/queue-names';
 @Processor(QUEUES.MY_JOB)
 export class MyJobProcessor extends WorkerHost {
   async process(job: Job<{ userId: string }>): Promise<void> {
-    // бізнес-логіка або виклик use case
+    // Тут не розміщується бізнес-логіка.
+    // Processor повинен викликати application use case.
+    await this.myJobUseCase.execute(job.data);
   }
 }
 ```

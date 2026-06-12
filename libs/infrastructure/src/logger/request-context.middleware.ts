@@ -42,16 +42,20 @@ export class RequestContextMiddleware implements NestMiddleware {
   private getHeader(req: Request, name: string): string | undefined {
     const value = req.headers[name];
 
-    if (Array.isArray(value)) {
-      return value[0]?.trim() || undefined;
-    }
+    const normalized = Array.isArray(value) ? value[0]?.trim() : value?.trim();
 
-    if (typeof value !== 'string') {
+    if (!normalized) {
       return undefined;
     }
 
-    const normalized = value.trim();
+    if (normalized.length > 128) {
+      return undefined;
+    }
 
-    return normalized || undefined;
+    if (!/^[a-zA-Z0-9._:-]+$/.test(normalized)) {
+      return undefined;
+    }
+
+    return normalized;
   }
 }

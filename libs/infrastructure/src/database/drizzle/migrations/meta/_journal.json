@@ -15,6 +15,13 @@
       "when": 1781166420775,
       "tag": "0001_oval_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781260423476,
+      "tag": "0002_serious_dazzler",
+      "breakpoints": true
     }
   ]
 }

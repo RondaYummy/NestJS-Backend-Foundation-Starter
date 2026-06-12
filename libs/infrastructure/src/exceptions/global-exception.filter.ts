@@ -8,6 +8,7 @@ import {
   ValidationError,
 } from '@domain/errors/domain-errors';
 import { AppLogger } from '../logger/app-logger.service';
+
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger) {}
@@ -26,9 +27,55 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (e instanceof HttpException) return e.getStatus();
     return HttpStatus.INTERNAL_SERVER_ERROR;
   }
-  private error(e: unknown): { code: string; message: string; details: Record<string, unknown> } {
-    if (e instanceof AppError) return { code: e.code, message: e.message, details: e.details };
-    if (e instanceof HttpException) return { code: 'HTTP_ERROR', message: e.message, details: {} };
-    return { code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error', details: {} };
+  private error(exception: unknown): {
+    code: string;
+    message: string;
+    details: Record<string, unknown>;
+  } {
+    if (exception instanceof AppError) {
+      return {
+        code: exception.code,
+        message: exception.message,
+        details: exception.details,
+      };
+    }
+
+    if (exception instanceof HttpException) {
+      const response = exception.getResponse();
+
+      if (typeof response === 'string') {
+        return {
+          code: 'HTTP_ERROR',
+          message: response,
+          details: {},
+        };
+      }
+
+      const body = response as Record<string, unknown>;
+
+      const rawMessage = body.message;
+
+      const message = typeof rawMessage === 'string' ? rawMessage : exception.message;
+
+      return {
+        code:
+          typeof body.error === 'string'
+            ? body.error.toUpperCase().replaceAll(' ', '_')
+            : 'HTTP_ERROR',
+        message,
+        details: {
+          ...body,
+          message: undefined,
+          error: undefined,
+          statusCode: undefined,
+        },
+      };
+    }
+
+    return {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'Internal server error',
+      details: {},
+    };
   }
 }

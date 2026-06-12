@@ -1,6 +1,6 @@
-export interface DomainEvent {
-  id: string;
-  name: string;
-  occurredAt: Date;
-  payload: Record<string, unknown>;
+export interface DomainEvent<TPayload = unknown> {
+  readonly id: string;
+  readonly name: string;
+  readonly payload: TPayload;
+  readonly occurredAt: Date;
 }

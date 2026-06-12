@@ -4,7 +4,7 @@ import type {
   IJwtTokenStore,
   RotateRefreshTokenInput,
   SaveRefreshTokenInput,
-} from './jwt-token-store.service';
+} from '@contracts/auth/jwt-token-store.service';
 
 import { RedisService } from '../redis/redis.service';
 

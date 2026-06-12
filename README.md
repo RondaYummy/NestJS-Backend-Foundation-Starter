@@ -232,11 +232,9 @@ apps/cron
 
 Призначення:
 
-- scheduled jobs;
-- періодичні задачі;
-- outbox polling;
-- cleanup tasks;
-- регулярні системні перевірки.
+- запуск scheduled jobs;
+- постановка технічних job у BullMQ;
+- координація періодичних задач через distributed lock.
 
 Запуск:
 
@@ -487,7 +485,34 @@ this.logger.info('User created', {
 });
 ```
 
-Для API бажано мати middleware/interceptor, який додає `requestId` до кожного HTTP-запиту.
+Для API використовується `RequestContextMiddleware`.
+
+Middleware:
+
+- читає `x-request-id`, якщо його передав клієнт або proxy;
+- створює UUID, якщо header відсутній або невалідний;
+- читає або створює `x-correlation-id`;
+- додає обидва header-и у HTTP response;
+- створює AsyncLocalStorage context для всього запиту.
+
+Реєстрація виконується у:
+
+```txt
+apps/api/src/api.module.ts
+
+consumer
+  .apply(RequestContextMiddleware)
+  .forRoutes({
+    path: '*',
+    method: RequestMethod.ALL,
+  });
+```
+
+AppLogger автоматично додає до structured logs:
+requestId
+correlationId
+userId
+traceId
 
 ---
 
@@ -1002,61 +1027,9 @@ await transactionManager.run(async (trx) => {
 
 ---
 
-## 5.12. Event Bus Module ( не готовий )
+## 5.12. Domain Events
 
-Шляхи:
-
-```txt
-libs/application/src/events
-libs/infrastructure/src/events
-```
-
-Призначення:
-
-- публікація domain events;
-- відʼєднання бізнес-операції від side effects;
-- можливість замінити in-memory реалізацію на outbox/queue-based реалізацію.
-
-Контракт:
-
-```ts
-IEventBus;
-```
-
-Методи:
-
-```ts
-publish(event: DomainEvent): Promise<void>
-publishMany(events: DomainEvent[]): Promise<void>
-```
-
-Domain event:
-
-```ts
-interface DomainEvent {
-  id: string;
-  name: string;
-  occurredAt: Date;
-  payload: Record<string, unknown>;
-}
-```
-
-Приклад:
-
-```ts
-await eventBus.publish(
-  new UserCreatedEvent({
-    userId: user.id,
-    email: user.email.value,
-  }),
-);
-```
-
-Важливо:
-
-- application публікує event;
-- application не вирішує, чи event піде в queue, outbox або просто в memory;
-- це вирішує infrastructure implementation.
+Окремий `EventBusModule` у поточній реалізації відсутній.
 
 ---
 
@@ -1087,9 +1060,12 @@ outbox_events
 id
 event_name
 payload
+occurred_at
 status
 attempts
 available_at
+locked_at
+locked_by
 processed_at
 error
 created_at
@@ -1109,12 +1085,15 @@ failed
 
 ```txt
 1. Use-case виконує бізнес-операцію
-2. Use-case публікує domain event
-3. EventBus записує event в outbox_events
-4. Cron або worker знаходить pending events
-5. Event відправляється в queue/event processor
-6. Outbox event позначається як processed
-7. Якщо була помилка — attempts збільшується, error зберігається
+2. У тій самій PostgreSQL-транзакції domain event записується в outbox_events
+3. Worker знаходить pending або прострочені processing events
+4. Worker атомарно захоплює записи через SELECT FOR UPDATE SKIP LOCKED
+5. Подія переводиться у status=processing
+6. Подія публікується в BullMQ queue
+7. Після успішної публікації outbox event позначається як processed
+8. Якщо була помилка — attempts збільшується, error зберігається
+9. До наступної спроби встановлюється available_at
+10. Після досягнення максимального attempts подія переходить у failed
 ```
 
 Для чого потрібен outbox:
@@ -1315,14 +1294,14 @@ libs/infrastructure/src/idempotency
 
 Поточна idempotency-реалізація використовує Redis. Вона добре підходить для звичайних API-операцій. Для фінансово критичних операцій рекомендується durable PostgreSQL implementation.
 
-Статуси:
+Redis-реалізація використовує два типи ключів:
 
 ```txt
-processing
-completed
-failed
-expired
+idem:<scope>:<idempotency-key>:lock
+idem:<scope>:<idempotency-key>:result
 ```
+
+lock не дозволяє двом однаковим запитам одночасно виконати handler.
 
 Контракт:
 
@@ -1338,9 +1317,14 @@ execute<T>(input: {
   scope: string;
   requestHash: string;
   ttlSeconds: number;
+  lockTtlSeconds?: number;
   handler: () => Promise<T>;
 }): Promise<T>
 ```
+
+`ttlSeconds` визначає час зберігання готового результату.
+
+`lockTtlSeconds` визначає максимальний час життя processing lock.
 
 Приклад:
 
@@ -1849,16 +1833,26 @@ Controller має викликати use-case.
 Приклад:
 
 ```ts
-@Processor(QUEUES.EMAIL)
-export class EmailProcessor {
-  constructor(private readonly sendEmailUseCase: SendEmailUseCase) {}
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import type { Job } from 'bullmq';
 
-  @Process('send-welcome-email')
-  async handle(job: Job) {
-    await this.sendEmailUseCase.execute(job.data);
+import { QUEUES } from '@contracts/queues/queue-names';
+
+@Processor(QUEUES.MY_JOB)
+export class MyJobProcessor extends WorkerHost {
+  constructor(private readonly useCase: MyJobUseCase) {
+    super();
+  }
+
+  async process(job: Job<MyJobPayload>): Promise<void> {
+    await this.useCase.execute(job.data);
   }
 }
 ```
+
+Processor повинен залишатися transport adapter-ом.
+
+Бізнес-логіку не слід розміщувати безпосередньо у `process()`. Processor має викликати application use case або event handler.
 
 ---
 
@@ -1917,6 +1911,154 @@ Repository має вміти працювати:
 Use-case не має знати деталей Drizzle transaction. Він передає абстрактний `TransactionContext`.
 
 ---
+
+# 16.1. Авторизація: JWT і Session
+
+Режим авторизації задається через:
+
+```env
+AUTH_DRIVER=jwt
+```
+
+або:
+
+```env
+AUTH_DRIVER=session
+```
+
+## JWT mode
+
+У JWT-режимі сервер повертає два токени:
+
+- `accessToken` — короткоживучий токен доступу;
+- `refreshToken` — довгоживучий токен для оновлення авторизації.
+
+Приклад:
+
+```json
+{
+  "accessToken": "<access-token>",
+  "refreshToken": "<refresh-token>"
+}
+```
+
+Access token передається через:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+## Refresh-token rotation
+
+Refresh token є одноразовим.
+
+Після кожного успішного:
+
+```http
+POST /auth/refresh
+```
+
+сервер:
+
+1. перевіряє підпис refresh token;
+2. перевіряє його стан у Redis;
+3. видаляє старий refresh token;
+4. створює новий access token;
+5. створює новий refresh token;
+6. атомарно записує новий refresh token у Redis;
+7. повертає клієнту нову пару токенів.
+
+Після успішного refresh клієнт повинен замінити обидва токени:
+
+```txt
+old accessToken  → new accessToken
+old refreshToken → new refreshToken
+```
+
+Старий refresh token більше не можна використовувати.
+
+## Token family
+
+При login або register створюється окрема refresh-token family.
+
+У межах однієї family активним є тільки останній refresh token.
+
+```txt
+login
+  ↓
+refresh token A
+  ↓ refresh
+refresh token B
+  ↓ refresh
+refresh token C
+```
+
+Якщо вже використаний token `A` буде відправлений повторно, система розглядає це як можливий replay attack і відкликає всю family.
+
+Після цього актуальний token `C` також перестає працювати, а користувач повинен виконати login повторно.
+
+## Redis state
+
+Redis використовується для:
+
+- зберігання активного refresh token;
+- зберігання поточного token ID для family;
+- атомарної rotation;
+- blacklist відкликаних access token-ів.
+
+Основні ключі:
+
+```txt
+auth:refresh-token:<refresh-jti>
+auth:refresh-family:<family-id>
+auth:revoked-access-token:<access-jti>
+```
+
+Усі ключі мають TTL.
+
+## JWT logout
+
+Для повного logout рекомендовано передати:
+
+```http
+POST /auth/logout
+Authorization: Bearer <access-token>
+Content-Type: application/json
+```
+
+```json
+{
+  "refreshToken": "<current-refresh-token>"
+}
+```
+
+Під час logout сервер:
+
+1. перевіряє refresh token;
+2. відкликає refresh-token family;
+3. перевіряє access token, якщо він переданий;
+4. додає access token у blacklist до завершення його строку дії.
+
+Logout може працювати навіть без чинного access token. У такому випадку буде відкликана refresh-token family.
+
+## Session mode
+
+У session-режимі сервер створює сесію в Redis і встановлює cookie:
+
+```txt
+sid=<session-id>
+```
+
+Cookie має використовувати:
+
+```txt
+httpOnly=true
+sameSite=lax
+secure=true у production
+path=/
+```
+
+Під час logout Redis-сесія видаляється, а cookie очищується.
 
 # 17. Outbox
 
@@ -2141,8 +2283,15 @@ S3_BUCKET=
 S3_ACCESS_KEY_ID=
 S3_SECRET_ACCESS_KEY=
 
-JWT_SECRET=dev-secret
-JWT_EXPIRES_IN=1d
+AUTH_DRIVER=jwt
+AUTH_SESSION_TTL_SECONDS=604800
+
+JWT_SECRET=dev-access-secret-change-me
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=dev-refresh-secret-change-me
+JWT_REFRESH_EXPIRES_IN=7d
+
+PASSWORD_SALT_ROUNDS=10
 
 RATE_LIMIT_TTL=60
 RATE_LIMIT_MAX=100
