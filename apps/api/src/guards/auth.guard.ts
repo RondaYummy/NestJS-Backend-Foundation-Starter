@@ -46,22 +46,17 @@ export class AuthGuard implements CanActivate {
     const authorization = request.headers.authorization;
 
     if (authorization?.startsWith('Bearer ')) {
-      return authorization.replace('Bearer ', '').trim();
+      const token = authorization.slice('Bearer '.length).trim();
+
+      return token || null;
     }
 
-    const cookieHeader = request.headers.cookie;
+    const req = request as Request & {
+      cookies?: {
+        sid?: string;
+      };
+    };
 
-    if (!cookieHeader) {
-      return null;
-    }
-
-    const cookies = Object.fromEntries(
-      cookieHeader.split(';').map((cookie) => {
-        const [key, ...value] = cookie.trim().split('=');
-        return [key, decodeURIComponent(value.join('='))];
-      }),
-    );
-
-    return cookies.sid ?? null;
+    return req.cookies?.sid ?? null;
   }
 }
