@@ -9,12 +9,15 @@ import type { Request } from 'express';
 import type { RequestUser } from '../types/request-user.type';
 import { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { TOKENS } from '@contracts/tokens';
+import { RequestContextService } from '@infrastructure/logger/request-context.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(
     @Inject(TOKENS.AuthTokenService)
     private readonly authTokenService: IAuthTokenService,
+
+    private readonly requestContext: RequestContextService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -33,6 +36,8 @@ export class AuthGuard implements CanActivate {
     }
 
     request.user = user;
+
+    this.requestContext.setUserId(user.id);
 
     return true;
   }

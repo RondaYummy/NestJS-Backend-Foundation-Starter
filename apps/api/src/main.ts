@@ -7,15 +7,20 @@ import { NestFactory } from '@nestjs/core';
 import { AppConfigService } from '@infrastructure/config/app-config.service';
 
 import { ApiModule } from './api.module';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { AppLogger } from '@infrastructure/logger/app-logger.service';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(ApiModule, {
+  const app = await NestFactory.create<NestExpressApplication>(ApiModule, {
     bufferLogs: true,
   });
 
+  app.set('trust proxy', 1);
   app.use(cookieParser());
 
   app.enableShutdownHooks();
+  
+  app.useLogger(app.get(AppLogger));
 
   app.useGlobalPipes(
     new ValidationPipe({

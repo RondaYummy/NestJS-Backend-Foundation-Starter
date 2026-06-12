@@ -10,9 +10,8 @@ export class RedisRateLimiter implements IRateLimiter {
     limit: number;
     ttlSeconds: number;
   }): Promise<{ allowed: boolean; remaining: number; resetAt: Date }> {
-    const count = await this.redis.incr(input.key);
-    if (count === 1) await this.redis.expire(input.key, input.ttlSeconds);
-    const ttl = await this.redis.ttl(input.key);
+    const { count, ttl } = await this.redis.incrementWithTtl(input.key, input.ttlSeconds);
+
     return {
       allowed: count <= input.limit,
       remaining: Math.max(input.limit - count, 0),

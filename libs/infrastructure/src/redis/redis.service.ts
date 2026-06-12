@@ -62,4 +62,25 @@ export class RedisService {
   eval(script: string, numberOfKeys: number, ...args: Array<string | number>): Promise<unknown> {
     return this.redis.eval(script, numberOfKeys, ...args);
   }
+
+  async incrementWithTtl(key: string, ttlSeconds: number): Promise<{ count: number; ttl: number }> {
+    const script = `
+      local count = redis.call("incr", KEYS[1])
+  
+      if count == 1 then
+        redis.call("expire", KEYS[1], ARGV[1])
+      end
+  
+      local ttl = redis.call("ttl", KEYS[1])
+  
+      return { count, ttl }
+    `;
+
+    const result = (await this.redis.eval(script, 1, key, ttlSeconds)) as [number, number];
+
+    return {
+      count: Number(result[0]),
+      ttl: Number(result[1]),
+    };
+  }
 }

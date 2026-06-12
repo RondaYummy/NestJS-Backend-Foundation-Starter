@@ -15,6 +15,7 @@ import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-a
 import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
 import { ConfigService } from '@nestjs/config';
 import { LogoutDto } from '../dto/auth/logout.dto';
+import { AppLogger } from '@infrastructure/logger/app-logger.service';
 
 @Controller('auth')
 export class AuthController {
@@ -25,6 +26,7 @@ export class AuthController {
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
     private readonly refreshAuthSessionUseCase: RefreshAuthSessionUseCase,
     private readonly config: ConfigService,
+    private readonly logger: AppLogger,
   ) {}
 
   @UseGuards(RateLimiterGuard)
@@ -100,8 +102,13 @@ export class AuthController {
   @RateLimit({ keyPrefix: 'auth:me', limit: 3, ttlSeconds: 300 })
   @UseGuards(AuthGuard)
   @Get('me')
-  async me(@CurrentUser() user: RequestUser) {
+  async me( @Req() req: Request, @CurrentUser() user: RequestUser) {
     const result = await this.getCurrentUserUseCase.execute(user.id);
+
+    this.logger.log({
+      message: 'Auth me request',
+      requestId: req.requestId,
+    });
 
     return {
       success: true,
