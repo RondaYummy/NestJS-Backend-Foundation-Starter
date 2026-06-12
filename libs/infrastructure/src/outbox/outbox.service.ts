@@ -148,7 +148,7 @@ export class OutboxService {
         createdAt: event.createdAt,
       },
       {
-        jobId: `outbox:${event.id}`,
+        jobId: `outbox-${event.id}`,
       },
     );
   }

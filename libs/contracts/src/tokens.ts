@@ -3,6 +3,7 @@ export const TOKENS = {
   AuthTokenService: Symbol('IAuthTokenService'),
   PasswordHasher: Symbol('IPasswordHasher'),
   SessionStore: Symbol('ISessionStore'),
+  JwtTokenStore: Symbol('IJwtTokenStore'),
   CacheGateway: Symbol('ICacheGateway'),
   QueueGateway: Symbol('IQueueGateway'),
   EmailGateway: Symbol('IEmailGateway'),

@@ -6,9 +6,10 @@ import { GlobalExceptionFilter } from '@infrastructure/exceptions/global-excepti
 import { requestContextMiddleware } from '@infrastructure/logger/request-context.middleware';
 import { IdempotencyInterceptor } from '@infrastructure/idempotency/idempotency.interceptor';
 import { AuthController } from './controllers/auth.controller';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 
 @Module({
-  imports: [InfrastructureModule, ApplicationModule],
+  imports: [InfrastructureModule, ApplicationModule, OutboxModule],
   controllers: [AuthController],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },

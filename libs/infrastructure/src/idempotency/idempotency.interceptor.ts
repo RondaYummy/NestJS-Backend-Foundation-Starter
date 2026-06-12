@@ -17,45 +17,37 @@ export class IdempotencyInterceptor implements NestInterceptor {
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const enabled = this.reflector.getAllAndOverride<boolean>(
-      IDEMPOTENT_KEY,
-      [context.getHandler(), context.getClass()],
-    );
-    
+    const enabled = this.reflector.getAllAndOverride<boolean>(IDEMPOTENT_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
     if (!enabled) {
       return next.handle();
     }
-    
+
     const req = context.switchToHttp().getRequest<Request>();
     const key = req.header('Idempotency-Key');
     if (!key) {
-      throw new ConflictError(
-        'IDEMPOTENCY_KEY_REQUIRED',
-        'Idempotency-Key header is required',
-      );
+      throw new ConflictError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
     }
     const request = req as Request & {
       user?: {
         id: string;
       };
     };
-    
+
     const actorId = request.user?.id ?? request.ip;
-    
-    const scope = [
-      actorId,
-      req.method,
-      req.baseUrl,
-      req.path,
-    ].join(':');
-    
+
+    const scope = [actorId, req.method, req.baseUrl, req.path].join(':');
+
     const requestHash = hashObject({
       body: req.body,
       params: req.params,
       query: req.query,
       contentType: req.headers['content-type'],
     });
-    
+
     return from(
       this.idem.execute({
         key,

@@ -4,8 +4,10 @@ import { RegisterUseCase } from './use-cases/auth/register.usecase';
 import { LoginUseCase } from './use-cases/auth/login.usecase';
 import { LogoutUseCase } from './use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from './use-cases/auth/refresh-auth-session.usecase';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 
 @Module({
+  imports: [OutboxModule],
   providers: [
     RegisterUseCase,
     LoginUseCase,

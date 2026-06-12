@@ -19,7 +19,7 @@ export class OutboxSchedule {
         'process-pending-outbox-events',
         {},
         {
-          jobId: 'outbox:process-pending',
+          jobId: 'outbox-process-pending',
           removeOnComplete: true,
           removeOnFail: true,
         },

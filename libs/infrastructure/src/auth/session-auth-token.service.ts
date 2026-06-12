@@ -1,10 +1,13 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
-import { IAuthTokenService } from '@contracts/auth/auth-token.service';
+import {
+  IAuthTokenService,
+  RevokeAuthSessionInput,
+  AuthTokens,
+} from '@contracts/auth/auth-token.service';
 import { ISessionStore } from '@contracts/auth/session-store.service';
 import { TOKENS } from '@contracts/tokens';
 import { CurrentUser } from '@contracts/auth/current-user';
-import { AuthTokens } from '@contracts/auth/auth-token.service';
 
 @Injectable()
 export class SessionAuthTokenService implements IAuthTokenService {
@@ -29,8 +32,12 @@ export class SessionAuthTokenService implements IAuthTokenService {
     return this.sessionStore.get(sessionId);
   }
 
-  async revoke(sessionId: string): Promise<void> {
-    await this.sessionStore.delete(sessionId);
+  async revoke(input: RevokeAuthSessionInput): Promise<void> {
+    if (!input.sessionId) {
+      return;
+    }
+
+    await this.sessionStore.delete(input.sessionId);
   }
 
   async refreshAuthSession(_refreshToken: string): Promise<AuthTokens> {

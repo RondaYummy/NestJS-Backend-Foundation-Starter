@@ -8,6 +8,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { RedisModule } from '../redis/redis.module';
 import { TOKENS } from '@contracts/tokens';
 import { InfrastructureConfigModule } from '@infrastructure/config/infrastructure-config.module';
+import { RedisJwtTokenStore } from './redis-jwt-token-store.service';
 
 @Global()
 @Module({
@@ -15,7 +16,14 @@ import { InfrastructureConfigModule } from '@infrastructure/config/infrastructur
   providers: [
     BcryptPasswordHasher,
     RedisSessionStore,
+    RedisJwtTokenStore,
+    JwtAuthTokenService,
+    SessionAuthTokenService,
 
+    {
+      provide: TOKENS.JwtTokenStore,
+      useExisting: RedisJwtTokenStore,
+    },
     {
       provide: TOKENS.PasswordHasher,
       useExisting: BcryptPasswordHasher,
@@ -41,10 +49,12 @@ import { InfrastructureConfigModule } from '@infrastructure/config/infrastructur
         return jwtAuthTokenService;
       },
     },
-
-    JwtAuthTokenService,
-    SessionAuthTokenService,
   ],
-  exports: [TOKENS.PasswordHasher, TOKENS.AuthTokenService, TOKENS.SessionStore],
+  exports: [
+    TOKENS.PasswordHasher,
+    TOKENS.AuthTokenService,
+    TOKENS.SessionStore,
+    TOKENS.JwtTokenStore,
+  ],
 })
 export class AuthModule {}

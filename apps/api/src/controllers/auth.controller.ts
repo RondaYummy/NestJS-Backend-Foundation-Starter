@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { LoginDto } from '../dto/auth/login.dto';
 import { RegisterUseCase } from '@application/use-cases/auth/register.usecase';
 import { LoginUseCase } from '@application/use-cases/auth/login.usecase';
@@ -14,6 +14,7 @@ import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
 import { ConfigService } from '@nestjs/config';
+import { LogoutDto } from '../dto/auth/logout.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -57,14 +58,19 @@ export class AuthController {
   @UseGuards(AuthGuard)
   @Post('logout')
   async logout(
+    @Body() dto: LogoutDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ success: true }> {
-    const token = this.extractAuthToken(req);
+    const sessionId = this.extractSessionId(req);
 
-    if (token) {
-      await this.logoutUseCase.execute(token);
-    }
+    const accessToken = this.extractBearerToken(req);
+
+    await this.logoutUseCase.execute({
+      sessionId: sessionId ?? undefined,
+      accessToken: accessToken ?? undefined,
+      refreshToken: dto.refreshToken,
+    });
 
     res.clearCookie('sid', {
       httpOnly: true,
@@ -124,20 +130,25 @@ export class AuthController {
     });
   }
 
-  private extractAuthToken(req: Request): string | null {
-    const sessionId = (req as Request & { cookies?: { sid?: string } }).cookies?.sid;
+  private extractSessionId(req: Request): string | null {
+    const request = req as Request & {
+      cookies?: {
+        sid?: string;
+      };
+    };
 
-    if (sessionId) {
-      return sessionId;
-    }
+    return request.cookies?.sid ?? null;
+  }
 
-    const authorization = (req as Request & { headers?: { authorization?: string } }).headers
-      ?.authorization;
+  private extractBearerToken(req: Request): string | null {
+    const authorization = req.get('authorization');
 
     if (!authorization?.startsWith('Bearer ')) {
       return null;
     }
 
-    return authorization.slice('Bearer '.length);
+    const token = authorization.slice('Bearer '.length).trim();
+
+    return token || null;
   }
 }
