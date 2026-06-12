@@ -3,10 +3,10 @@ import { ApplicationModule } from '@application/application.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { EmailProcessor } from './processors/email.processor';
 import { OutboxProcessor } from './processors/outbox.processor';
-import { DomainEventsProcessor } from './processors/user-registered.processor';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 
 @Module({
-  imports: [InfrastructureModule, ApplicationModule],
-  providers: [EmailProcessor, OutboxProcessor, DomainEventsProcessor],
+  imports: [InfrastructureModule, ApplicationModule, OutboxModule],
+  providers: [EmailProcessor, OutboxProcessor],
 })
 export class WorkerModule {}

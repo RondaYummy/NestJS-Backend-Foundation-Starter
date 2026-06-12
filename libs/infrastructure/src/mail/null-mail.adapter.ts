@@ -1,9 +1,21 @@
+import { IEmailGateway } from '@contracts/mail/email-gateway';
+import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { Injectable } from '@nestjs/common';
-import type { IEmailGateway } from '@contracts/mail/email-gateway';
 
 @Injectable()
 export class NullMailAdapter implements IEmailGateway {
-  async send(): Promise<void> {
-    return Promise.resolve();
+  constructor(private readonly logger: AppLogger) {}
+
+  async send(input: {
+    to: string | string[];
+    subject: string;
+    html?: string;
+    text?: string;
+    from?: string;
+  }): Promise<void> {
+    this.logger.info('Email skipped by null mail driver', {
+      to: input.to,
+      subject: input.subject,
+    });
   }
 }

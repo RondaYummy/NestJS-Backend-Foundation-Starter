@@ -29,7 +29,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
   private error(exception: unknown): {
     code: string;
-    message: string;
+    message: string | string[];
     details: Record<string, unknown>;
   } {
     if (exception instanceof AppError) {
@@ -55,7 +55,11 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       const rawMessage = body.message;
 
-      const message = typeof rawMessage === 'string' ? rawMessage : exception.message;
+      const message = Array.isArray(rawMessage)
+        ? rawMessage.filter((item): item is string => typeof item === 'string')
+        : typeof rawMessage === 'string'
+          ? rawMessage
+          : exception.message;
 
       return {
         code:

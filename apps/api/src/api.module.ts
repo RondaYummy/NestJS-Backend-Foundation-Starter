@@ -6,10 +6,18 @@ import { RequestContextMiddleware } from '@infrastructure/logger/request-context
 import { AuthController } from './controllers/auth.controller';
 import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 import { ApplicationModule } from '@application/application.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { IdempotencyInterceptor } from '@infrastructure/idempotency/idempotency.interceptor';
 
 @Module({
   imports: [InfrastructureModule, ApplicationModule, OutboxModule],
   controllers: [AuthController],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: IdempotencyInterceptor,
+    },
+  ],
 })
 export class ApiModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

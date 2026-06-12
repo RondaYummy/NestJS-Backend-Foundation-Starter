@@ -39,19 +39,13 @@ export class RegisterUseCase {
     const email = Email.create(input.email);
 
     const user = await this.transactionManager.run(async (trx) => {
-      const existingUser = await this.userRepository.findByEmail(email.toString(), trx);
-
-      if (existingUser) {
-        throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
-      }
-
       const newUser = User.create({
         email: email.toString(),
         passwordHash,
         roles: ['user'],
       });
 
-      await this.userRepository.save(newUser, trx);
+      await this.userRepository.insert(newUser, trx);
 
       await this.outboxWriter.append(
         new UserRegisteredEvent({
