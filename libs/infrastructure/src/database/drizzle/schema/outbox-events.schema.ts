@@ -8,6 +8,7 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const outboxEvents = pgTable(
   'outbox_events',
@@ -47,18 +48,22 @@ export const outboxEvents = pgTable(
     })
       .notNull()
       .defaultNow(),
-  },
-  (table) => ({
-    pendingLookupIndex: index('outbox_events_pending_lookup_idx').on(
-      table.status,
-      table.availableAt,
-      table.attempts,
-      table.createdAt,
-    ),
-
-    processingLockIndex: index('outbox_events_processing_lock_idx').on(
-      table.status,
-      table.lockedAt,
-    ),
-  }),
-);
+    },
+    (table) => ({
+      pendingLookupIndex: index(
+        'outbox_events_pending_lookup_idx',
+      )
+        .on(
+          table.availableAt,
+          table.attempts,
+          table.createdAt,
+        )
+        .where(sql`${table.status} = 'pending'`),
+  
+      processingLockIndex: index(
+        'outbox_events_processing_lock_idx',
+      )
+        .on(table.lockedAt)
+        .where(sql`${table.status} = 'processing'`),
+    }),
+  );

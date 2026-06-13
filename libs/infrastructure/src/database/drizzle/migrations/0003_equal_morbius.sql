@@ -5,6 +5,8 @@ ON "outbox_events" (
   "attempts",
   "created_at"
 )
+WHERE "status" = 'pending';
+
 CREATE INDEX IF NOT EXISTS
   "outbox_events_processing_lock_idx"
 ON "outbox_events" (

@@ -47,8 +47,8 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -61,8 +61,8 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 
@@ -75,8 +75,8 @@ services:
       - .:/app
       - /app/node_modules
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
 

@@ -552,9 +552,10 @@ npm run start:dev:cron
 
 - [ ] Domain: сутності / value objects / domain errors
 - [ ] Contracts: інтерфейси + `TOKENS` (за потреби)
-- [ ] Application: use case(s) + `Module`
+- [ ] Application: use case(s)
+- [ ] Apps: реєстрація use case у composition-модулі потрібного entrypoint
 - [ ] Infrastructure: repository, mapper, міграція (за потреби)
-- [ ] API: DTO, controller, `ApiModule`
+- [ ] API: DTO, controller і підключення feature composition-модуля
 - [ ] Guards / rate limit / auth (за потреби)
 - [ ] `.env.example` оновлено
 - [ ] `npm run lint` і `npm run build:api`

@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import type { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { TOKENS } from '@contracts/tokens';
 import { QUEUES } from '@contracts/queues/queue-names';
-import { IDistributedLock } from '@contracts/locks/distributed-lock';
+import { type IDistributedLock } from '@contracts/locks/distributed-lock';
 
 @Injectable()
 export class OutboxSchedule {
