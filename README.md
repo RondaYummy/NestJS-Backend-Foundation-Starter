@@ -102,7 +102,6 @@ libs/
       dto/
       ports/
       events/
-      application.module.ts
 
   contracts/
     src/

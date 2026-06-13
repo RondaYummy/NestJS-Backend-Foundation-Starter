@@ -62,11 +62,26 @@ export class GetUserByIdUseCase {
 }
 ```
 
-Зареєструйте в `libs/application/src/application.module.ts`:
+Зареєструйте use case в composition-модулі того entrypoint,
+який його використовує.
+
+Для API, наприклад:
+
+`apps/api/src/composition/users-application.module.ts`
 
 ```ts
-providers: [GetUserByIdUseCase, /* ... */],
-exports: [GetUserByIdUseCase, /* ... */],
+import { Module } from '@nestjs/common';
+
+import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
+
+import { GetUserByIdUseCase } from '@application/use-cases/users/get-user-by-id.usecase';
+
+@Module({
+  imports: [RepositoriesModule],
+  providers: [GetUserByIdUseCase],
+  exports: [GetUserByIdUseCase],
+})
+export class UsersApplicationCompositionModule {}
 ```
 
 ### Крок 4. DTO (API-шар)

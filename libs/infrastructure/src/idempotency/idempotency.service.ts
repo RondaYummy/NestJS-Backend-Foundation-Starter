@@ -44,8 +44,15 @@ export class RedisIdempotencyService implements IIdempotencyService {
     }
 
     let lockLost = false;
+    let heartbeatInProgress = false;
 
     const heartbeat = setInterval(() => {
+      if (heartbeatInProgress) {
+        return;
+      }
+
+      heartbeatInProgress = true;
+
       void this.redis
         .compareAndExpire(lockKey, lockToken, 30)
         .then((extended) => {
@@ -55,6 +62,9 @@ export class RedisIdempotencyService implements IIdempotencyService {
         })
         .catch(() => {
           lockLost = true;
+        })
+        .finally(() => {
+          heartbeatInProgress = false;
         });
     }, 10_000);
 
@@ -81,7 +91,22 @@ export class RedisIdempotencyService implements IIdempotencyService {
         response: result,
       };
 
-      await this.redis.set(resultKey, JSON.stringify(stored), input.ttlSeconds);
+      const completed = await this.redis.completeIdempotency(
+        lockKey,
+        lockToken,
+        resultKey,
+        JSON.stringify(stored),
+        input.ttlSeconds,
+      );
+
+      if (!completed) {
+        lockLost = true;
+
+        throw new ConflictError(
+          'IDEMPOTENCY_LOCK_LOST',
+          'Idempotency lock was lost during request processing',
+        );
+      }
 
       return result;
     } finally {

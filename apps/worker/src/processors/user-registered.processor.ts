@@ -18,16 +18,11 @@ type OutboxJob = {
 
 @Processor(QUEUES.EVENTS)
 export class UserRegisteredProcessor extends WorkerHost {
-  constructor(
-    private readonly handleUserRegistered:
-      HandleUserRegisteredUseCase,
-  ) {
+  constructor(private readonly handleUserRegistered: HandleUserRegisteredUseCase) {
     super();
   }
 
   async process(job: Job<OutboxJob>): Promise<void> {
-    await this.handleUserRegistered.execute(
-      job.data.payload,
-    );
+    await this.handleUserRegistered.execute(job.data.payload);
   }
 }

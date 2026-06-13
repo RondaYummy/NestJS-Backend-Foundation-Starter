@@ -97,4 +97,42 @@ export class RedisService {
 
     return Number(result) === 1;
   }
+
+  async completeIdempotency(
+    lockKey: string,
+    expectedLockToken: string,
+    resultKey: string,
+    serializedResult: string,
+    resultTtlSeconds: number,
+  ): Promise<boolean> {
+    const script = `
+      if redis.call("get", KEYS[1]) ~= ARGV[1] then
+        return 0
+      end
+  
+      redis.call(
+        "set",
+        KEYS[2],
+        ARGV[2],
+        "EX",
+        ARGV[3]
+      )
+  
+      redis.call("del", KEYS[1])
+  
+      return 1
+    `;
+
+    const result = await this.redis.eval(
+      script,
+      2,
+      lockKey,
+      resultKey,
+      expectedLockToken,
+      serializedResult,
+      resultTtlSeconds.toString(),
+    );
+
+    return Number(result) === 1;
+  }
 }

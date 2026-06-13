@@ -20,7 +20,7 @@ export class LocalStorageAdapter implements IStorageGateway {
     await writeFile(path, input.body);
     return { key: input.key, url: path };
   }
-  
+
   getObject(key: string): Promise<Buffer> {
     return readFile(this.path(key));
   }
