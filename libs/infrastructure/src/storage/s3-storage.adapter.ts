@@ -13,6 +13,7 @@ import { AppConfigService } from '../config/app-config.service';
 @Injectable()
 export class S3StorageAdapter implements IStorageGateway {
   private readonly client: S3Client;
+
   constructor(private readonly config: AppConfigService) {
     this.client = new S3Client({
       region: config.storage().s3.region,
@@ -23,6 +24,7 @@ export class S3StorageAdapter implements IStorageGateway {
       },
     });
   }
+
   async putObject(input: {
     key: string;
     body: Buffer | NodeJS.ReadableStream;
@@ -38,6 +40,7 @@ export class S3StorageAdapter implements IStorageGateway {
     );
     return { key: input.key };
   }
+
   async getObject(key: string): Promise<Buffer> {
     const response = await this.client.send(
       new GetObjectCommand({ Bucket: this.bucket(), Key: key }),
@@ -46,9 +49,11 @@ export class S3StorageAdapter implements IStorageGateway {
     for await (const chunk of response.Body as AsyncIterable<Uint8Array>) chunks.push(chunk);
     return Buffer.concat(chunks);
   }
+
   async deleteObject(key: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket(), Key: key }));
   }
+  
   async getSignedUrl(key: string, expiresInSeconds: number): Promise<string> {
     return await getSignedUrl(
       this.client,
@@ -58,6 +63,7 @@ export class S3StorageAdapter implements IStorageGateway {
       },
     );
   }
+  
   private bucket(): string {
     return this.config.storage().s3.bucket ?? '';
   }

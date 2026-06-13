@@ -20,15 +20,19 @@ export class LocalStorageAdapter implements IStorageGateway {
     await writeFile(path, input.body);
     return { key: input.key, url: path };
   }
+  
   getObject(key: string): Promise<Buffer> {
     return readFile(this.path(key));
   }
+
   async deleteObject(key: string): Promise<void> {
     await rm(this.path(key), { force: true });
   }
+
   async getSignedUrl(key: string): Promise<string> {
     return Promise.resolve(this.path(key));
   }
+
   private path(key: string): string {
     return join(this.config.storage().localPath, key);
   }

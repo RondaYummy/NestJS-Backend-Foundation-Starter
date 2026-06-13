@@ -5,9 +5,10 @@ import { AppConfigService } from '../config/app-config.service';
 import { MailTemplateService } from './mail-template.service';
 import { NullMailAdapter } from './null-mail.adapter';
 import { SmtpMailAdapter } from './smtp-mail.adapter';
+import { LoggerModule } from '@infrastructure/logger/logger.module';
 
 @Module({
-  imports: [InfrastructureConfigModule],
+  imports: [InfrastructureConfigModule, LoggerModule],
   providers: [
     MailTemplateService,
     NullMailAdapter,
