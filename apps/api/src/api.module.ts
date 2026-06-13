@@ -4,13 +4,12 @@ import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { RequestContextMiddleware } from '@infrastructure/logger/request-context.middleware';
 
 import { AuthController } from './controllers/auth.controller';
-import { OutboxModule } from '@infrastructure/outbox/outbox.module';
-import { ApplicationModule } from '@application/application.module';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { IdempotencyInterceptor } from '@infrastructure/idempotency/idempotency.interceptor';
+import { AuthApplicationCompositionModule } from './composition/auth-application.module';
 
 @Module({
-  imports: [InfrastructureModule, ApplicationModule, OutboxModule],
+  imports: [InfrastructureModule, AuthApplicationCompositionModule],
   controllers: [AuthController],
   providers: [
     {

@@ -9,6 +9,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import { UserRegisteredEvent } from '@domain/events/user-registered.event';
 import { Email } from '@domain/value-objects/email.vo';
+import { DuplicateRecordError } from '@contracts/repositories/repository-errors';
 
 type RegisterInput = {
   email: string;
@@ -45,7 +46,15 @@ export class RegisterUseCase {
         roles: ['user'],
       });
 
-      await this.userRepository.insert(newUser, trx);
+      try {
+        await this.userRepository.insert(newUser, trx);
+      } catch (error) {
+        if (error instanceof DuplicateRecordError) {
+          throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
+        }
+
+        throw error;
+      }
 
       await this.outboxWriter.append(
         new UserRegisteredEvent({

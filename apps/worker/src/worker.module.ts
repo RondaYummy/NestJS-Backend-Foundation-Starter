@@ -1,13 +1,12 @@
 import { Module } from '@nestjs/common';
-import { ApplicationModule } from '@application/application.module';
 import { InfrastructureModule } from '@infrastructure/infrastructure.module';
 import { EmailProcessor } from './processors/email.processor';
 import { OutboxProcessor } from './processors/outbox.processor';
-import { OutboxModule } from '@infrastructure/outbox/outbox.module';
 import { UserRegisteredProcessor } from './processors/user-registered.processor';
+import { WorkerApplicationCompositionModule } from './composition/worker-application.module';
 
 @Module({
-  imports: [InfrastructureModule, ApplicationModule, OutboxModule],
+  imports: [InfrastructureModule, WorkerApplicationCompositionModule],
   providers: [EmailProcessor, OutboxProcessor, UserRegisteredProcessor],
 })
 export class WorkerModule {}

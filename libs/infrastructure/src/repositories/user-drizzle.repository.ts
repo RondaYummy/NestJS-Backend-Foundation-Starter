@@ -4,12 +4,15 @@ import { eq } from 'drizzle-orm';
 import type { IUserRepository } from '@contracts/repositories/user.repository';
 import type { TransactionContext } from '@contracts/transactions/transaction-manager';
 import type { User } from '@domain/entities/user.entity';
-import { ConflictError, NotFoundError } from '@domain/errors/domain-errors';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { users } from '../database/drizzle/schema/users.schema';
 import { UserMapper } from '../mappers/user.mapper';
+import {
+  DuplicateRecordError,
+  RepositoryRecordNotFoundError,
+} from '@contracts/repositories/repository-errors';
 
 type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
 
@@ -44,7 +47,7 @@ export class UserDrizzleRepository implements IUserRepository {
       await db.insert(users).values(data);
     } catch (error) {
       if (isUniqueEmailViolation(error)) {
-        throw new ConflictError('users_email_unique', 'Email already exists');
+        throw new DuplicateRecordError('users_email_unique');
       }
 
       throw error;
@@ -69,7 +72,7 @@ export class UserDrizzleRepository implements IUserRepository {
       });
 
     if (updated.length === 0) {
-      throw new NotFoundError('users', data.id);
+      throw new RepositoryRecordNotFoundError('users', data.id);
     }
   }
 }

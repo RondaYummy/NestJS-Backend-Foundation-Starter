@@ -41,15 +41,11 @@ export class RateLimiterGuard implements CanActivate {
 
     const limit =
       options?.limit ??
-      (isAuthEndpoint
-        ? this.config.rateLimit().authMax
-        : this.config.rateLimit().max);
+      (isAuthEndpoint ? this.config.rateLimit().authMax : this.config.rateLimit().max);
 
     const ttlSeconds =
       options?.ttlSeconds ??
-      (isAuthEndpoint
-        ? this.config.rateLimit().authTtl
-        : this.config.rateLimit().ttl);
+      (isAuthEndpoint ? this.config.rateLimit().authTtl : this.config.rateLimit().ttl);
 
     const result = await this.limiter.check({
       key: `${keyPrefix}:${req.ip}`,

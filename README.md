@@ -649,17 +649,17 @@ add<T>(
   queueName: string,
   jobName: string,
   payload: T,
-  options?: JobsOptions,
-): Promise<string>;
+  options?: QueueJobOptions,
+): Promise<string>
 
 addBulk<T>(
   queueName: string,
   jobs: Array<{
     name: string;
     payload: T;
-    options?: JobsOptions;
+    options?: QueueJobOptions;
   }>,
-): Promise<string[]>;
+): Promise<string[]>
 ```
 
 Приклад:
@@ -1013,7 +1013,7 @@ run<T>(handler: (trx: TransactionContext) => Promise<T>): Promise<T>
 
 ```ts
 await transactionManager.run(async (trx) => {
-  await userRepository.save(user, trx);
+  await userRepository.insert(user, trx);
   await auditRepository.create(log, trx);
 });
 ```
@@ -1390,7 +1390,6 @@ libs/contracts/src/repositories/user.repository.ts
 export interface IUserRepository {
   findById(id: string): Promise<User | null>;
   findByEmail(email: string): Promise<User | null>;
-  save(user: User, trx?: TransactionContext): Promise<void>;
 }
 ```
 
@@ -1739,7 +1738,6 @@ libs/contracts/src/repositories/order.repository.ts
 ```ts
 export interface IOrderRepository {
   findById(id: string): Promise<Order | null>;
-  save(order: Order, trx?: TransactionContext): Promise<void>;
 }
 ```
 
@@ -1898,7 +1896,7 @@ Transactions використовуються тоді, коли кілька о
 
 ```ts
 await transactionManager.run(async (trx) => {
-  await userRepository.save(user, trx);
+  await userRepository.insert(user, trx);
   await auditRepository.create(log, trx);
 });
 ```

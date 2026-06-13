@@ -1,0 +1,36 @@
+import { Module } from '@nestjs/common';
+
+import { AuthModule } from '@infrastructure/auth/auth.module';
+import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
+import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
+
+import { RegisterUseCase } from '@application/use-cases/auth/register.usecase';
+import { LoginUseCase } from '@application/use-cases/auth/login.usecase';
+import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
+import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
+import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-user.usecase';
+
+@Module({
+  imports: [
+    AuthModule,
+    RepositoriesModule,
+    TransactionsModule,
+    OutboxModule,
+  ],
+  providers: [
+    RegisterUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshAuthSessionUseCase,
+    GetCurrentUserUseCase,
+  ],
+  exports: [
+    RegisterUseCase,
+    LoginUseCase,
+    LogoutUseCase,
+    RefreshAuthSessionUseCase,
+    GetCurrentUserUseCase,
+  ],
+})
+export class AuthApplicationCompositionModule {}

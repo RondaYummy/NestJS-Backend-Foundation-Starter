@@ -123,7 +123,7 @@ npm run start:dev:api
 
 1. Створіть файл у `libs/application/src/use-cases/<feature>/`.
 2. Інжектіть залежності через `@Inject(TOKENS.…)`.
-3. Додайте клас у `ApplicationModule` (`providers` + `exports`).
+3. Додайте клас у `Module` (`providers` + `exports`).
 4. Використайте в controller, worker processor або cron schedule.
 
 ---
@@ -537,7 +537,7 @@ npm run start:dev:cron
 
 - [ ] Domain: сутності / value objects / domain errors
 - [ ] Contracts: інтерфейси + `TOKENS` (за потреби)
-- [ ] Application: use case(s) + `ApplicationModule`
+- [ ] Application: use case(s) + `Module`
 - [ ] Infrastructure: repository, mapper, міграція (за потреби)
 - [ ] API: DTO, controller, `ApiModule`
 - [ ] Guards / rate limit / auth (за потреби)
