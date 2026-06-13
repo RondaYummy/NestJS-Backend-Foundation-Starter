@@ -53,9 +53,34 @@ export class RedisDistributedLock implements IDistributedLock {
       return null;
     }
 
+    const heartbeatIntervalMs = Math.max(Math.floor(ttlMs / 3), 1_000);
+
+    let lockLost = false;
+
+    const heartbeat = setInterval(() => {
+      void this.extend(lock, ttlMs)
+        .then((extended) => {
+          if (!extended) {
+            lockLost = true;
+          }
+        })
+        .catch(() => {
+          lockLost = true;
+        });
+    }, heartbeatIntervalMs);
+
+    heartbeat.unref();
+
     try {
-      return await handler();
+      const result = await handler();
+
+      if (lockLost) {
+        throw new Error(`Distributed lock was lost during execution: ${key}`);
+      }
+
+      return result;
     } finally {
+      clearInterval(heartbeat);
       await this.release(lock);
     }
   }
