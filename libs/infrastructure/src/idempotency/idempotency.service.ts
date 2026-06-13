@@ -43,6 +43,12 @@ export class RedisIdempotencyService implements IIdempotencyService {
       });
     }
 
+    const heartbeat = setInterval(() => {
+      void this.redis.compareAndExpire(lockKey, lockToken, 30);
+    }, 10_000);
+
+    heartbeat.unref();
+
     try {
       const doubleChecked = await this.redis.get(resultKey);
 
@@ -61,6 +67,8 @@ export class RedisIdempotencyService implements IIdempotencyService {
 
       return result;
     } finally {
+      clearInterval(heartbeat);
+
       await this.redis.compareAndDelete(lockKey, lockToken);
     }
   }

@@ -83,4 +83,18 @@ export class RedisService {
       ttl: Number(result[1]),
     };
   }
+
+  async compareAndExpire(key: string, expectedValue: string, ttlSeconds: number): Promise<boolean> {
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("expire", KEYS[1], ARGV[2])
+      end
+  
+      return 0
+    `;
+
+    const result = await this.redis.eval(script, 1, key, expectedValue, ttlSeconds);
+
+    return Number(result) === 1;
+  }
 }

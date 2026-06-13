@@ -12,12 +12,7 @@ import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-a
 import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-user.usecase';
 
 @Module({
-  imports: [
-    AuthModule,
-    RepositoriesModule,
-    TransactionsModule,
-    OutboxModule,
-  ],
+  imports: [AuthModule, RepositoriesModule, TransactionsModule, OutboxModule],
   providers: [
     RegisterUseCase,
     LoginUseCase,
