@@ -8,7 +8,7 @@ export class BcryptPasswordHasher implements IPasswordHasher {
   constructor(private readonly config: AppConfigService) {}
 
   async hash(password: string): Promise<string> {
-    const rounds = this.config.getNumber('auth.passwordSaltRounds');
+    const rounds = this.config.auth().passwordSaltRounds;
     return await bcrypt.hash(password, rounds);
   }
 

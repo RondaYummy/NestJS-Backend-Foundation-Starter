@@ -29,8 +29,8 @@ export class BullQueueGateway implements IQueueGateway {
     options?: JobsOptions,
   ): Promise<string> {
     const job = await this.getQueue(queueName).add(jobName, payload, {
-      attempts: this.config.getNumber('bullmq.defaultAttempts'),
-      backoff: { type: 'exponential', delay: this.config.getNumber('bullmq.backoffDelay') },
+      attempts: this.config.bullmq().defaultAttempts,
+      backoff: { type: 'exponential', delay: this.config.bullmq().backoffDelay },
       removeOnComplete: 1000,
       removeOnFail: 5000,
       ...options,

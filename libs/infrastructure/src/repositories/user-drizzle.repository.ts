@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { IUserRepository } from '@contracts/repositories/user.repository';
 import type { TransactionContext } from '@contracts/transactions/transaction-manager';
 import type { User } from '@domain/entities/user.entity';
-import { ConflictError } from '@domain/errors/domain-errors';
+import { ConflictError, NotFoundError } from '@domain/errors/domain-errors';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import type { DrizzleDb } from '../database/drizzle/drizzle.types';
@@ -36,29 +36,40 @@ export class UserDrizzleRepository implements IUserRepository {
     return row ? UserMapper.toDomain(row) : null;
   }
 
-  async save(user: User, trx?: DrizzleTransactionContext): Promise<void> {
+  async insert(user: User, trx?: DrizzleTransactionContext): Promise<void> {
     const db = trx?.tx ?? this.db;
     const data = UserMapper.toPersistence(user);
 
     try {
-      await db
-        .insert(users)
-        .values(data)
-        .onConflictDoUpdate({
-          target: users.id,
-          set: {
-            email: data.email,
-            passwordHash: data.passwordHash,
-            roles: data.roles,
-            updatedAt: new Date(),
-          },
-        });
+      await db.insert(users).values(data);
     } catch (error) {
       if (isUniqueEmailViolation(error)) {
-        throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
+        throw new ConflictError('users_email_unique', 'Email already exists');
       }
 
       throw error;
+    }
+  }
+
+  async update(user: User, trx?: DrizzleTransactionContext): Promise<void> {
+    const db = trx?.tx ?? this.db;
+    const data = UserMapper.toPersistence(user);
+
+    const updated = await db
+      .update(users)
+      .set({
+        email: data.email,
+        passwordHash: data.passwordHash,
+        roles: data.roles,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, data.id))
+      .returning({
+        id: users.id,
+      });
+
+    if (updated.length === 0) {
+      throw new NotFoundError('users', data.id);
     }
   }
 }

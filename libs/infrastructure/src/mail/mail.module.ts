@@ -16,7 +16,7 @@ import { SmtpMailAdapter } from './smtp-mail.adapter';
       provide: TOKENS.EmailGateway,
       inject: [AppConfigService, NullMailAdapter, SmtpMailAdapter],
       useFactory: (config: AppConfigService, nullMail: NullMailAdapter, smtp: SmtpMailAdapter) =>
-        config.getString('mail.driver') === 'smtp' ? smtp : nullMail,
+        config.mail().driver === 'smtp' ? smtp : nullMail,
     },
   ],
   exports: [TOKENS.EmailGateway, MailTemplateService],

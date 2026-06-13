@@ -33,8 +33,8 @@ async function bootstrap(): Promise<void> {
   const config = app.get(AppConfigService);
 
   const allowedOrigins = config
-    .getString('app.allowedOrigins')
-    .split(',')
+    .app()
+    .allowedOrigins.split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
 
@@ -50,7 +50,7 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  await app.listen(config.getNumber('app.port'));
+  await app.listen(config.app().port);
 }
 
 void bootstrap();

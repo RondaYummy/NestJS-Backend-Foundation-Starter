@@ -15,7 +15,7 @@ export class AppLogger implements LoggerService {
     private readonly requestContext: RequestContextService,
   ) {
     this.logger = pino({
-      level: config.getString('logger.level'),
+      level: config.logger().level,
     });
   }
 

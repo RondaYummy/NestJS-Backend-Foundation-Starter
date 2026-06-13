@@ -15,11 +15,11 @@ export class S3StorageAdapter implements IStorageGateway {
   private readonly client: S3Client;
   constructor(private readonly config: AppConfigService) {
     this.client = new S3Client({
-      region: config.getString('storage.s3.region'),
-      endpoint: config.getString('storage.s3.endpoint') || undefined,
+      region: config.storage().s3.region,
+      endpoint: config.storage().s3.endpoint || undefined,
       credentials: {
-        accessKeyId: config.getString('storage.s3.accessKeyId'),
-        secretAccessKey: config.getString('storage.s3.secretAccessKey'),
+        accessKeyId: config.storage().s3.accessKeyId ?? '',
+        secretAccessKey: config.storage().s3.secretAccessKey ?? '',
       },
     });
   }
@@ -59,6 +59,6 @@ export class S3StorageAdapter implements IStorageGateway {
     );
   }
   private bucket(): string {
-    return this.config.getString('storage.s3.bucket');
+    return this.config.storage().s3.bucket ?? '';
   }
 }

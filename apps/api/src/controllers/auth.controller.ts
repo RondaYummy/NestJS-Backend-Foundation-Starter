@@ -76,7 +76,7 @@ export class AuthController {
     res.clearCookie('sid', {
       httpOnly: true,
       sameSite: 'lax',
-      secure: this.config.getString('app.env') === 'production',
+      secure: this.config.app().env === 'production',
     });
 
     return {
@@ -139,7 +139,7 @@ export class AuthController {
     res.cookie('sid', auth.sessionId, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: this.config.getString('app.env') === 'production',
+      secure: this.config.app().env === 'production',
       expires: auth.expiresAt,
     });
   }

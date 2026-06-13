@@ -177,7 +177,10 @@ async execute(input: RegisterInput) {
     if (existing) throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
 
     const newUser = User.create({ email: input.email, passwordHash });
-    await this.userRepository.save(newUser, trx);
+    await this.userRepository.insert(
+      newUser,
+      trx,
+    );
     return newUser;
   });
 
@@ -374,7 +377,7 @@ POST /auth/refresh
 2. `libs/infrastructure/src/config/infrastructure-config.module.ts` — мапінг у nested config.
 3. `libs/infrastructure/src/config/app-config.service.ts` — тип у `ConfigShape`.
 4. `.env.example` — документація для команди.
-5. Використання: `config.getString('section.key')` у **infrastructure**, не в domain/application.
+5. Використання: `config.app('section.key')` у **infrastructure**, не в domain/application.
 
 ---
 

@@ -14,7 +14,7 @@ import { S3StorageAdapter } from './s3-storage.adapter';
       provide: TOKENS.StorageGateway,
       inject: [AppConfigService, LocalStorageAdapter, S3StorageAdapter],
       useFactory: (config: AppConfigService, local: LocalStorageAdapter, s3: S3StorageAdapter) =>
-        config.getString('storage.driver') === 's3' ? s3 : local,
+        config.storage().driver === 's3' ? s3 : local,
     },
   ],
   exports: [TOKENS.StorageGateway],

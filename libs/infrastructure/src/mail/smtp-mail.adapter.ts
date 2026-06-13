@@ -9,11 +9,11 @@ export class SmtpMailAdapter implements IEmailGateway {
 
   constructor(private readonly config: AppConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.config.getString('mail.smtp.host'),
-      port: this.config.getNumber('mail.smtp.port'),
+      host: this.config.mail().smtp.host,
+      port: this.config.mail().smtp.port,
       auth: {
-        user: this.config.getString('mail.smtp.user'),
-        pass: this.config.getString('mail.smtp.password'),
+        user: this.config.mail().smtp.user,
+        pass: this.config.mail().smtp.password,
       },
     });
   }
@@ -26,7 +26,7 @@ export class SmtpMailAdapter implements IEmailGateway {
     from?: string;
   }): Promise<void> {
     await this.transporter.sendMail({
-      from: input.from ?? this.config.getString('mail.smtp.from'),
+      from: input.from ?? this.config.mail().smtp.from,
       to: input.to,
       subject: input.subject,
       html: input.html,

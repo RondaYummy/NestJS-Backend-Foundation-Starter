@@ -41,18 +41,7 @@ type Leaves<T> = T extends object
 
 @Injectable()
 export class AppConfigService {
-  constructor(private readonly config: ConfigService) {}
-
-  get<K extends Leaves<ConfigShape>>(key: K): unknown {
-    return this.config.get(key, { infer: true });
-  }
-  getString(key: Leaves<ConfigShape>): string {
-    return String(this.get(key) ?? '');
-  }
-  getNumber(key: Leaves<ConfigShape>): number {
-    return Number(this.get(key));
-  }
-
+  constructor(private readonly config: ConfigService<ConfigShape, true>) {}
   app(): ConfigShape['app'] {
     return this.config.get('app', { infer: true }) as ConfigShape['app'];
   }
@@ -71,5 +60,25 @@ export class AppConfigService {
 
   auth(): ConfigShape['auth'] {
     return this.config.get('auth', { infer: true }) as ConfigShape['auth'];
+  }
+
+  rateLimit(): ConfigShape['rateLimit'] {
+    return this.config.get('rateLimit', { infer: true }) as ConfigShape['rateLimit'];
+  }
+
+  logger(): ConfigShape['logger'] {
+    return this.config.get('logger', { infer: true }) as ConfigShape['logger'];
+  }
+
+  bullmq(): ConfigShape['bullmq'] {
+    return this.config.get('bullmq', { infer: true });
+  }
+
+  mail(): ConfigShape['mail'] {
+    return this.config.get('mail', { infer: true });
+  }
+
+  storage(): ConfigShape['storage'] {
+    return this.config.get('storage', { infer: true }) as ConfigShape['storage'];
   }
 }

@@ -10,7 +10,7 @@ export class HealthController {
   async check(): Promise<unknown> {
     const result = await this.health.check();
 
-    if (result.status !== 'ok') {
+    if (result.status === 'error') {
       throw new ServiceUnavailableException(result);
     }
 

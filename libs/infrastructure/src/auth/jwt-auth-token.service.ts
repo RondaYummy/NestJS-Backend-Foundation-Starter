@@ -72,7 +72,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   async verifyAccessToken(token: string): Promise<CurrentUser | null> {
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.config.getString('jwt.secret'),
+        secret: this.config.jwt().secret,
       });
 
       if (payload.type !== 'access' || !payload.jti) {
@@ -96,7 +96,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
 
     try {
       payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
-        secret: this.config.getString('jwt.refreshSecret'),
+        secret: this.config.jwt().refreshSecret,
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
@@ -145,7 +145,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   ): Promise<AccessTokenPayload | null> {
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.config.getString('jwt.secret'),
+        secret: this.config.jwt().secret,
         ignoreExpiration: true,
       });
 
@@ -193,9 +193,9 @@ export class JwtAuthTokenService implements IAuthTokenService {
     const accessTokenId = randomUUID();
     const refreshTokenId = randomUUID();
 
-    const accessExpiresIn = this.config.getString('jwt.expiresIn');
+    const accessExpiresIn = this.config.jwt().expiresIn;
 
-    const refreshExpiresIn = this.config.getString('jwt.refreshExpiresIn');
+    const refreshExpiresIn = this.config.jwt().refreshExpiresIn;
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
@@ -208,7 +208,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
         },
         {
           expiresIn: accessExpiresIn as StringValue,
-          secret: this.config.getString('jwt.secret'),
+          secret: this.config.jwt().secret,
         },
       ),
 
@@ -223,7 +223,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
         },
         {
           expiresIn: refreshExpiresIn as StringValue,
-          secret: this.config.getString('jwt.refreshSecret'),
+          secret: this.config.jwt().refreshSecret,
         },
       ),
     ]);
@@ -240,7 +240,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   private async verifyRefreshTokenForRevocation(token: string): Promise<RefreshTokenPayload> {
     try {
       const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
-        secret: this.config.getString('jwt.refreshSecret'),
+        secret: this.config.jwt().refreshSecret,
       });
 
       if (payload.type !== 'refresh' || !payload.jti || !payload.familyId) {

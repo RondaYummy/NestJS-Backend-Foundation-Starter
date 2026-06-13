@@ -15,10 +15,10 @@ import { REDIS_CLIENT } from './redis.tokens';
       inject: [AppConfigService, AppLogger],
       useFactory: (config: AppConfigService, logger: AppLogger) => {
         const client = new Redis({
-          host: config.getString('redis.host'),
-          port: config.getNumber('redis.port'),
-          password: config.getString('redis.password') || undefined,
-          db: config.getNumber('redis.db'),
+          host: config.redis().host,
+          port: config.redis().port,
+          password: config.redis().password || undefined,
+          db: config.redis().db,
           maxRetriesPerRequest: null,
         });
         client.on('error', (error) => logger.error('Redis connection error', error));

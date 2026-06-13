@@ -40,7 +40,7 @@ import { RedisJwtTokenStore } from './redis-jwt-token-store.service';
         jwtAuthTokenService: JwtAuthTokenService,
         sessionAuthTokenService: SessionAuthTokenService,
       ) => {
-        const driver = config.getString('auth.driver');
+        const driver = config.auth().driver;
 
         if (driver === 'session') {
           return sessionAuthTokenService;

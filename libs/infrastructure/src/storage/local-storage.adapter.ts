@@ -7,6 +7,7 @@ import { AppConfigService } from '../config/app-config.service';
 @Injectable()
 export class LocalStorageAdapter implements IStorageGateway {
   constructor(private readonly config: AppConfigService) {}
+
   async putObject(input: {
     key: string;
     body: Buffer | NodeJS.ReadableStream;
@@ -29,6 +30,6 @@ export class LocalStorageAdapter implements IStorageGateway {
     return Promise.resolve(this.path(key));
   }
   private path(key: string): string {
-    return join(this.config.getString('storage.localPath'), key);
+    return join(this.config.storage().localPath, key);
   }
 }

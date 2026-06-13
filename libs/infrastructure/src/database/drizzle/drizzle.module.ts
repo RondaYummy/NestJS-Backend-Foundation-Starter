@@ -13,7 +13,7 @@ import { DRIZZLE_DB, PG_POOL } from './drizzle.tokens';
       provide: PG_POOL,
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) =>
-        new Pool({ connectionString: config.getString('database.url') }),
+        new Pool({ connectionString: config.database().url }),
     },
     { provide: DRIZZLE_DB, inject: [PG_POOL], useFactory: (pool: Pool) => drizzle(pool) },
     {

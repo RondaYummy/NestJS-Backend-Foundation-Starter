@@ -19,7 +19,7 @@ export class SessionAuthTokenService implements IAuthTokenService {
   ) {}
 
   async createAuthSession(user: CurrentUser): Promise<AuthTokens> {
-    const ttlSeconds = this.config.getNumber('auth.sessionTtlSeconds');
+    const ttlSeconds = this.config.auth().sessionTtlSeconds;
     const sessionId = await this.sessionStore.create(user, ttlSeconds);
 
     return {
