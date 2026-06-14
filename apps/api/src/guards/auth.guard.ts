@@ -10,6 +10,7 @@ import type { RequestUser } from '../types/request-user.type';
 import { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { TOKENS } from '@contracts/tokens';
 import { RequestContextService } from '@infrastructure/logger/request-context.service';
+import { AppConfigService } from '@infrastructure/config/app-config.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -18,6 +19,8 @@ export class AuthGuard implements CanActivate {
     private readonly authTokenService: IAuthTokenService,
 
     private readonly requestContext: RequestContextService,
+
+    private readonly config: AppConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -57,6 +60,15 @@ export class AuthGuard implements CanActivate {
       };
     };
 
-    return req.cookies?.sid ?? null;
+    const requestWithCookies = request as Request & {
+      cookies?: Record<string, unknown>;
+    };
+    
+    const cookieName = this.config.auth().sessionCookieName;
+    const sessionId = requestWithCookies.cookies?.[cookieName];
+    
+    return typeof sessionId === 'string' && sessionId.length > 0
+      ? sessionId
+      : null;
   }
 }

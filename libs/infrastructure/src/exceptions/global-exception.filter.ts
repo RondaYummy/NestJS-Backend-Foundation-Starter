@@ -14,6 +14,7 @@ import { AppLogger } from '../logger/app-logger.service';
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
     const res = host.switchToHttp().getResponse<Response>();
     const status = this.status(exception);
@@ -21,14 +22,39 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       this.logger.error('Unexpected error', exception);
     res.status(status).json({ success: false, error: this.error(exception) });
   }
-  private status(e: unknown): number {
-    if (e instanceof ValidationError) return HttpStatus.BAD_REQUEST;
-    if (e instanceof NotFoundError) return HttpStatus.NOT_FOUND;
-    if (e instanceof ConflictError) return HttpStatus.CONFLICT;
-    if (e instanceof BusinessError) return HttpStatus.UNPROCESSABLE_ENTITY;
-    if (e instanceof HttpException) return e.getStatus();
+
+  private status(error: unknown): number {
+    if (error instanceof AuthenticationError) {
+      return HttpStatus.UNAUTHORIZED;
+    }
+  
+    if (error instanceof InvalidAuthRequestError) {
+      return HttpStatus.BAD_REQUEST;
+    }
+  
+    if (error instanceof ValidationError) {
+      return HttpStatus.BAD_REQUEST;
+    }
+  
+    if (error instanceof NotFoundError) {
+      return HttpStatus.NOT_FOUND;
+    }
+  
+    if (error instanceof ConflictError) {
+      return HttpStatus.CONFLICT;
+    }
+  
+    if (error instanceof BusinessError) {
+      return HttpStatus.UNPROCESSABLE_ENTITY;
+    }
+  
+    if (error instanceof HttpException) {
+      return (error as HttpException).getStatus();
+    }
+  
     return HttpStatus.INTERNAL_SERVER_ERROR;
   }
+
   private error(exception: unknown): {
     code: string;
     message: string | string[];
@@ -59,7 +85,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
-      const response = exception.getResponse();
+      const response = (exception as HttpException).getResponse();
 
       if (typeof response === 'string') {
         return {
@@ -77,7 +103,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? rawMessage.filter((item): item is string => typeof item === 'string')
         : typeof rawMessage === 'string'
           ? rawMessage
-          : exception.message;
+          : (exception as HttpException).message;
 
       return {
         code:
