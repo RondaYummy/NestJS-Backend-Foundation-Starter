@@ -78,8 +78,26 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
 
         processed += 1;
       } catch (error) {
-        await this.markFailed(event, error);
-
+        const marked = await this.markFailed(
+          event,
+          error,
+        );
+      
+        if (!marked) {
+          await this.auditLogger.log({
+            actorType: 'system',
+            action: 'outbox.ownershipLost',
+            entityType: 'outbox',
+            entityId: event.id,
+            metadata: {
+              workerId: event.claimWorkerId,
+              error: this.getErrorMessage(error),
+            },
+          });
+      
+          continue;
+        }
+      
         failed += 1;
       }
     }

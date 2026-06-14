@@ -344,6 +344,17 @@ Application use case відкриває транзакцію.
 
 BullMQ job використовує стабільний jobId, побудований на основі outbox event id. Це зменшує ризик дублювання job при повторній обробці.
 
+Стабільний BullMQ `jobId` запобігає створенню дубліката лише поки
+job із цим ID зберігається в Redis.
+
+Оскільки completed jobs автоматично очищуються відповідно до
+`removeOnComplete`, після видалення старої job той самий ID може бути
+створений повторно.
+
+Для критичних side effects потрібна окрема idempotency-гарантія:
+унікальний запис у PostgreSQL, idempotency key зовнішнього API або
+processed-events store.
+
 Outbox гарантує надійну доставку за моделлю at-least-once. Тому event handlers також повинні бути idempotent.
 
 BullMQ job може бути виконаний повторно після retry, stalled job
