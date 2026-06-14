@@ -48,22 +48,14 @@ export const outboxEvents = pgTable(
     })
       .notNull()
       .defaultNow(),
-    },
-    (table) => ({
-      pendingLookupIndex: index(
-        'outbox_events_pending_lookup_idx',
-      )
-        .on(
-          table.availableAt,
-          table.attempts,
-          table.createdAt,
-        )
-        .where(sql`${table.status} = 'pending'`),
-  
-      processingLockIndex: index(
-        'outbox_events_processing_lock_idx',
-      )
-        .on(table.lockedAt)
-        .where(sql`${table.status} = 'processing'`),
-    }),
-  );
+  },
+  (table) => ({
+    pendingLookupIndex: index('outbox_events_pending_lookup_idx')
+      .on(table.availableAt, table.attempts, table.createdAt)
+      .where(sql`${table.status} = 'pending'`),
+
+    processingLockIndex: index('outbox_events_processing_lock_idx')
+      .on(table.lockedAt)
+      .where(sql`${table.status} = 'processing'`),
+  }),
+);

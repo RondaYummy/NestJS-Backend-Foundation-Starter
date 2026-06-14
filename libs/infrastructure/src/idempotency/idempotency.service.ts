@@ -71,6 +71,7 @@ export class RedisIdempotencyService implements IIdempotencyService {
     }, 10_000);
 
     heartbeat.unref();
+    let lockCompleted = false;
 
     try {
       const doubleChecked = await this.redis.get(resultKey);
@@ -110,11 +111,15 @@ export class RedisIdempotencyService implements IIdempotencyService {
         );
       }
 
+      lockCompleted = true;
+
       return result;
     } finally {
       clearInterval(heartbeat);
 
-      await this.redis.compareAndDelete(lockKey, lockToken);
+      if (!lockCompleted) {
+        await this.redis.compareAndDelete(lockKey, lockToken);
+      }
     }
   }
 

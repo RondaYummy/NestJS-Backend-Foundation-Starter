@@ -23,9 +23,7 @@ export class BullQueueGateway implements IQueueGateway {
     };
   }
 
-  private buildJobOptions(
-    options?: QueueJobOptions,
-  ): JobsOptions {
+  private buildJobOptions(options?: QueueJobOptions): JobsOptions {
     return {
       attempts: this.config.bullmq().defaultAttempts,
       backoff: {
@@ -58,7 +56,11 @@ export class BullQueueGateway implements IQueueGateway {
   ): Promise<string[]> {
     const queue = this.getQueue(queueName);
     const result = await queue.addBulk(
-      jobs.map((job) => ({ name: job.name, data: job.payload, opts: this.buildJobOptions(job.options) })),
+      jobs.map((job) => ({
+        name: job.name,
+        data: job.payload,
+        opts: this.buildJobOptions(job.options),
+      })),
     );
     return result.map((job: Job) => String(job.id));
   }
