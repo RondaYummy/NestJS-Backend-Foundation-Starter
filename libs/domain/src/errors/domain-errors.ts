@@ -27,3 +27,13 @@ export class ConflictError extends AppError {
     super(code, message, details);
   }
 }
+export class AuthenticationError extends AppError {
+  constructor(code: string, message: string) {
+    super(code, message);
+  }
+}
+export class InvalidAuthRequestError extends AppError {
+  constructor(code: string, message: string) {
+    super(code, message);
+  }
+}

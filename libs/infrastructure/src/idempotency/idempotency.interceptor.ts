@@ -28,6 +28,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
 
     const req = context.switchToHttp().getRequest<Request>();
     const key = req.header('Idempotency-Key');
+
     if (!key) {
       throw new ConflictError('IDEMPOTENCY_KEY_REQUIRED', 'Idempotency-Key header is required');
     }
@@ -48,9 +49,22 @@ export class IdempotencyInterceptor implements NestInterceptor {
       contentType: req.headers['content-type'],
     });
 
+    const normalizedKey = key.trim();
+
+    if (
+      normalizedKey.length < 8 ||
+      normalizedKey.length > 128 ||
+      !/^[a-zA-Z0-9:_-]+$/.test(normalizedKey)
+    ) {
+      throw new ConflictError(
+        'INVALID_IDEMPOTENCY_KEY',
+        'Idempotency-Key must contain 8-128 safe characters',
+      );
+    }
+
     return from(
       this.idem.execute({
-        key,
+        key: normalizedKey,
         scope,
         requestHash,
         ttlSeconds: 86400,

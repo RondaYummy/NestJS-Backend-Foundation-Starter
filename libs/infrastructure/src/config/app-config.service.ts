@@ -23,10 +23,13 @@ type ConfigShape = {
   };
   auth: {
     driver: 'jwt' | 'session';
-    accessTokenTtl: string;
-    refreshTokenTtl: string;
     sessionTtlSeconds: number;
     passwordSaltRounds: number;
+
+    sessionCookieName: string;
+    sessionCookiePath: string;
+    sessionCookieDomain?: string;
+    sessionCookieSameSite: 'lax' | 'strict' | 'none';
   };
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };

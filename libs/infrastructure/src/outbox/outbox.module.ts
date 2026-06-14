@@ -1,15 +1,15 @@
 import { Module } from '@nestjs/common';
 
 import { AuditModule } from '@infrastructure/audit/audit.module';
-import { InfrastructureBullMqModule } from '@infrastructure/bullmq/bullmq.module';
 
 import { TOKENS } from '@contracts/tokens';
 
 import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { OutboxService } from './outbox.service';
+import { EventsModule } from '@infrastructure/events/events.module';
 
 @Module({
-  imports: [DrizzleModule, AuditModule, InfrastructureBullMqModule],
+  imports: [DrizzleModule, AuditModule, EventsModule],
   providers: [
     OutboxService,
     {

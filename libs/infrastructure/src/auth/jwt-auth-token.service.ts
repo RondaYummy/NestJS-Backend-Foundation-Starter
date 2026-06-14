@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { BadRequestException, Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import ms, { type StringValue } from 'ms';
 
@@ -14,6 +14,7 @@ import type { IJwtTokenStore } from '@contracts/auth/jwt-token-store.service';
 import { TOKENS } from '@contracts/tokens';
 
 import { AppConfigService } from '../config/app-config.service';
+import { AuthenticationError, InvalidAuthRequestError } from '@domain/errors/domain-errors';
 
 type AccessTokenPayload = CurrentUser & {
   type: 'access';
@@ -99,11 +100,11 @@ export class JwtAuthTokenService implements IAuthTokenService {
         secret: this.config.jwt().refreshSecret,
       });
     } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
     }
 
     if (payload.type !== 'refresh' || !payload.jti || !payload.familyId) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid refresh token');
     }
 
     const user = this.toCurrentUser(payload);
@@ -131,7 +132,10 @@ export class JwtAuthTokenService implements IAuthTokenService {
        */
       await this.tokenStore.revokeRefreshTokenFamily(payload.familyId);
 
-      throw new UnauthorizedException('Refresh token has already been used or revoked');
+      throw new AuthenticationError(
+        'REFRESH_TOKEN_USED_OR_REVOKED',
+        'Refresh token has already been used or revoked',
+      );
     }
 
     return {
@@ -161,7 +165,10 @@ export class JwtAuthTokenService implements IAuthTokenService {
 
   async revoke(input: RevokeAuthSessionInput): Promise<void> {
     if (!input.refreshToken) {
-      throw new BadRequestException('Refresh token is required for JWT logout');
+      throw new InvalidAuthRequestError(
+        'REFRESH_TOKEN_REQUIRED',
+        'Refresh token is required for JWT logout',
+      );
     }
 
     const refreshPayload = await this.verifyRefreshTokenForRevocation(input.refreshToken);
@@ -172,7 +179,8 @@ export class JwtAuthTokenService implements IAuthTokenService {
       accessPayload = await this.tryVerifyAccessTokenForRevocation(input.accessToken);
 
       if (accessPayload && accessPayload.id !== refreshPayload.id) {
-        throw new UnauthorizedException(
+        throw new AuthenticationError(
+          'ACCESS_TOKEN_AND_REFRESH_TOKEN_DO_NOT_BELONG_TO_THE_SAME_USER',
           'Access token and refresh token do not belong to the same user',
         );
       }
@@ -244,16 +252,16 @@ export class JwtAuthTokenService implements IAuthTokenService {
       });
 
       if (payload.type !== 'refresh' || !payload.jti || !payload.familyId) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid refresh token');
       }
 
       return payload;
     } catch (error) {
-      if (error instanceof UnauthorizedException) {
+      if (error instanceof AuthenticationError) {
         throw error;
       }
 
-      throw new UnauthorizedException('Invalid or expired refresh token');
+      throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
     }
   }
 

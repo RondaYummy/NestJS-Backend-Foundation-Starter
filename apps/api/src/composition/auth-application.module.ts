@@ -10,10 +10,12 @@ import { LoginUseCase } from '@application/use-cases/auth/login.usecase';
 import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-user.usecase';
+import { SessionCookieService } from '../auth/session-cookie.service';
 
 @Module({
   imports: [AuthModule, RepositoriesModule, TransactionsModule, OutboxModule],
   providers: [
+    SessionCookieService,
     RegisterUseCase,
     LoginUseCase,
     LogoutUseCase,
@@ -21,6 +23,7 @@ import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-u
     GetCurrentUserUseCase,
   ],
   exports: [
+    SessionCookieService,
     RegisterUseCase,
     LoginUseCase,
     LogoutUseCase,

@@ -2,8 +2,10 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from
 import type { Response } from 'express';
 import {
   AppError,
+  AuthenticationError,
   BusinessError,
   ConflictError,
+  InvalidAuthRequestError,
   NotFoundError,
   ValidationError,
 } from '@domain/errors/domain-errors';
@@ -33,6 +35,22 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     details: Record<string, unknown>;
   } {
     if (exception instanceof AppError) {
+      return {
+        code: exception.code,
+        message: exception.message,
+        details: exception.details,
+      };
+    }
+
+    if (exception instanceof AuthenticationError) {
+      return {
+        code: exception.code,
+        message: exception.message,
+        details: exception.details,
+      };
+    }
+
+    if (exception instanceof InvalidAuthRequestError) {
       return {
         code: exception.code,
         message: exception.message,

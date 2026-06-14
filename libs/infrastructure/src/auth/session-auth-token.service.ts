@@ -1,4 +1,4 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { AppConfigService } from '../config/app-config.service';
 import {
   IAuthTokenService,
@@ -8,6 +8,7 @@ import {
 import { ISessionStore } from '@contracts/auth/session-store.service';
 import { TOKENS } from '@contracts/tokens';
 import { CurrentUser } from '@contracts/auth/current-user';
+import { AuthenticationError } from '@domain/errors/domain-errors';
 
 @Injectable()
 export class SessionAuthTokenService implements IAuthTokenService {
@@ -42,7 +43,10 @@ export class SessionAuthTokenService implements IAuthTokenService {
 
   async refreshAuthSession(_refreshToken: string): Promise<AuthTokens> {
     return Promise.reject(
-      new UnauthorizedException('Refresh token is not supported for session authentication'),
+      new AuthenticationError(
+        'REFRESH_TOKEN_NOT_SUPPORTED',
+        'Refresh token is not supported for session authentication',
+      ),
     );
   }
 }

@@ -49,6 +49,14 @@ import { AppConfigService } from './app-config.service';
             driver: e.AUTH_DRIVER,
             sessionTtlSeconds: e.AUTH_SESSION_TTL_SECONDS,
             passwordSaltRounds: e.PASSWORD_SALT_ROUNDS,
+
+            sessionCookieName: e.AUTH_SESSION_COOKIE_NAME,
+
+            sessionCookiePath: e.AUTH_SESSION_COOKIE_PATH,
+
+            sessionCookieDomain: e.AUTH_SESSION_COOKIE_DOMAIN || undefined,
+
+            sessionCookieSameSite: e.AUTH_SESSION_COOKIE_SAME_SITE,
           },
           jwt: {
             secret: e.JWT_SECRET,

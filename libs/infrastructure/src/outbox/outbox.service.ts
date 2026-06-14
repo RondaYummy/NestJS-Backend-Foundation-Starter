@@ -6,8 +6,6 @@ import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 import type { IAuditLogger } from '@contracts/audit/audit-logger';
 import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
 import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
-import type { IQueueGateway } from '@contracts/queues/queue-gateway';
-import { QUEUES } from '@contracts/queues/queue-names';
 import { TOKENS } from '@contracts/tokens';
 import type { TransactionContext } from '@contracts/transactions/transaction-manager';
 import type { DomainEvent } from '@domain/events/domain-event';
@@ -15,6 +13,8 @@ import type { DomainEvent } from '@domain/events/domain-event';
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
+import { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { IDomainEventRouter } from '@contracts/events/domain-event-router';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
@@ -34,11 +34,14 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     @Inject(TOKENS.AuditLogger)
     private readonly auditLogger: IAuditLogger,
 
-    @Inject(TOKENS.QueueGateway)
-    private readonly queueGateway: IQueueGateway,
-
     @Inject(DRIZZLE_DB)
     private readonly db: DrizzleDb,
+
+    @Inject(AppLogger)
+    private readonly logger: AppLogger,
+
+    @Inject(TOKENS.DomainEventRouter)
+    private readonly domainEventRouter: IDomainEventRouter,
   ) {}
 
   async append(event: DomainEvent, trx?: DrizzleTransactionContext): Promise<void> {
@@ -78,13 +81,10 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
 
         processed += 1;
       } catch (error) {
-        const marked = await this.markFailed(
-          event,
-          error,
-        );
-      
+        const marked = await this.markFailed(event, error);
+
         if (!marked) {
-          await this.auditLogger.log({
+          await this.safeAudit({
             actorType: 'system',
             action: 'outbox.ownershipLost',
             entityType: 'outbox',
@@ -94,15 +94,23 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
               error: this.getErrorMessage(error),
             },
           });
-      
+
           continue;
         }
-      
+
         failed += 1;
       }
     }
 
-    await this.auditLogger.log({
+    if (failed > 0) {
+      this.logger.warn('Some outbox events failed', {
+        selected: events.length,
+        processed,
+        failed,
+      });
+    }
+
+    await this.safeAudit({
       actorType: 'system',
       action: 'outbox.processPending',
       entityType: 'outbox',
@@ -185,28 +193,12 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
   }
 
   private async publishEvent(event: OutboxRow): Promise<void> {
-    await this.queueGateway.add(
-      QUEUES.EVENTS,
-      event.eventName,
-      {
-        outboxEventId: event.id,
-        eventName: event.eventName,
-        payload: event.payload,
-
-        /**
-         * Передаємо час виникнення domain event,
-         * а не час створення outbox-запису.
-         */
-        occurredAt: event.occurredAt,
-      },
-      {
-        /**
-         * Одна outbox-подія повинна створювати
-         * одну логічну BullMQ job.
-         */
-        jobId: `outbox-${event.id}`,
-      },
-    );
+    await this.domainEventRouter.route({
+      id: event.id,
+      name: event.eventName,
+      payload: event.payload,
+      occurredAt: event.occurredAt.toISOString(),
+    });
   }
 
   private async markProcessed(id: string, workerId: string): Promise<boolean> {
@@ -275,5 +267,16 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     }
 
     return String(error).slice(0, 5000);
+  }
+
+  private async safeAudit(input: Parameters<IAuditLogger['log']>[0]): Promise<void> {
+    try {
+      await this.auditLogger.log(input);
+    } catch (error) {
+      this.logger.error('Outbox audit logging failed', error, {
+        action: input.action,
+        entityId: input.entityId,
+      });
+    }
   }
 }

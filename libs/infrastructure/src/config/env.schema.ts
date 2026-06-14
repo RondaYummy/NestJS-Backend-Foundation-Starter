@@ -36,6 +36,10 @@ export const envSchema = z.object({
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
   PASSWORD_SALT_ROUNDS: z.coerce.number().default(10),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  AUTH_SESSION_COOKIE_NAME: z.string().min(1).default('sid'),
+  AUTH_SESSION_COOKIE_PATH: z.string().min(1).default('/'),
+  AUTH_SESSION_COOKIE_DOMAIN: z.string().optional().default(''),
+  AUTH_SESSION_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
 });
 
 export type Env = z.infer<typeof envSchema>;

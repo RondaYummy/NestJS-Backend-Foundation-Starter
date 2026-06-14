@@ -15,7 +15,7 @@ import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-a
 import { RefreshTokenDto } from '../dto/auth/refresh-token.dto';
 import { LogoutDto } from '../dto/auth/logout.dto';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
-import { AppConfigService } from '@infrastructure/config/app-config.service';
+import { SessionCookieService } from '../auth/session-cookie.service';
 
 @Controller('auth')
 export class AuthController {
@@ -25,7 +25,7 @@ export class AuthController {
     private readonly logoutUseCase: LogoutUseCase,
     private readonly getCurrentUserUseCase: GetCurrentUserUseCase,
     private readonly refreshAuthSessionUseCase: RefreshAuthSessionUseCase,
-    private readonly config: AppConfigService,
+    private readonly sessionCookieService: SessionCookieService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -35,7 +35,7 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.registerUseCase.execute(dto);
 
-    this.attachSessionCookieIfNeeded(res, result.auth);
+    this.sessionCookieService.attachIfNeeded(res, result.auth);
 
     return {
       success: true,
@@ -49,7 +49,7 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.loginUseCase.execute(dto);
 
-    this.attachSessionCookieIfNeeded(res, result.auth);
+    this.sessionCookieService.attachIfNeeded(res, result.auth);
 
     return {
       success: true,
@@ -73,11 +73,7 @@ export class AuthController {
       refreshToken: dto.refreshToken,
     });
 
-    res.clearCookie('sid', {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.app().env === 'production',
-    });
+    this.sessionCookieService.clear(res);
 
     return {
       success: true,
@@ -123,35 +119,12 @@ export class AuthController {
     };
   }
 
-  private attachSessionCookieIfNeeded(
-    res: Response,
-    auth: {
-      accessToken?: string;
-      refreshToken?: string;
-      sessionId?: string;
-      expiresAt?: Date;
-    },
-  ): void {
-    if (!auth.sessionId) {
-      return;
-    }
-
-    res.cookie('sid', auth.sessionId, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: this.config.app().env === 'production',
-      expires: auth.expiresAt,
-    });
-  }
-
   private extractSessionId(req: Request): string | null {
     const request = req as Request & {
-      cookies?: {
-        sid?: string;
-      };
+      cookies?: Record<string, unknown>;
     };
 
-    return request.cookies?.sid ?? null;
+    return this.sessionCookieService.getSessionIdFromCookies(request.cookies);
   }
 
   private extractBearerToken(req: Request): string | null {

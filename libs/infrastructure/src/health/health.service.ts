@@ -31,8 +31,8 @@ export class HealthService {
     @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
 
-    @InjectQueue(QUEUES.DEFAULT)
-    private readonly defaultQueue: Queue,
+    @InjectQueue(QUEUES.OUTBOX)
+    private readonly outboxQueue: Queue,
   ) {}
 
   async check(): Promise<HealthResult> {
@@ -72,7 +72,7 @@ export class HealthService {
 
   private async checkBullMq(services: HealthResult['services']): Promise<void> {
     try {
-      await this.defaultQueue.getJobCounts('waiting', 'active', 'delayed', 'failed');
+      await this.outboxQueue.getJobCounts('waiting', 'active', 'delayed', 'failed');
     } catch {
       services.bullmq = 'error';
     }

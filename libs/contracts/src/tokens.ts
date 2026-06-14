@@ -15,4 +15,6 @@ export const TOKENS = {
   IdempotencyService: Symbol('IIdempotencyService'),
   OutboxWriter: Symbol('IOutboxWriter'),
   OutboxProcessor: Symbol('IOutboxProcessor'),
+  DomainEventRouter: Symbol('IDomainEventRouter'),
+  DomainEventHandlers: Symbol('IDomainEventHandler[]'),
 } as const;

@@ -97,16 +97,14 @@ libs/
 
   application/
     src/
-      use-cases/
-      services/
       dto/
-      ports/
-      events/
+      use-cases/
+        auth/
+        users/
 
   contracts/
     src/
       repositories/
-      gateways/
       queues/
       cache/
       storage/
@@ -423,14 +421,20 @@ storage
 jwt
 rateLimit
 logger
+auth
 ```
 
 Приклад використання:
 
 ```ts
-const databaseUrl = configService.get('database.url');
-const redisHost = configService.get('redis.host');
-const attempts = configService.get('bullmq.defaultAttempts');
+const databaseUrl =
+  config.database().url;
+
+const redisHost =
+  config.redis().host;
+
+const attempts =
+  config.bullmq().defaultAttempts;
 ```
 
 У бізнес-коді не потрібно використовувати:
@@ -460,8 +464,7 @@ libs/infrastructure/src/logger
 Призначення:
 
 - structured logs;
-- JSON logs у production;
-- pretty logs у development;
+- structured JSON logs;
 - requestId;
 - correlationId;
 - traceId;
@@ -510,9 +513,6 @@ consumer
 AppLogger автоматично додає до structured logs:
 requestId
 correlationId
-userId
-traceId
-
 ---
 
 ## 5.3. PostgreSQL + Drizzle Module
@@ -634,10 +634,13 @@ libs/infrastructure/src/bullmq
 
 ```ts
 export const QUEUES = {
-  DEFAULT: 'default',
-  EMAIL: 'email',
-  EVENTS: 'events',
   OUTBOX: 'outbox',
+  EMAIL: 'email',
+  NOTIFICATIONS: 'notifications',
+  INTEGRATIONS: 'integrations',
+  ANALYTICS: 'analytics',
+  FILES: 'files',
+  MAINTENANCE: 'maintenance',
 } as const;
 ```
 
@@ -712,7 +715,10 @@ libs/infrastructure/src/cache
 - JSON serialization/deserialization;
 - TTL;
 - key prefix;
-- graceful handling, якщо Redis тимчасово недоступний.
+
+Cache module використовує Redis.
+Помилки Redis передаються виклику і повинні бути оброблені
+на рівні конкретного use case, якщо кеш є необов'язковим.
 
 Application бачить тільки контракт:
 
@@ -727,7 +733,6 @@ get<T>(key: string): Promise<T | null>
 set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>
 del(key: string): Promise<void>
 remember<T>(key: string, ttlSeconds: number, resolver: () => Promise<T>): Promise<T>
-forgetByPattern(pattern: string): Promise<void>
 ```
 
 Приклад:
@@ -944,7 +949,6 @@ libs/infrastructure/src/storage
 - local storage;
 - S3 storage;
 - Minio-compatible storage;
-- signed URLs.
 
 Контракт:
 

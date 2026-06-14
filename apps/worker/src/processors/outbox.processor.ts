@@ -2,7 +2,7 @@ import { Inject } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 
-import type { IOutboxProcessor } from '@contracts/outbox/outbox-processor';
+import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
 import { QUEUES } from '@contracts/queues/queue-names';
 import { TOKENS } from '@contracts/tokens';
 
@@ -15,7 +15,7 @@ export class OutboxProcessor extends WorkerHost {
     super();
   }
 
-  async process(_job: Job): Promise<void> {
-    await this.outbox.processPending();
+  async process(_job: Job): Promise<ProcessOutboxResult> {
+    return this.outbox.processPending();
   }
 }

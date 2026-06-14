@@ -409,11 +409,11 @@ use-case → QUEUES.EMAIL (template + data) → EmailProcessor → MailTemplateS
 ```ts
 import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
 
-await this.queueGateway.add(QUEUES.EMAIL, 'send-welcome', {
-  to: input.email,
-  subject: 'Welcome',
-  template: EMAIL_TEMPLATE.WELCOME,
-  data: { email: user.email.toString() },
+await this.domainEventRouter.route({
+  id: event.id,
+  name: event.name,
+  payload: event.payload,
+  occurredAt: event.occurredAt.toISOString(),
 });
 ```
 
@@ -462,9 +462,13 @@ UI-примітиви: `libs/infrastructure/src/mail/components/` (`Layout`, `Bl
 
 ```ts
 export const QUEUES = {
-  EMAIL: 'email',
   OUTBOX: 'outbox',
-  MY_JOB: 'my-job',
+  EMAIL: 'email',
+  NOTIFICATIONS: 'notifications',
+  INTEGRATIONS: 'integrations',
+  ANALYTICS: 'analytics',
+  FILES: 'files',
+  MAINTENANCE: 'maintenance',
 } as const;
 ```
 

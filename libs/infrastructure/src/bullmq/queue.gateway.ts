@@ -7,20 +7,31 @@ import { QUEUES } from './queues';
 
 @Injectable()
 export class BullQueueGateway implements IQueueGateway {
-  private readonly queues: Record<string, Queue>;
+  private readonly queues: ReadonlyMap<string, Queue>;
+
   constructor(
     @InjectQueue(QUEUES.DEFAULT) defaultQueue: Queue,
     @InjectQueue(QUEUES.EMAIL) emailQueue: Queue,
     @InjectQueue(QUEUES.EVENTS) eventsQueue: Queue,
     @InjectQueue(QUEUES.OUTBOX) outboxQueue: Queue,
+    @InjectQueue(QUEUES.NOTIFICATIONS) notificationsQueue: Queue,
+    @InjectQueue(QUEUES.INTEGRATIONS) integrationsQueue: Queue,
+    @InjectQueue(QUEUES.ANALYTICS) analyticsQueue: Queue,
+    @InjectQueue(QUEUES.FILES) filesQueue: Queue,
+    @InjectQueue(QUEUES.MAINTENANCE) maintenanceQueue: Queue,
     private readonly config: AppConfigService,
   ) {
-    this.queues = {
-      [QUEUES.DEFAULT]: defaultQueue,
-      [QUEUES.EMAIL]: emailQueue,
-      [QUEUES.EVENTS]: eventsQueue,
-      [QUEUES.OUTBOX]: outboxQueue,
-    };
+    this.queues = new Map<string, Queue>([
+      [QUEUES.OUTBOX, outboxQueue],
+      [QUEUES.EMAIL, emailQueue],
+      [QUEUES.NOTIFICATIONS, notificationsQueue],
+      [QUEUES.INTEGRATIONS, integrationsQueue],
+      [QUEUES.ANALYTICS, analyticsQueue],
+      [QUEUES.FILES, filesQueue],
+      [QUEUES.MAINTENANCE, maintenanceQueue],
+      [QUEUES.DEFAULT, defaultQueue],
+      [QUEUES.EVENTS, eventsQueue],
+    ]);
   }
 
   private buildJobOptions(options?: QueueJobOptions): JobsOptions {
@@ -65,7 +76,7 @@ export class BullQueueGateway implements IQueueGateway {
     return result.map((job: Job) => String(job.id));
   }
   private getQueue(name: string): Queue {
-    const queue = this.queues[name];
+    const queue = this.queues.get(name);
     if (!queue) throw new Error(`Unknown queue: ${name}`);
     return queue;
   }
