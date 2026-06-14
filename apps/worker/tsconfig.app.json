@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.json",
-  "compilerOptions": { "outDir": "../../dist/apps/worker" },
+  "compilerOptions": { "rootDir": "../..", "outDir": "../../dist/apps/worker" },
   "include": ["src/**/*.ts", "../../libs/**/*.ts", "../../libs/**/*.tsx"],
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
 }

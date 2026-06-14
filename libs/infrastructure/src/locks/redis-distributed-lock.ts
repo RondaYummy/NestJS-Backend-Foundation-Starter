@@ -56,8 +56,15 @@ export class RedisDistributedLock implements IDistributedLock {
     const heartbeatIntervalMs = Math.max(Math.floor(ttlMs / 3), 1_000);
 
     let lockLost = false;
+    let heartbeatInProgress = false;
 
     const heartbeat = setInterval(() => {
+      if (heartbeatInProgress) {
+        return;
+      }
+
+      heartbeatInProgress = true;
+
       void this.extend(lock, ttlMs)
         .then((extended) => {
           if (!extended) {
@@ -66,6 +73,9 @@ export class RedisDistributedLock implements IDistributedLock {
         })
         .catch(() => {
           lockLost = true;
+        })
+        .finally(() => {
+          heartbeatInProgress = false;
         });
     }, heartbeatIntervalMs);
 

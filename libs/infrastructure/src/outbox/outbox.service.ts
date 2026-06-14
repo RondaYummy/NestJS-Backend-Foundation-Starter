@@ -22,6 +22,10 @@ const LOCK_TTL_MS = 5 * 60 * 1000;
 
 type OutboxRow = typeof outboxEvents.$inferSelect;
 
+type ClaimedOutboxRow = OutboxRow & {
+  claimWorkerId: string;
+};
+
 type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
 
 @Injectable()
@@ -66,7 +70,11 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     for (const event of events) {
       try {
         await this.publishEvent(event);
-        await this.markProcessed(event.id);
+        const marked = await this.markProcessed(event.id, event.claimWorkerId);
+
+        if (!marked) {
+          throw new Error(`Outbox event ownership was lost: ${event.id}`);
+        }
 
         processed += 1;
       } catch (error) {
@@ -95,13 +103,13 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     };
   }
 
-  private async claimPendingBatch(): Promise<OutboxRow[]> {
+  private async claimPendingBatch(): Promise<ClaimedOutboxRow[]> {
     const workerId = randomUUID();
     const now = new Date();
 
     const expiredLockAt = new Date(now.getTime() - LOCK_TTL_MS);
 
-    return this.db.transaction(async (trx) => {
+    return this.db.transaction(async (trx: DrizzleTransactionContext['tx']) => {
       const rows = await trx
         .select()
         .from(outboxEvents)
@@ -133,7 +141,7 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
         return [];
       }
 
-      const ids = rows.map((row) => row.id);
+      const ids = rows.map((row: OutboxRow) => row.id);
 
       await trx
         .update(outboxEvents)
@@ -151,7 +159,10 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
        * attempts у них ще старий, і це нормально:
        * attempts збільшується лише після помилки.
        */
-      return rows;
+      return rows.map((row: OutboxRow) => ({
+        ...row,
+        claimWorkerId: workerId,
+      }));
     });
   }
 
@@ -180,10 +191,10 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     );
   }
 
-  private async markProcessed(id: string): Promise<void> {
+  private async markProcessed(id: string, workerId: string): Promise<boolean> {
     const now = new Date();
 
-    await this.db
+    const updated = await this.db
       .update(outboxEvents)
       .set({
         status: 'processed',
@@ -193,34 +204,51 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
         error: null,
         updatedAt: now,
       })
-      .where(eq(outboxEvents.id, id));
+      .where(
+        and(
+          eq(outboxEvents.id, id),
+          eq(outboxEvents.status, 'processing'),
+          eq(outboxEvents.lockedBy, workerId),
+        ),
+      )
+      .returning({
+        id: outboxEvents.id,
+      });
+
+    return updated.length === 1;
   }
 
-  private async markFailed(event: OutboxRow, error: unknown): Promise<void> {
+  private async markFailed(event: ClaimedOutboxRow, error: unknown): Promise<boolean> {
     const attempts = event.attempts + 1;
-
     const retryDelaySeconds = Math.min(2 ** attempts * 30, 3600);
 
     const permanentlyFailed = attempts >= MAX_ATTEMPTS;
 
     const now = new Date();
 
-    await this.db
+    const updated = await this.db
       .update(outboxEvents)
       .set({
         status: permanentlyFailed ? 'failed' : 'pending',
-
         attempts,
-
         error: this.getErrorMessage(error),
-
         availableAt: permanentlyFailed ? now : new Date(now.getTime() + retryDelaySeconds * 1000),
-
         lockedAt: null,
         lockedBy: null,
         updatedAt: now,
       })
-      .where(eq(outboxEvents.id, event.id));
+      .where(
+        and(
+          eq(outboxEvents.id, event.id),
+          eq(outboxEvents.status, 'processing'),
+          eq(outboxEvents.lockedBy, event.claimWorkerId),
+        ),
+      )
+      .returning({
+        id: outboxEvents.id,
+      });
+
+    return updated.length === 1;
   }
 
   private getErrorMessage(error: unknown): string {

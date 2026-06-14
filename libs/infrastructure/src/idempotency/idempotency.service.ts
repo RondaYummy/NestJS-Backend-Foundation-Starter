@@ -39,7 +39,9 @@ export class RedisIdempotencyService implements IIdempotencyService {
     if (!lockAcquired) {
       return this.waitForResult<T>({
         resultKey,
+        lockKey,
         expectedRequestHash: input.requestHash,
+        timeoutMs: 15_000,
       });
     }
 
@@ -131,18 +133,26 @@ export class RedisIdempotencyService implements IIdempotencyService {
 
   private async waitForResult<T>(input: {
     resultKey: string;
+    lockKey: string;
     expectedRequestHash: string;
+    timeoutMs: number;
   }): Promise<T> {
-    const maxAttempts = 50;
     const delayMs = 100;
+    const deadline = Date.now() + input.timeoutMs;
 
-    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    while (Date.now() < deadline) {
       await this.sleep(delayMs);
 
       const cached = await this.redis.get(input.resultKey);
 
       if (cached) {
         return this.parseStoredResult<T>(cached, input.expectedRequestHash);
+      }
+
+      const lockExists = await this.redis.exists(input.lockKey);
+
+      if (!lockExists) {
+        break;
       }
     }
 

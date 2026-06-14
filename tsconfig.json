@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "node16",
+    "moduleResolution": "node16",
 
-    "declaration": true,
+    "declaration": false,
     "removeComments": true,
 
     "emitDecoratorMetadata": true,
@@ -14,9 +14,8 @@
 
     "target": "ES2022",
     "jsx": "react-jsx",
-    "sourceMap": true,
+    "sourceMap": false,
     "outDir": "./dist",
-    "baseUrl": "./",
 
     "incremental": true,
 
@@ -32,11 +31,11 @@
     "forceConsistentCasingInFileNames": true,
 
     "paths": {
-      "@domain/*": ["libs/domain/src/*"],
-      "@application/*": ["libs/application/src/*"],
-      "@contracts/*": ["libs/contracts/src/*"],
-      "@infrastructure/*": ["libs/infrastructure/src/*"],
-      "@shared/*": ["libs/shared/src/*"]
+      "@domain/*": ["./libs/domain/src/*"],
+      "@application/*": ["./libs/application/src/*"],
+      "@contracts/*": ["./libs/contracts/src/*"],
+      "@infrastructure/*": ["./libs/infrastructure/src/*"],
+      "@shared/*": ["./libs/shared/src/*"]
     }
   }
 }
