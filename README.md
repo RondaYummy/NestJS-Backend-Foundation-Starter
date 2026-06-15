@@ -427,14 +427,11 @@ auth
 Приклад використання:
 
 ```ts
-const databaseUrl =
-  config.database().url;
+const databaseUrl = config.database().url;
 
-const redisHost =
-  config.redis().host;
+const redisHost = config.redis().host;
 
-const attempts =
-  config.bullmq().defaultAttempts;
+const attempts = config.bullmq().defaultAttempts;
 ```
 
 У бізнес-коді не потрібно використовувати:
@@ -513,6 +510,7 @@ consumer
 AppLogger автоматично додає до structured logs:
 requestId
 correlationId
+
 ---
 
 ## 5.3. PostgreSQL + Drizzle Module
@@ -1009,7 +1007,9 @@ ITransactionManager;
 Метод:
 
 ```ts
-run<T>(handler: (trx: TransactionContext) => Promise<T>): Promise<T>
+run<T>(
+  handler: (trx: TransactionContext) => Promise<T>,
+): Promise<T>;
 ```
 
 Приклад:

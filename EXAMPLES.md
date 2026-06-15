@@ -356,7 +356,19 @@ RATE_LIMIT_MAX=100
 
 ## 7. Idempotency для POST/PUT/PATCH
 
-Глобально в `ApiModule` підключений `IdempotencyInterceptor`. Для мутацій передайте заголовок:
+`IdempotencyInterceptor` зареєстрований глобально в `ApiModule`, але idempotency **opt-in**: interceptor перевіряє metadata і застосовується лише до endpoint-ів з `@Idempotent()`. Без decorator запит проходить без перевірки `Idempotency-Key`.
+
+### Увімкнути для endpoint-а
+
+```ts
+import { Idempotent } from '@infrastructure/idempotency/idempotent.decorator';
+
+@Idempotent()
+@Post('orders')
+async createOrder() { /* ... */ }
+```
+
+Клієнт мутації має передати заголовок:
 
 ```http
 POST /orders
@@ -369,9 +381,13 @@ Content-Type: application/json
 }
 ```
 
+Без `Idempotency-Key` endpoint з `@Idempotent()` поверне `409`.
+
 Повторний запит з тим самим ключем і тим самим payload поверне збережене тіло відповіді.
 
-@Idempotent() не слід застосовувати до endpoint-ів, які:
+### Коли не використовувати `@Idempotent()`
+
+`@Idempotent()` не слід застосовувати до endpoint-ів, які:
 
 - встановлюють або очищують cookies;
 - повертають файли або stream;

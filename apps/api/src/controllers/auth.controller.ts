@@ -35,8 +35,6 @@ export class AuthController {
   async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.registerUseCase.execute(dto);
 
-    this.sessionCookieService.attachIfNeeded(res, result.auth);
-
     return {
       success: true,
       data: result,

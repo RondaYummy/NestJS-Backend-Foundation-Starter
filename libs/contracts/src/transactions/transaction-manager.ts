@@ -1,5 +1,7 @@
-export interface TransactionContext<TTx = unknown> {
-  tx: TTx;
+export const TRANSACTION_CONTEXT = Symbol('TRANSACTION_CONTEXT');
+
+export interface TransactionContext {
+  readonly [TRANSACTION_CONTEXT]: unknown;
 }
 
 export interface ITransactionManager {

@@ -1,19 +1,27 @@
 import { Module } from '@nestjs/common';
 
-import { AuthModule } from '@infrastructure/auth/auth.module';
-import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
-import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
-import { OutboxModule } from '@infrastructure/outbox/outbox.module';
-
 import { RegisterUseCase } from '@application/use-cases/auth/register.usecase';
 import { LoginUseCase } from '@application/use-cases/auth/login.usecase';
 import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-user.usecase';
+
+import { AuthModule } from '@infrastructure/auth/auth.module';
+import { InfrastructureConfigModule } from '@infrastructure/config/infrastructure-config.module';
+import { OutboxModule } from '@infrastructure/outbox/outbox.module';
+import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
+import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
+
 import { SessionCookieService } from '../auth/session-cookie.service';
 
 @Module({
-  imports: [AuthModule, RepositoriesModule, TransactionsModule, OutboxModule],
+  imports: [
+    InfrastructureConfigModule,
+    AuthModule,
+    RepositoriesModule,
+    TransactionsModule,
+    OutboxModule,
+  ],
   providers: [
     SessionCookieService,
     RegisterUseCase,

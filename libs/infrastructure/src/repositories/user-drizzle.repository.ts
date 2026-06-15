@@ -1,20 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 
+import {
+  DuplicateRecordError,
+  RepositoryRecordNotFoundError,
+} from '@contracts/repositories/repository-errors';
 import type { IUserRepository } from '@contracts/repositories/user.repository';
 import type { TransactionContext } from '@contracts/transactions/transaction-manager';
 import type { User } from '@domain/entities/user.entity';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
-import type { DrizzleDb } from '../database/drizzle/drizzle.types';
-import { users } from '../database/drizzle/schema/users.schema';
+import type { DrizzleDb, DrizzleExecutor } from '../database/drizzle/drizzle.types';
 import { UserMapper } from '../mappers/user.mapper';
-import {
-  DuplicateRecordError,
-  RepositoryRecordNotFoundError,
-} from '@contracts/repositories/repository-errors';
-
-type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
+import { resolveDrizzleExecutor } from '../transactions/drizzle-transaction-context';
+import { users } from '../database/drizzle/schema/users.schema';
 
 @Injectable()
 export class UserDrizzleRepository implements IUserRepository {
@@ -23,24 +22,24 @@ export class UserDrizzleRepository implements IUserRepository {
     private readonly db: DrizzleDb,
   ) {}
 
-  async findById(id: string, trx?: DrizzleTransactionContext): Promise<User | null> {
-    const db = trx?.tx ?? this.db;
+  async findById(id: string, trx?: TransactionContext): Promise<User | null> {
+    const db = this.resolveDb(trx);
 
     const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
 
     return row ? UserMapper.toDomain(row) : null;
   }
 
-  async findByEmail(email: string, trx?: DrizzleTransactionContext): Promise<User | null> {
-    const db = trx?.tx ?? this.db;
+  async findByEmail(email: string, trx?: TransactionContext): Promise<User | null> {
+    const db = this.resolveDb(trx);
 
     const [row] = await db.select().from(users).where(eq(users.email, email)).limit(1);
 
     return row ? UserMapper.toDomain(row) : null;
   }
 
-  async insert(user: User, trx?: DrizzleTransactionContext): Promise<void> {
-    const db = trx?.tx ?? this.db;
+  async insert(user: User, trx?: TransactionContext): Promise<void> {
+    const db = this.resolveDb(trx);
     const data = UserMapper.toPersistence(user);
 
     try {
@@ -54,8 +53,8 @@ export class UserDrizzleRepository implements IUserRepository {
     }
   }
 
-  async update(user: User, trx?: DrizzleTransactionContext): Promise<void> {
-    const db = trx?.tx ?? this.db;
+  async update(user: User, trx?: TransactionContext): Promise<void> {
+    const db = this.resolveDb(trx);
     const data = UserMapper.toPersistence(user);
 
     const updated = await db
@@ -74,6 +73,10 @@ export class UserDrizzleRepository implements IUserRepository {
     if (updated.length === 0) {
       throw new RepositoryRecordNotFoundError('users', data.id);
     }
+  }
+
+  private resolveDb(trx?: TransactionContext): DrizzleExecutor {
+    return resolveDrizzleExecutor(this.db, trx);
   }
 }
 

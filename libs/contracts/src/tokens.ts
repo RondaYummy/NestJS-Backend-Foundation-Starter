@@ -17,4 +17,5 @@ export const TOKENS = {
   OutboxProcessor: Symbol('IOutboxProcessor'),
   DomainEventRouter: Symbol('IDomainEventRouter'),
   DomainEventHandlers: Symbol('IDomainEventHandler[]'),
+  JobExecutionStore: Symbol('IJobExecutionStore'),
 } as const;

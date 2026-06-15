@@ -27,31 +27,31 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (error instanceof AuthenticationError) {
       return HttpStatus.UNAUTHORIZED;
     }
-  
+
     if (error instanceof InvalidAuthRequestError) {
       return HttpStatus.BAD_REQUEST;
     }
-  
+
     if (error instanceof ValidationError) {
       return HttpStatus.BAD_REQUEST;
     }
-  
+
     if (error instanceof NotFoundError) {
       return HttpStatus.NOT_FOUND;
     }
-  
+
     if (error instanceof ConflictError) {
       return HttpStatus.CONFLICT;
     }
-  
+
     if (error instanceof BusinessError) {
       return HttpStatus.UNPROCESSABLE_ENTITY;
     }
-  
+
     if (error instanceof HttpException) {
       return (error as HttpException).getStatus();
     }
-  
+
     return HttpStatus.INTERNAL_SERVER_ERROR;
   }
 
@@ -60,14 +60,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     message: string | string[];
     details: Record<string, unknown>;
   } {
-    if (exception instanceof AppError) {
-      return {
-        code: exception.code,
-        message: exception.message,
-        details: exception.details,
-      };
-    }
-
     if (exception instanceof AuthenticationError) {
       return {
         code: exception.code,
@@ -117,6 +109,14 @@ export class GlobalExceptionFilter implements ExceptionFilter {
           error: undefined,
           statusCode: undefined,
         },
+      };
+    }
+
+    if (exception instanceof AppError) {
+      return {
+        code: exception.code,
+        message: exception.message,
+        details: exception.details,
       };
     }
 

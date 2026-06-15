@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, type Job, type JobsOptions } from 'bullmq';
-import type { IQueueGateway, QueueJobOptions } from '@contracts/queues/queue-gateway';
+import type { IQueueGateway, QueueJobItem, QueueJobOptions, QueueName } from '@contracts/queues/queue-gateway';
 import { AppConfigService } from '../config/app-config.service';
 import { QUEUES } from './queues';
 
@@ -57,15 +57,12 @@ export class BullQueueGateway implements IQueueGateway {
     return String(job.id);
   }
 
-  async addBulk<T>(
-    queueName: string,
-    jobs: Array<{
-      name: string;
-      payload: T;
-      options?: QueueJobOptions;
-    }>,
+  async addBulk<TQueue extends QueueName>(
+    queueName: TQueue,
+    jobs: Array<QueueJobItem<TQueue>>,
   ): Promise<string[]> {
     const queue = this.getQueue(queueName);
+  
     const result = await queue.addBulk(
       jobs.map((job) => ({
         name: job.name,
@@ -73,8 +70,10 @@ export class BullQueueGateway implements IQueueGateway {
         opts: this.buildJobOptions(job.options),
       })),
     );
+  
     return result.map((job: Job) => String(job.id));
   }
+
   private getQueue(name: string): Queue {
     const queue = this.queues.get(name);
     if (!queue) throw new Error(`Unknown queue: ${name}`);

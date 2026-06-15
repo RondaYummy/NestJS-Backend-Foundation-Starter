@@ -63,12 +63,10 @@ export class AuthGuard implements CanActivate {
     const requestWithCookies = request as Request & {
       cookies?: Record<string, unknown>;
     };
-    
+
     const cookieName = this.config.auth().sessionCookieName;
     const sessionId = requestWithCookies.cookies?.[cookieName];
-    
-    return typeof sessionId === 'string' && sessionId.length > 0
-      ? sessionId
-      : null;
+
+    return typeof sessionId === 'string' && sessionId.length > 0 ? sessionId : null;
   }
 }

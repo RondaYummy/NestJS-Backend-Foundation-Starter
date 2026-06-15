@@ -1,4 +1,3 @@
-import { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
 import { IUserRepository } from '@contracts/repositories/user.repository';
 import type { ITransactionManager } from '@contracts/transactions/transaction-manager';
@@ -24,9 +23,6 @@ export class RegisterUseCase {
 
     @Inject(TOKENS.PasswordHasher)
     private readonly passwordHasher: IPasswordHasher,
-
-    @Inject(TOKENS.AuthTokenService)
-    private readonly authTokenService: IAuthTokenService,
 
     @Inject(TOKENS.TransactionManager)
     private readonly transactionManager: ITransactionManager,
@@ -67,19 +63,12 @@ export class RegisterUseCase {
       return newUser;
     });
 
-    const auth = await this.authTokenService.createAuthSession({
-      id: user.id,
-      email: user.email.toString(),
-      roles: user.roles,
-    });
-
     return {
       user: {
         id: user.id,
         email: user.email.toString(),
         roles: user.roles,
       },
-      auth,
     };
   }
 }

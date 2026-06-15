@@ -7,9 +7,10 @@ import { TOKENS } from '@contracts/tokens';
 import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { OutboxService } from './outbox.service';
 import { EventsModule } from '@infrastructure/events/events.module';
+import { LoggerModule } from '@infrastructure/logger/logger.module';
 
 @Module({
-  imports: [DrizzleModule, AuditModule, EventsModule],
+  imports: [DrizzleModule, AuditModule, EventsModule, LoggerModule],
   providers: [
     OutboxService,
     {

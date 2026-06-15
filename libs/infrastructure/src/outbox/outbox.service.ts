@@ -11,10 +11,11 @@ import type { TransactionContext } from '@contracts/transactions/transaction-man
 import type { DomainEvent } from '@domain/events/domain-event';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
-import type { DrizzleDb } from '../database/drizzle/drizzle.types';
+import type { DrizzleDb, DrizzleExecutor } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { IDomainEventRouter } from '@contracts/events/domain-event-router';
+import { resolveDrizzleExecutor } from '@infrastructure/transactions/drizzle-transaction-context';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
@@ -26,10 +27,8 @@ type ClaimedOutboxRow = OutboxRow & {
   claimWorkerId: string;
 };
 
-type DrizzleTransactionContext = TransactionContext<DrizzleDb>;
-
 @Injectable()
-export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor {
+export class OutboxService implements IOutboxWriter, IOutboxProcessor {
   constructor(
     @Inject(TOKENS.AuditLogger)
     private readonly auditLogger: IAuditLogger,
@@ -44,8 +43,12 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
     private readonly domainEventRouter: IDomainEventRouter,
   ) {}
 
-  async append(event: DomainEvent, trx?: DrizzleTransactionContext): Promise<void> {
-    const db = trx?.tx ?? this.db;
+  private resolveDb(trx?: TransactionContext): DrizzleExecutor {
+    return resolveDrizzleExecutor(this.db, trx);
+  }
+
+  async append(event: DomainEvent, trx?: TransactionContext): Promise<void> {
+    const db = this.resolveDb(trx);
 
     await db.insert(outboxEvents).values({
       id: event.id,
@@ -135,7 +138,7 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
 
     const expiredLockAt = new Date(now.getTime() - LOCK_TTL_MS);
 
-    return this.db.transaction(async (trx: DrizzleTransactionContext['tx']) => {
+    return this.db.transaction(async (trx) => {
       const rows = await trx
         .select()
         .from(outboxEvents)
@@ -144,17 +147,17 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
             lte(outboxEvents.availableAt, now),
             lte(outboxEvents.attempts, MAX_ATTEMPTS - 1),
             sql`
-              (
-                ${outboxEvents.status} = 'pending'
-                OR (
-                  ${outboxEvents.status} = 'processing'
-                  AND (
-                    ${outboxEvents.lockedAt} IS NULL
-                    OR ${outboxEvents.lockedAt} < ${expiredLockAt}
-                  )
+            (
+              ${outboxEvents.status} = 'pending'
+              OR (
+                ${outboxEvents.status} = 'processing'
+                AND (
+                  ${outboxEvents.lockedAt} IS NULL
+                  OR ${outboxEvents.lockedAt} < ${expiredLockAt}
                 )
               )
-            `,
+            )
+          `,
           ),
         )
         .orderBy(asc(outboxEvents.createdAt))
@@ -179,12 +182,6 @@ export class OutboxService implements IOutboxWriter<DrizzleDb>, IOutboxProcessor
         })
         .where(inArray(outboxEvents.id, ids));
 
-      /**
-       * Повертаємо snapshot вибраних рядків.
-       *
-       * attempts у них ще старий, і це нормально:
-       * attempts збільшується лише після помилки.
-       */
       return rows.map((row: OutboxRow) => ({
         ...row,
         claimWorkerId: workerId,

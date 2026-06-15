@@ -3,6 +3,7 @@ import type { EmailTemplateId } from './email-template-id';
 
 export type TemplatedEmailJob<T extends EmailTemplateId = EmailTemplateId> = {
   to: string;
+  idempotencyKey: string;
   subject: string;
   template: T;
   data: EmailTemplateDataMap[T];

@@ -30,6 +30,7 @@ export class UserRegisteredEventHandler implements IDomainEventHandler {
     const emailJob: EmailJobPayload = {
       to: payload.email,
       subject: 'Welcome',
+      idempotencyKey: `user-registered:${event.id}:welcome`,
       template: EMAIL_TEMPLATE.WELCOME,
       data: {
         email: payload.email,
