@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue, type Job, type JobsOptions } from 'bullmq';
-import type { IQueueGateway, QueueJobItem, QueueJobOptions, QueueName } from '@contracts/queues/queue-gateway';
+import type {
+  IQueueGateway,
+  QueueJobItem,
+  QueueJobOptions,
+  QueueName,
+} from '@contracts/queues/queue-gateway';
 import { AppConfigService } from '../config/app-config.service';
 import { QUEUES } from './queues';
 
@@ -62,7 +67,7 @@ export class BullQueueGateway implements IQueueGateway {
     jobs: Array<QueueJobItem<TQueue>>,
   ): Promise<string[]> {
     const queue = this.getQueue(queueName);
-  
+
     const result = await queue.addBulk(
       jobs.map((job) => ({
         name: job.name,
@@ -70,7 +75,7 @@ export class BullQueueGateway implements IQueueGateway {
         opts: this.buildJobOptions(job.options),
       })),
     );
-  
+
     return result.map((job: Job) => String(job.id));
   }
 

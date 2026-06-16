@@ -25,7 +25,11 @@ export class EmailProcessor extends WorkerHost {
   async process(job: Job<EmailJobPayload>): Promise<void> {
     const payload = job.data;
 
-    if ('idempotencyKey' in payload && payload.idempotencyKey && (await this.executions.isCompleted(payload.idempotencyKey))) {
+    if (
+      'idempotencyKey' in payload &&
+      payload.idempotencyKey &&
+      (await this.executions.isCompleted(payload.idempotencyKey))
+    ) {
       return;
     }
 

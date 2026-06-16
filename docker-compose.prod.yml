@@ -9,11 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"',
-        ]
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -24,19 +20,11 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command:
-      [
-        'redis-server',
-        '--appendonly',
-        'yes',
-        '--requirepass',
-        '${REDIS_PASSWORD}',
-      ]
+    command: ['redis-server', '--appendonly', 'yes', '--requirepass', '${REDIS_PASSWORD}']
     volumes:
       - redis_data:/data
     healthcheck:
-      test:
-        ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" ping | grep PONG']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -46,7 +34,7 @@ services:
 
   migrations:
     image: ${APP_IMAGE}
-    command: ['node', 'dist/tools/migrate.js']
+    command: ['npm', 'run', 'start:prod:migrations']
     env_file:
       - .env
     restart: 'no'
@@ -58,7 +46,7 @@ services:
 
   api:
     image: ${APP_IMAGE}
-    command: ['node', 'dist/apps/api/main.js']
+    command: ['npm', 'run', 'start:prod:api']
     env_file:
       - .env
     restart: unless-stopped
@@ -88,11 +76,10 @@ services:
 
   worker:
     image: ${APP_IMAGE}
-    command: ['node', 'dist/apps/worker/main.js']
+    command: ['npm', 'run', 'start:prod:worker']
     env_file:
       - .env
     restart: unless-stopped
-    init: true
     depends_on:
       migrations:
         condition: service_completed_successfully
@@ -104,7 +91,7 @@ services:
 
   cron:
     image: ${APP_IMAGE}
-    command: ['node', 'dist/apps/cron/main.js']
+    command: ['npm', 'run', 'start:prod:cron']
     env_file:
       - .env
     restart: unless-stopped

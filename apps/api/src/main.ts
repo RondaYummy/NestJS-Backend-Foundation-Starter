@@ -7,7 +7,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppConfigService } from '@infrastructure/config/app-config.service';
 
 import { ApiModule } from './api.module';
-import { NestExpressApplication } from '@nestjs/platform-express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 
 async function bootstrap(): Promise<void> {

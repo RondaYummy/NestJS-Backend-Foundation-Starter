@@ -1,4 +1,4 @@
-import { EmailJobPayload } from '@contracts/mail/email-job';
+import type { EmailJobPayload } from '@contracts/mail/email-job';
 
 export interface QueueJobBackoffOptions {
   type: 'fixed' | 'exponential';

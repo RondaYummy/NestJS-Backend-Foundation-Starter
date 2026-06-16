@@ -32,7 +32,7 @@ export class AuthController {
   @UseGuards(RateLimiterGuard)
   @RateLimit({ keyPrefix: 'auth:register' })
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() dto: RegisterDto) {
     const result = await this.registerUseCase.execute(dto);
 
     return {

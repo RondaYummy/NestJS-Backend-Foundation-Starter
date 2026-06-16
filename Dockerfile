@@ -33,3 +33,7 @@ RUN mkdir -p /app/storage && chown -R node:node /app/storage
 USER node
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/apps/api/apps/api/src/main.js"]
+
+FROM build-dependencies AS development
+COPY . .
+CMD ["npm", "run", "start:dev:api"]

@@ -162,7 +162,6 @@ apps/api
 ```
 
 Призначення:
-
 - HTTP API;
 - controllers;
 - DTO validation;
@@ -248,6 +247,10 @@ npm run start:dev:cron
 Cron не повинен піднімати HTTP API або BullMQ processors, якщо вони не потрібні конкретному schedule.
 
 ---
+
+Application залежить від NestJS
+
+Для NestJS Starter Kit використання @Injectable() та @Inject() в Application layer цілком допустиме. Це не порушує основну залежність:
 
 # 4. Основні архітектурні правила
 
@@ -537,7 +540,6 @@ libs/infrastructure/src/database/drizzle
 database/
   drizzle/
     drizzle.module.ts
-    drizzle.service.ts
     drizzle.tokens.ts
     schema/
       users.schema.ts

@@ -16,10 +16,6 @@ import { RedisJobExecutionStore } from './redis-job-execution.store';
       useClass: RedisJobExecutionStore,
     },
   ],
-  exports: [
-    TOKENS.IdempotencyService,
-    TOKENS.JobExecutionStore,
-    IdempotencyInterceptor,
-  ],
+  exports: [TOKENS.IdempotencyService, TOKENS.JobExecutionStore, IdempotencyInterceptor],
 })
 export class IdempotencyModule {}

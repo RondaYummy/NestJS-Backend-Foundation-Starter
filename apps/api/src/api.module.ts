@@ -10,6 +10,7 @@ import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { ExceptionsModule } from '@infrastructure/exceptions/exceptions.module';
 import { IdempotencyModule } from '@infrastructure/idempotency/idempotency.module';
 import { HealthModule } from '@infrastructure/health/health.module';
+import { RateLimiterModule } from '@infrastructure/rate-limiter/rate-limiter.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { HealthModule } from '@infrastructure/health/health.module';
     IdempotencyModule,
     HealthModule,
     AuthApplicationCompositionModule,
+    RateLimiterModule,
   ],
   controllers: [AuthController],
   providers: [

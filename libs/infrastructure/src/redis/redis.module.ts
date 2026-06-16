@@ -14,12 +14,32 @@ import { REDIS_CLIENT } from './redis.tokens';
       provide: REDIS_CLIENT,
       inject: [AppConfigService, AppLogger],
       useFactory: (config: AppConfigService, logger: AppLogger) => {
+        const redisConfig = config.redis();
+
         const client = new Redis({
-          host: config.redis().host,
-          port: config.redis().port,
-          password: config.redis().password || undefined,
-          db: config.redis().db,
+          host: redisConfig.host,
+          port: redisConfig.port,
+          password: redisConfig.password || undefined,
+          db: redisConfig.db,
+
+          /*
+           * Для довгоживучих Redis operations допускаємо очікування
+           * відновлення connection.
+           */
           maxRetriesPerRequest: null,
+
+          /*
+           * Один TCP connection attempt не повинен висіти надто довго.
+           */
+          connectTimeout: config.redis().connectTimeoutMs,
+
+          /*
+           * Після успішного startup runtime client повинен переживати
+           * тимчасове падіння Redis.
+           */
+          retryStrategy: (attempt: number): number => {
+            return Math.min(attempt * 250, 5000);
+          },
         });
         client.on('error', (error) => logger.error('Redis connection error', error));
         return client;

@@ -8,13 +8,7 @@ import { IdempotencyModule } from '@infrastructure/idempotency/idempotency.modul
 import { InfrastructureBullMqModule } from '@infrastructure/bullmq/bullmq.module';
 
 @Module({
-  imports: [
-    LoggerModule,
-    InfrastructureBullMqModule,
-    MailModule,
-    IdempotencyModule,
-    OutboxModule,
-  ],
+  imports: [LoggerModule, InfrastructureBullMqModule, MailModule, IdempotencyModule, OutboxModule],
   providers: [EmailProcessor, OutboxProcessor],
 })
 export class WorkerModule {}

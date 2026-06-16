@@ -25,7 +25,9 @@ services:
 
   migrations:
     image: nestjs-backend-foundation-starter:local
-    build: .
+    build:
+      context: .
+      target: development
     command: npm run db:migrate
     env_file: .env
     volumes:
@@ -39,8 +41,10 @@ services:
 
   api:
     image: nestjs-backend-foundation-starter:local
-    build: .
-    command: npm run start:api
+    build:
+      context: .
+      target: development
+    command: npm run start:dev:api
     env_file: .env
     ports: ['3000:3000']
     volumes:
@@ -54,8 +58,10 @@ services:
 
   worker:
     image: nestjs-backend-foundation-starter:local
-    build: .
-    command: npm run start:worker
+    build:
+      context: .
+      target: development
+    command: npm run start:dev:worker
     env_file: .env
     volumes:
       - .:/app
@@ -65,11 +71,14 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    stop_grace_period: 60s
 
   cron:
     image: nestjs-backend-foundation-starter:local
-    build: .
-    command: npm run start:cron
+    build:
+      context: .
+      target: development
+    command: npm run start:dev:cron
     env_file: .env
     volumes:
       - .:/app

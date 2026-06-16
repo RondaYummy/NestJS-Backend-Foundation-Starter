@@ -19,6 +19,7 @@ import { AppConfigService } from './app-config.service';
             port: e.REDIS_PORT,
             password: e.REDIS_PASSWORD,
             db: e.REDIS_DB,
+            connectTimeoutMs: e.REDIS_CONNECT_TIMEOUT_MS,
           },
           bullmq: {
             defaultAttempts: e.BULLMQ_DEFAULT_ATTEMPTS,

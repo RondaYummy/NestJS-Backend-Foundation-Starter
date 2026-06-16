@@ -49,7 +49,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (error instanceof HttpException) {
-      return (error as HttpException).getStatus();
+      return (error).getStatus();
     }
 
     return HttpStatus.INTERNAL_SERVER_ERROR;
@@ -77,7 +77,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof HttpException) {
-      const response = (exception as HttpException).getResponse();
+      const response = (exception).getResponse();
 
       if (typeof response === 'string') {
         return {
@@ -95,7 +95,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         ? rawMessage.filter((item): item is string => typeof item === 'string')
         : typeof rawMessage === 'string'
           ? rawMessage
-          : (exception as HttpException).message;
+          : (exception).message;
 
       return {
         code:
