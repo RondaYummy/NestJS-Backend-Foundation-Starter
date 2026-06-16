@@ -35,6 +35,15 @@
       "compilerOptions": {
         "tsConfigPath": "apps/cron/tsconfig.app.json"
       }
+    },
+    "migrations": {
+      "type": "application",
+      "root": "apps/migrations",
+      "entryFile": "main",
+      "sourceRoot": "apps/migrations/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/migrations/tsconfig.app.json"
+      }
     }
   }
 }

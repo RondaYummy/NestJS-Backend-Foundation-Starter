@@ -5,17 +5,13 @@ import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 
 import type { IAuditLogger } from '@contracts/audit/audit-logger';
 import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
-import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import { TOKENS } from '@contracts/tokens';
-import type { TransactionContext } from '@contracts/transactions/transaction-manager';
-import type { DomainEvent } from '@domain/events/domain-event';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
-import type { DrizzleDb, DrizzleExecutor } from '../database/drizzle/drizzle.types';
+import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { IDomainEventRouter } from '@contracts/events/domain-event-router';
-import { resolveDrizzleExecutor } from '@infrastructure/transactions/drizzle-transaction-context';
 
 const MAX_ATTEMPTS = 10;
 const BATCH_SIZE = 50;
@@ -28,7 +24,7 @@ type ClaimedOutboxRow = OutboxRow & {
 };
 
 @Injectable()
-export class OutboxService implements IOutboxWriter, IOutboxProcessor {
+export class DrizzleOutboxProcessor implements IOutboxProcessor {
   constructor(
     @Inject(TOKENS.AuditLogger)
     private readonly auditLogger: IAuditLogger,
@@ -43,30 +39,6 @@ export class OutboxService implements IOutboxWriter, IOutboxProcessor {
     private readonly domainEventRouter: IDomainEventRouter,
   ) {}
 
-  private resolveDb(trx?: TransactionContext): DrizzleExecutor {
-    return resolveDrizzleExecutor(this.db, trx);
-  }
-
-  async append(event: DomainEvent, trx?: TransactionContext): Promise<void> {
-    const db = this.resolveDb(trx);
-
-    await db.insert(outboxEvents).values({
-      id: event.id,
-      eventName: event.name,
-      payload: event.payload,
-
-      /**
-       * Час, коли domain-подія фактично виникла.
-       * Це не те саме, що createdAt outbox-запису.
-       */
-      occurredAt: event.occurredAt,
-
-      status: 'pending',
-      attempts: 0,
-      availableAt: new Date(),
-    });
-  }
-
   async processPending(): Promise<ProcessOutboxResult> {
     const events = await this.claimPendingBatch();
 
@@ -76,6 +48,7 @@ export class OutboxService implements IOutboxWriter, IOutboxProcessor {
     for (const event of events) {
       try {
         await this.publishEvent(event);
+
         const marked = await this.markProcessed(event.id, event.claimWorkerId);
 
         if (!marked) {

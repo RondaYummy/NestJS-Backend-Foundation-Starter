@@ -9,7 +9,7 @@ import { IdempotencyModule } from './idempotency/idempotency.module';
 import { LocksModule } from './locks/locks.module';
 import { LoggerModule } from './logger/logger.module';
 import { MailModule } from './mail/mail.module';
-import { OutboxModule } from './outbox/outbox.module';
+import { OutboxProcessorModule } from './outbox/outbox-processor.module';
 import { RateLimiterModule } from './rate-limiter/rate-limiter.module';
 import { RedisModule } from './redis/redis.module';
 import { RepositoriesModule } from './repositories/repositories.module';
@@ -30,7 +30,7 @@ import { HealthModule } from './health/health.module';
     MailModule,
     StorageModule,
     TransactionsModule,
-    OutboxModule,
+    OutboxProcessorModule,
     AuditModule,
     RateLimiterModule,
     LocksModule,
@@ -50,7 +50,7 @@ import { HealthModule } from './health/health.module';
     MailModule,
     StorageModule,
     TransactionsModule,
-    OutboxModule,
+    OutboxProcessorModule,
     AuditModule,
     RateLimiterModule,
     LocksModule,

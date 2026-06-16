@@ -37,6 +37,8 @@ services:
     command: ['npm', 'run', 'start:prod:migrations']
     env_file:
       - .env
+    environment:
+      MIGRATIONS_FOLDER: /app/drizzle
     restart: 'no'
     depends_on:
       postgres:

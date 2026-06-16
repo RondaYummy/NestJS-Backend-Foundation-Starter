@@ -8,7 +8,7 @@ import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-u
 
 import { AuthModule } from '@infrastructure/auth/auth.module';
 import { InfrastructureConfigModule } from '@infrastructure/config/infrastructure-config.module';
-import { OutboxModule } from '@infrastructure/outbox/outbox.module';
+import { OutboxWriterModule } from '@infrastructure/outbox/outbox-writer.module';
 import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
 import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
 
@@ -20,7 +20,7 @@ import { SessionCookieService } from '../auth/session-cookie.service';
     AuthModule,
     RepositoriesModule,
     TransactionsModule,
-    OutboxModule,
+    OutboxWriterModule,
   ],
   providers: [
     SessionCookieService,

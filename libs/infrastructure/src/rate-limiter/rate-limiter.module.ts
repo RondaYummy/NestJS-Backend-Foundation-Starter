@@ -10,7 +10,10 @@ import { RateLimiterGuard } from './rate-limiter.guard';
   providers: [
     RedisRateLimiter,
     RateLimiterGuard,
-    { provide: TOKENS.RateLimiter, useExisting: RedisRateLimiter },
+    {
+      provide: TOKENS.RateLimiter,
+      useExisting: RedisRateLimiter,
+    },
   ],
   exports: [TOKENS.RateLimiter, RateLimiterGuard],
 })
