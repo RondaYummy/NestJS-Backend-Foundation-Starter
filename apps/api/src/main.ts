@@ -9,20 +9,26 @@ import { AppConfigService } from '@infrastructure/config/app-config.service';
 import { ApiModule } from './api.module';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { assertRedisAvailable } from '@infrastructure/redis/assert-redis-available';
+import { getRedisStartupConfig } from '@infrastructure/redis/redis-startup-config';
+
+let application: NestExpressApplication | undefined;
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(ApiModule, {
+  await assertRedisAvailable(getRedisStartupConfig());
+
+  application = await NestFactory.create<NestExpressApplication>(ApiModule, {
     bufferLogs: true,
   });
 
-  app.set('trust proxy', 1);
-  app.use(cookieParser());
+  application.set('trust proxy', 1);
+  application.use(cookieParser());
 
-  app.enableShutdownHooks();
+  application.enableShutdownHooks();
 
-  app.useLogger(app.get(AppLogger));
+  application.useLogger(application.get(AppLogger));
 
-  app.useGlobalPipes(
+  application.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
@@ -30,27 +36,35 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  const config = app.get(AppConfigService);
+  const config = application.get(AppConfigService);
 
   const allowedOrigins = config
     .app()
     .allowedOrigins.split(',')
-    .map((origin) => origin.trim())
+    .map((origin: string) => origin.trim())
     .filter(Boolean);
 
-  app.enableCors({
-    origin(origin, callback) {
+    application.enableCors({
+    origin(origin: string, callback: (err: Error | null, success: boolean) => void) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
 
-      callback(new Error('Origin is not allowed'));
+      callback(new Error('Origin is not allowed'), false);
     },
     credentials: true,
   });
 
-  await app.listen(config.app().port);
+  await application.listen(config.app().port);
 }
 
-void bootstrap();
+void bootstrap().catch(async (error: unknown) => {
+  console.error('[api-startup] API failed to start', error);
+
+  if (application) {
+    await application.close().catch(() => undefined);
+  }
+
+  process.exit(1);
+});
