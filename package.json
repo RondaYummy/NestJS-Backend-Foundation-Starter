@@ -29,7 +29,13 @@
     "format:check": "prettier --check .",
     "test": "jest",
     "test:unit": "jest --config jest.unit.config.ts",
-    "test:int": "jest --config jest.integration.config.ts"
+    "test:int": "jest --config jest.integration.config.ts",
+    "start:prod:api": "node dist/apps/api/apps/api/src/main.js",
+    "start:prod:worker": "node dist/apps/worker/apps/worker/src/main.js",
+    "start:prod:cron": "node dist/apps/cron/apps/cron/src/main.js",
+    "start:prod:migrations": "node dist/apps/migrations/apps/migrations/src/main.js",
+    "build:migrations": "nest build migrations",
+    "db:migrate:prod": "npm run start:prod:migrations"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1068.0",

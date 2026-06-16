@@ -14,21 +14,36 @@
       "root": "apps/api",
       "entryFile": "main",
       "sourceRoot": "apps/api/src",
-      "compilerOptions": { "tsConfigPath": "apps/api/tsconfig.app.json" }
+      "compilerOptions": {
+        "tsConfigPath": "apps/api/tsconfig.app.json"
+      }
     },
     "worker": {
       "type": "application",
       "root": "apps/worker",
       "entryFile": "main",
       "sourceRoot": "apps/worker/src",
-      "compilerOptions": { "tsConfigPath": "apps/worker/tsconfig.app.json" }
+      "compilerOptions": {
+        "tsConfigPath": "apps/worker/tsconfig.app.json"
+      }
     },
     "cron": {
       "type": "application",
       "root": "apps/cron",
       "entryFile": "main",
       "sourceRoot": "apps/cron/src",
-      "compilerOptions": { "tsConfigPath": "apps/cron/tsconfig.app.json" }
+      "compilerOptions": {
+        "tsConfigPath": "apps/cron/tsconfig.app.json"
+      }
+    },
+    "migrations": {
+      "type": "application",
+      "root": "apps/migrations",
+      "entryFile": "main",
+      "sourceRoot": "apps/migrations/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/migrations/tsconfig.app.json"
+      }
     }
   }
 }
