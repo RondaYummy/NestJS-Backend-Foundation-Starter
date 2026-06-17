@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
+
 type ConfigShape = {
   app: { env: string; port: number; allowedOrigins: string };
   database: { url: string };
@@ -34,6 +36,7 @@ type ConfigShape = {
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
   logger: { level: string };
+  outbox: OutboxProcessorOptions;
 };
 
 @Injectable()
@@ -77,5 +80,9 @@ export class AppConfigService {
 
   storage(): ConfigShape['storage'] {
     return this.config.get('storage', { infer: true });
+  }
+
+  outbox(): ConfigShape['outbox'] {
+    return this.config.get('outbox', { infer: true });
   }
 }

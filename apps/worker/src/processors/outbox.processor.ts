@@ -5,8 +5,9 @@ import type { Job } from 'bullmq';
 import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
 import { QUEUES } from '@contracts/queues/queue-names';
 import { TOKENS } from '@contracts/tokens';
+import { buildOutboxProcessorDecoratorOptions } from '@infrastructure/outbox/outbox-processor.defaults';
 
-@Processor(QUEUES.OUTBOX)
+@Processor(QUEUES.OUTBOX, buildOutboxProcessorDecoratorOptions())
 export class OutboxProcessor extends WorkerHost {
   constructor(
     @Inject(TOKENS.OutboxProcessor)

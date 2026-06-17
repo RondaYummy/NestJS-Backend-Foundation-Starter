@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './env.schema';
 import { AppConfigService } from './app-config.service';
+import { mapOutboxEnvToOptions } from '../outbox/outbox-processor.options.schema';
 
 @Module({
   imports: [
@@ -72,6 +73,16 @@ import { AppConfigService } from './app-config.service';
             authMax: e.RATE_LIMIT_AUTH_MAX,
           },
           logger: { level: e.LOGGER_LEVEL },
+          outbox: mapOutboxEnvToOptions({
+            OUTBOX_BATCH_SIZE: e.OUTBOX_BATCH_SIZE,
+            OUTBOX_MAX_ATTEMPTS: e.OUTBOX_MAX_ATTEMPTS,
+            OUTBOX_LOCK_TTL_MS: e.OUTBOX_LOCK_TTL_MS,
+            OUTBOX_POLL_INTERVAL_MS: e.OUTBOX_POLL_INTERVAL_MS,
+            OUTBOX_CRON_LOCK_TTL_MS: e.OUTBOX_CRON_LOCK_TTL_MS,
+            OUTBOX_CONCURRENCY: e.OUTBOX_CONCURRENCY,
+            OUTBOX_RETRY_BASE_DELAY_SECONDS: e.OUTBOX_RETRY_BASE_DELAY_SECONDS,
+            OUTBOX_RETRY_MAX_DELAY_SECONDS: e.OUTBOX_RETRY_MAX_DELAY_SECONDS,
+          }),
         };
       },
     }),

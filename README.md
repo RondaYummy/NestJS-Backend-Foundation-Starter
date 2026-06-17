@@ -1110,6 +1110,34 @@ failed
 - бачити історію подій;
 - підтримувати eventual consistency.
 
+### Runtime configuration
+
+Outbox processing policy is configured at the Worker and Cron composition roots through `OutboxProcessorModule.forRootAsync()` backed by `AppConfigService.outbox()`.
+
+Environment variables (all optional; defaults match the previous hardcoded behavior):
+
+```txt
+OUTBOX_BATCH_SIZE=50
+OUTBOX_MAX_ATTEMPTS=10
+OUTBOX_LOCK_TTL_MS=300000
+OUTBOX_POLL_INTERVAL_MS=60000
+OUTBOX_CRON_LOCK_TTL_MS=55000
+OUTBOX_CONCURRENCY=1
+OUTBOX_RETRY_BASE_DELAY_SECONDS=30
+OUTBOX_RETRY_MAX_DELAY_SECONDS=3600
+```
+
+Tuning relationships:
+
+- `batchSize` — maximum events claimed per worker job. Higher values improve throughput but increase per-job handler duration.
+- `concurrency` — BullMQ worker parallelism for the outbox queue. Values above `1` allow multiple batches to run at the same time; keep `lockTtlMs` aligned with worst-case handler duration to avoid duplicate reclaim.
+- `lockTtlMs` — lease duration for `processing` rows. If a handler can run longer than this value, another worker may reclaim the event while the first handler is still running. Set `lockTtlMs` above your slowest handler path.
+- `pollIntervalMs` — how often Cron enqueues an outbox processing job.
+- `cronLockTtlMs` — distributed lock TTL for the cron tick. Must stay below `pollIntervalMs` so only one cron leader enqueues per interval.
+- `maxAttempts` and retry delay env vars — control permanent failure threshold and exponential backoff between retries.
+
+BullMQ job timeout is not configured for outbox jobs in this starter kit. If handlers can exceed `lockTtlMs`, increase the lock TTL or reduce `batchSize` / `concurrency` before adding a queue timeout.
+
 ---
 
 ## 5.14. Audit Module

@@ -46,6 +46,14 @@ export const envSchema = z
     AUTH_SESSION_COOKIE_PATH: z.string().min(1).default('/'),
     AUTH_SESSION_COOKIE_DOMAIN: z.string().optional().default(''),
     AUTH_SESSION_COOKIE_SAME_SITE: z.enum(['lax', 'strict', 'none']).default('lax'),
+    OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).default(50),
+    OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(10),
+    OUTBOX_LOCK_TTL_MS: z.coerce.number().int().min(1000).default(300_000),
+    OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).default(60_000),
+    OUTBOX_CRON_LOCK_TTL_MS: z.coerce.number().int().min(1000).default(55_000),
+    OUTBOX_CONCURRENCY: z.coerce.number().int().min(1).default(1),
+    OUTBOX_RETRY_BASE_DELAY_SECONDS: z.coerce.number().int().min(1).default(30),
+    OUTBOX_RETRY_MAX_DELAY_SECONDS: z.coerce.number().int().min(1).default(3600),
   })
   .superRefine((env, ctx) => {
     if (env.MAIL_DRIVER === 'smtp') {
@@ -91,6 +99,23 @@ export const envSchema = z
         path: ['AUTH_SESSION_COOKIE_SAME_SITE'],
         message:
           'SameSite=None requires a Secure cookie and should not be used with the current non-production cookie configuration',
+      });
+    }
+
+    if (env.OUTBOX_CRON_LOCK_TTL_MS >= env.OUTBOX_POLL_INTERVAL_MS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OUTBOX_CRON_LOCK_TTL_MS'],
+        message: 'OUTBOX_CRON_LOCK_TTL_MS must be less than OUTBOX_POLL_INTERVAL_MS',
+      });
+    }
+
+    if (env.OUTBOX_RETRY_MAX_DELAY_SECONDS < env.OUTBOX_RETRY_BASE_DELAY_SECONDS) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OUTBOX_RETRY_MAX_DELAY_SECONDS'],
+        message:
+          'OUTBOX_RETRY_MAX_DELAY_SECONDS must be greater than or equal to OUTBOX_RETRY_BASE_DELAY_SECONDS',
       });
     }
   });

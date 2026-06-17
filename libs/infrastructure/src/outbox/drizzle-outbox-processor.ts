@@ -5,6 +5,7 @@ import { and, asc, eq, inArray, lte, sql } from 'drizzle-orm';
 
 import type { IAuditLogger } from '@contracts/audit/audit-logger';
 import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
+import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
 import { TOKENS } from '@contracts/tokens';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
@@ -12,10 +13,6 @@ import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { IDomainEventRouter } from '@contracts/events/domain-event-router';
-
-const MAX_ATTEMPTS = 10;
-const BATCH_SIZE = 50;
-const LOCK_TTL_MS = 5 * 60 * 1000;
 
 type OutboxRow = typeof outboxEvents.$inferSelect;
 
@@ -37,6 +34,9 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
 
     @Inject(TOKENS.DomainEventRouter)
     private readonly domainEventRouter: IDomainEventRouter,
+
+    @Inject(TOKENS.OutboxProcessorOptions)
+    private readonly options: OutboxProcessorOptions,
   ) {}
 
   async processPending(): Promise<ProcessOutboxResult> {
@@ -109,7 +109,7 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
     const workerId = randomUUID();
     const now = new Date();
 
-    const expiredLockAt = new Date(now.getTime() - LOCK_TTL_MS);
+    const expiredLockAt = new Date(now.getTime() - this.options.lockTtlMs);
 
     return this.db.transaction(async (trx) => {
       const rows = await trx
@@ -118,7 +118,7 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
         .where(
           and(
             lte(outboxEvents.availableAt, now),
-            lte(outboxEvents.attempts, MAX_ATTEMPTS - 1),
+            lte(outboxEvents.attempts, this.options.maxAttempts - 1),
             sql`
             (
               ${outboxEvents.status} = 'pending'
@@ -134,7 +134,7 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
           ),
         )
         .orderBy(asc(outboxEvents.createdAt))
-        .limit(BATCH_SIZE)
+        .limit(this.options.batchSize)
         .for('update', {
           skipLocked: true,
         });
@@ -200,9 +200,9 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
 
   private async markFailed(event: ClaimedOutboxRow, error: unknown): Promise<boolean> {
     const attempts = event.attempts + 1;
-    const retryDelaySeconds = Math.min(2 ** attempts * 30, 3600);
+    const retryDelaySeconds = this.options.retryDelaySeconds(attempts);
 
-    const permanentlyFailed = attempts >= MAX_ATTEMPTS;
+    const permanentlyFailed = attempts >= this.options.maxAttempts;
 
     const now = new Date();
 
