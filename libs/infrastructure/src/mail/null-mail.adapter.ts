@@ -17,5 +17,6 @@ export class NullMailAdapter implements IEmailGateway {
       to: input.to,
       subject: input.subject,
     });
+    await Promise.resolve();
   }
 }

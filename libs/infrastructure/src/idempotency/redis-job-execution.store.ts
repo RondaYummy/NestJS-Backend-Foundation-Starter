@@ -15,6 +15,10 @@ export class RedisJobExecutionStore implements IJobExecutionStore {
     return acquired ? token : null;
   }
 
+  async extend(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean> {
+    return this.redis.compareAndExpire(this.buildKey(key), ownershipToken, ttlSeconds);
+  }
+
   async complete(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean> {
     const script = `
       if redis.call("get", KEYS[1]) == ARGV[1] then

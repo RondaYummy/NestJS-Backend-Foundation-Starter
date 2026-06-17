@@ -4,12 +4,15 @@ import { RedisJobExecutionStore } from './redis-job-execution.store';
 import type { RedisService } from '@infrastructure/redis/redis.service';
 
 describe('RedisJobExecutionStore', () => {
-  let redis: jest.Mocked<Pick<RedisService, 'setIfNotExists' | 'compareAndDelete' | 'eval'>>;
+  let redis: jest.Mocked<
+    Pick<RedisService, 'setIfNotExists' | 'compareAndExpire' | 'compareAndDelete' | 'eval'>
+  >;
   let store: RedisJobExecutionStore;
 
   beforeEach(() => {
     redis = {
       setIfNotExists: jest.fn(),
+      compareAndExpire: jest.fn(),
       compareAndDelete: jest.fn(),
       eval: jest.fn(),
     };
@@ -63,6 +66,27 @@ describe('RedisJobExecutionStore', () => {
     await store.release('welcome:user-1', 'token-a');
 
     expect(redis.compareAndDelete).toHaveBeenCalledWith('job-execution:welcome:user-1', 'token-a');
+  });
+
+  it('extend renews TTL when ownership token matches', async () => {
+    redis.compareAndExpire.mockResolvedValue(true);
+
+    const result = await store.extend('welcome:user-1', 'token-a', 300);
+
+    expect(result).toBe(true);
+    expect(redis.compareAndExpire).toHaveBeenCalledWith(
+      'job-execution:welcome:user-1',
+      'token-a',
+      300,
+    );
+  });
+
+  it('extend returns false when ownership token does not match', async () => {
+    redis.compareAndExpire.mockResolvedValue(false);
+
+    const result = await store.extend('welcome:user-1', 'wrong-token', 300);
+
+    expect(result).toBe(false);
   });
 
   it('allows only one acquire when the key is already claimed', async () => {

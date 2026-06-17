@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { envSchema } from './env.schema';
 import { AppConfigService } from './app-config.service';
 import { mapOutboxEnvToOptions } from '../outbox/outbox-processor.options.schema';
+import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.options.schema';
 
 @Module({
   imports: [
@@ -82,6 +83,12 @@ import { mapOutboxEnvToOptions } from '../outbox/outbox-processor.options.schema
             OUTBOX_CONCURRENCY: e.OUTBOX_CONCURRENCY,
             OUTBOX_RETRY_BASE_DELAY_SECONDS: e.OUTBOX_RETRY_BASE_DELAY_SECONDS,
             OUTBOX_RETRY_MAX_DELAY_SECONDS: e.OUTBOX_RETRY_MAX_DELAY_SECONDS,
+          }),
+          jobExecution: mapJobExecutionEnvToOptions({
+            JOB_EXECUTION_LEASE_TTL_SECONDS: e.JOB_EXECUTION_LEASE_TTL_SECONDS,
+            JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: e.JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS,
+            JOB_EXECUTION_COMPLETED_RETENTION_TTL_SECONDS:
+              e.JOB_EXECUTION_COMPLETED_RETENTION_TTL_SECONDS,
           }),
         };
       },

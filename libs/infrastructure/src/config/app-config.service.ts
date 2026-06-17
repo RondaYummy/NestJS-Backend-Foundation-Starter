@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
+import type { JobExecutionOptions } from '@contracts/idempotency/job-execution.options';
 
 type ConfigShape = {
   app: { env: string; port: number; allowedOrigins: string };
@@ -37,6 +38,7 @@ type ConfigShape = {
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
   logger: { level: string };
   outbox: OutboxProcessorOptions;
+  jobExecution: JobExecutionOptions;
 };
 
 @Injectable()
@@ -84,5 +86,9 @@ export class AppConfigService {
 
   outbox(): ConfigShape['outbox'] {
     return this.config.get('outbox', { infer: true });
+  }
+
+  jobExecution(): ConfigShape['jobExecution'] {
+    return this.config.get('jobExecution', { infer: true });
   }
 }

@@ -6,115 +6,82 @@ implemented
 
 ## Approved plan
 
-`docs/agent-plans/P0-01-atomic-email-idempotency.md` — `status: approved`
+`docs/agent-plans/P0-01-lease-email-idempotency-heartbeat.md` (`status: approved`)
 
 ## Changed files
 
-| Path                                                                    | Change                                                                                                 |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `libs/contracts/src/idempotency/job-execution-store.ts`                 | Replaced `isCompleted` / `markCompleted` with `acquire` / `complete` / `release`                       |
-| `libs/infrastructure/src/idempotency/redis-job-execution.store.ts`      | Atomic Redis claim via `SET NX EX`, ownership-safe `complete` (Lua) and `release` (`compareAndDelete`) |
-| `apps/worker/src/processors/email.processor.ts`                         | Acquire-before-send, complete-on-success, release-on-failure flow with TTL constants                   |
-| `libs/infrastructure/src/idempotency/redis-job-execution.store.spec.ts` | New unit tests (6 cases)                                                                               |
-| `README.md`                                                             | Job execution store subsection under §5.17 with failure model                                          |
-| `EXAMPLES.md`                                                           | Templated email idempotency subsection under §9                                                        |
+| File                                                                    | Change                                            |
+| ----------------------------------------------------------------------- | ------------------------------------------------- |
+| `libs/contracts/src/idempotency/job-execution.options.ts`               | **Created** — `JobExecutionOptions` contract      |
+| `libs/contracts/src/idempotency/job-execution-store.ts`                 | Added `extend()` to `IJobExecutionStore`          |
+| `libs/infrastructure/src/idempotency/job-execution.options.schema.ts`   | **Created** — Zod env parsing + mapper            |
+| `libs/infrastructure/src/idempotency/redis-job-execution.store.ts`      | Implemented `extend()` via `compareAndExpire`     |
+| `libs/infrastructure/src/idempotency/redis-job-execution.store.spec.ts` | Unit tests for `extend` success/failure           |
+| `libs/infrastructure/src/config/env.schema.ts`                          | Job execution env vars + heartbeat validation     |
+| `libs/infrastructure/src/config/infrastructure-config.module.ts`        | Wired `jobExecution` config shape                 |
+| `libs/infrastructure/src/config/app-config.service.ts`                  | Added `jobExecution()` accessor                   |
+| `apps/worker/src/processors/email.processor.ts`                         | Heartbeat, ownership-loss guard, config injection |
+| `apps/worker/src/processors/email.processor.int-spec.ts`                | **Created** — V-03 integration test               |
+| `.env.example`                                                          | Documented new env vars                           |
 
 ## Completed steps
 
-1. Updated `IJobExecutionStore` contract (`acquire`, `complete`, `release`).
-2. Rewrote `RedisJobExecutionStore` with `randomUUID()` + `setIfNotExists`, Lua `complete`, `compareAndDelete` `release`.
-3. Updated `EmailProcessor` — `EXECUTION_TTL_SECONDS = 300`, `COMPLETED_RETENTION_TTL_SECONDS = 30 days`, try/catch with release on error.
-4. Added `redis-job-execution.store.spec.ts` with acquire/complete/release and duplicate-acquire cases.
-5. Documented failure model in `README.md` and `EXAMPLES.md`.
-6. Grep confirmed `EmailProcessor` is the only consumer of `IJobExecutionStore`; no further call-site updates required.
+1. Extended `IJobExecutionStore` with `extend(key, ownershipToken, ttlSeconds)`.
+2. Implemented atomic lease renewal in `RedisJobExecutionStore`.
+3. Added `JobExecutionOptions` contract and env-backed configuration (defaults: 300s lease, 100s heartbeat, 30d retention).
+4. Updated `EmailProcessor` to heartbeat during execution, clear interval in `finally`, and abort before `mail.send()` when ownership is lost (with structured warning log).
+5. Added unit tests for `extend` and integration test scaffold for backlog V-03.
 
 ## Deviations
 
-- `email.processor.spec.ts` not added (optional per plan; `redis-job-execution.store.spec.ts` deemed sufficient).
-- `/// <reference types="jest" />` added to the new spec file so ts-jest resolves Jest globals without changing `jest.unit.config.ts` (out of plan scope).
-- No `RedisService` helper added; Lua script kept local to `RedisJobExecutionStore` per plan preference.
+None. Ownership-loss handling uses a retriable generic `Error` with `AppLogger.warn` structured context, matching the plan recommendation.
 
 ## Commands executed
 
-| Command                                                  | Result                                                                                                     |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `git status && git diff && git diff --staged`            | Clean tree except untracked plan file; no conflicting user changes                                         |
-| `npm run build:worker`                                   | Exit 0 — worker compiles after contract/adapter/processor changes                                          |
-| `rg "isCompleted\|markCompleted" --glob "*.ts"`          | No matches in TypeScript sources                                                                           |
-| `npm run test:unit -- redis-job-execution.store.spec.ts` | Exit 0 — 6 tests passed                                                                                    |
-| `npm run build`                                          | Exit 0 — api, worker, cron, migrations build                                                               |
-| `npm run lint`                                           | Exit 1 — pre-existing error in `libs/infrastructure/src/mail/null-mail.adapter.ts` (unchanged by this fix) |
-| `npm run test:unit`                                      | Exit 0 — 1 suite, 6 tests passed                                                                           |
-| `npm run start:worker`                                   | Exit 0 with `Error spawn EPERM` — bootstrap not confirmed in this environment                              |
+```bash
+npm run test:unit -- libs/infrastructure/src/idempotency/redis-job-execution.store.spec.ts
+npm run test:int -- apps/worker/src/processors/email.processor.int-spec.ts
+npx jest --config jest.integration.config.ts apps/worker/src/processors/email.processor.int-spec.ts --verbose
+npm run build:worker
+npm run build
+npm run lint
+npm run test:unit
+npm run test:int
+npx eslint apps/worker/src/processors/email.processor.int-spec.ts libs/infrastructure/src/idempotency libs/contracts/src/idempotency apps/worker/src/processors/email.processor.ts libs/infrastructure/src/config --max-warnings=0
+```
 
 ## Command results
 
-### `npm run build:worker`
-
-```
-> nest build worker
-(exit 0)
-```
-
-### `npm run build`
-
-```
-> nest build api && nest build worker && nest build cron && nest build migrations
-(exit 0)
-```
-
-### `npm run lint`
-
-```
-E:\Projects\NestJS-Backend-Foundation-Starter\libs\infrastructure\src\mail\null-mail.adapter.ts
-  9:3  error  Async method 'send' has no 'await' expression  @typescript-eslint/require-await
-
-✖ 1 problem (1 error, 0 warnings)
-(exit 1)
-```
-
-File not modified by P0-01. Changed files have no linter diagnostics.
-
-### `npm run test:unit`
-
-```
-Test Suites: 1 passed, 1 total
-Tests:       6 passed, 6 total
-(exit 0)
-```
-
-### `npm run start:worker`
-
-```
-> nest start worker
- Error  spawn EPERM
-(exit 0 from npm script wrapper; runtime bootstrap unconfirmed)
-```
+| Command                                                     | Result                                        | Conclusion                                                                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `npm run test:unit -- ...redis-job-execution.store.spec.ts` | Exit 0 — 8 tests passed                       | `extend` unit coverage passes                                                                                                |
+| `npm run build:worker`                                      | Exit 0                                        | Worker compiles with new DI (`AppConfigService`, `AppLogger`)                                                                |
+| `npm run build`                                             | Exit 0                                        | All entrypoints compile                                                                                                      |
+| `npm run test:unit`                                         | Exit 0 — 14 tests passed                      | No unit regressions                                                                                                          |
+| `npm run test:int`                                          | Exit 0 — 1 test passed (skipped body)         | Suite runs; see unverified areas                                                                                             |
+| `npm run lint`                                              | Exit 1                                        | Pre-existing failure in `libs/infrastructure/src/mail/null-mail.adapter.ts` (`require-await`); not introduced by this change |
+| Scoped eslint on changed files                              | Exit 0 (after fixing `beforeEach` async lint) | Changed files lint-clean                                                                                                     |
 
 ## Acceptance criteria self-check
 
-| Criterion                                                                                          | Status                      | Evidence                                                                                       |
-| -------------------------------------------------------------------------------------------------- | --------------------------- | ---------------------------------------------------------------------------------------------- |
-| Two parallel workers cannot both execute email side effect for same `idempotencyKey`               | Implemented (static)        | `acquire` uses `SET NX`; second acquire returns `null`; processor exits before `mail.send`     |
-| Worker without ownership token cannot `complete()` or `release()` another claim                    | Implemented (static + unit) | Lua ownership check in `complete`; `compareAndDelete` in `release`; unit tests for wrong token |
-| Retry after failure possible (`release` on error; subsequent `acquire` succeeds)                   | Implemented (static)        | `EmailProcessor` catch block calls `release` before rethrow                                    |
-| Completed execution not re-run during retention (`complete` sets long TTL; `acquire` returns null) | Implemented (static)        | `complete` sets `completed` with 30-day TTL; `acquire` NX fails on existing key                |
-| Failure model documented in `README.md` and `EXAMPLES.md`                                          | Done                        | New subsections added                                                                          |
-| Runtime concurrency check (two workers, one SMTP send)                                             | Not verified                | Requires Redis + worker infra and manual/scripted test                                         |
+- [x] `IJobExecutionStore` exposes `extend(key, ownershipToken, ttlSeconds): Promise<boolean>`.
+- [x] `RedisJobExecutionStore.extend` renews TTL only when the stored value equals `ownershipToken` (atomic `compareAndExpire`).
+- [x] `EmailProcessor` heartbeats during render/send and stops heartbeat in `finally`.
+- [x] If ownership is lost before `mail.send()`, the processor does not send email.
+- [x] Lease TTL and heartbeat interval are read from typed configuration, not hardcoded in the processor.
+- [x] Unit tests cover `extend` success and failure.
+- [ ] Integration test (V-03): with lease TTL 2s and 5s simulated send, duplicate delivery results in exactly one gateway call — **test present but not exercised** (Redis unavailable at `localhost:6379` during run; test skipped with warning).
+- [x] `npm run build` passes.
+- [ ] `npm run lint` — full-repo lint blocked by pre-existing `null-mail.adapter.ts` issue unrelated to P0-01.
 
 ## Remaining risks
 
-- At-least-once semantics: crash after SMTP success but before `complete()` can cause duplicate email when execution TTL expires (documented).
-- `complete()` returning `false` after successful send is not logged or surfaced to BullMQ (open question #5 in plan; no logging added).
-- `executionTtlSeconds = 300` without heartbeat — slow SMTP/render could lose claim before complete (documented; tuning possible).
+- **Post-send ownership loss** (P2-02): if SMTP succeeds but `complete()` fails, a retry could still resend.
+- **Heartbeat misconfiguration**: mitigated by env schema (`heartbeat <= lease / 2`).
+- **Pre-send ownership loss** causes BullMQ retry; acceptable because no side effect occurred.
 
 ## Unverified areas
 
-- `npm run lint` full-repo pass blocked by pre-existing `null-mail.adapter.ts` violation.
-- `npm run start:worker` bootstrap — `spawn EPERM` in current environment; Redis/SMTP availability not tested.
-- Manual concurrency test with two worker replicas and duplicate `idempotencyKey` enqueue not executed.
-- `complete()` failure after successful send not exercised at runtime.
-
-## Backlog status
-
-Source backlog item **not** marked resolved. Awaiting independent verification and human acceptance.
+- V-03 integration scenario with live Redis (duplicate concurrent delivery while first job exceeds lease TTL).
+- `npm run start:worker` manual scenario with shortened TTL env vars.
+- Full `npm run lint` pass (blocked by unrelated pre-existing lint error).

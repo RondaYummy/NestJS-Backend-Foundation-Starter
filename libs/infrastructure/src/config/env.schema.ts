@@ -54,6 +54,13 @@ export const envSchema = z
     OUTBOX_CONCURRENCY: z.coerce.number().int().min(1).default(1),
     OUTBOX_RETRY_BASE_DELAY_SECONDS: z.coerce.number().int().min(1).default(30),
     OUTBOX_RETRY_MAX_DELAY_SECONDS: z.coerce.number().int().min(1).default(3600),
+    JOB_EXECUTION_LEASE_TTL_SECONDS: z.coerce.number().int().min(1).default(300),
+    JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS: z.coerce.number().int().min(1).default(100),
+    JOB_EXECUTION_COMPLETED_RETENTION_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .default(2_592_000),
   })
   .superRefine((env, ctx) => {
     if (env.MAIL_DRIVER === 'smtp') {
@@ -116,6 +123,16 @@ export const envSchema = z
         path: ['OUTBOX_RETRY_MAX_DELAY_SECONDS'],
         message:
           'OUTBOX_RETRY_MAX_DELAY_SECONDS must be greater than or equal to OUTBOX_RETRY_BASE_DELAY_SECONDS',
+      });
+    }
+
+    const maxJobExecutionHeartbeat = Math.floor(env.JOB_EXECUTION_LEASE_TTL_SECONDS / 2);
+
+    if (env.JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS > maxJobExecutionHeartbeat) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS'],
+        message: `JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS must be less than or equal to ${maxJobExecutionHeartbeat}`,
       });
     }
   });
