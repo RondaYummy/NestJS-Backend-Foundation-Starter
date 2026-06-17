@@ -1,0 +1,15 @@
+---
+description: Target rules for reusable infrastructure module portability and typed registration
+globs: "libs/infrastructure/**/*.ts"
+alwaysApply: false
+---
+
+- Reusable modules must expose explicit typed configuration through `forRoot`, `forRootAsync` or an equivalent public registration contract.
+- A reusable module must not require consumers to use `AppConfigService` as its only configuration API.
+- Do not read `process.env` inside adapters or business-facing services.
+- Do not hide required dependencies behind unrelated global modules.
+- Export the tokens and providers that consumers need explicitly.
+- Queue names, key prefixes, TTLs, retry policies, concurrency, connection options and provider settings must be configurable where they affect portability.
+- Entrypoints must import only the infrastructure they actually use.
+- Do not create both JWT and Session implementations when only one driver is selected.
+- When touching Redis, Drizzle, BullMQ, Auth, Mail, Storage, Rate Limiter, Locks or Outbox, verify that configuration and lifecycle remain independently composable.

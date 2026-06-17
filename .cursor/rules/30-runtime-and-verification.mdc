@@ -1,0 +1,15 @@
+---
+description: Required evidence and command discipline for implementation and review
+alwaysApply: true
+---
+
+- Start with targeted checks, then run the required full checks before completion.
+- Use commands defined in `package.json`; do not invent substitute scripts without explaining why.
+- For changes to shared contracts or infrastructure modules, run `npm run build`.
+- For API-only changes, run at least `npm run build:api`; for Worker-only changes, `npm run build:worker`; for Cron-only changes, `npm run build:cron`; for migrations, `npm run build:migrations`.
+- Run `npm run lint` for completed code changes.
+- Run relevant unit or integration tests when they exist for the changed behavior.
+- Bootstrap the affected entrypoint when infrastructure is available.
+- Record each command as: command, result, conclusion.
+- A missing PostgreSQL, Redis, SMTP or S3 service is not automatically a project defect; separate infrastructure unavailability from code failure.
+- Do not mark acceptance criteria complete based only on static inspection when runtime evidence is required.

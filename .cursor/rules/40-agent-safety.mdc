@@ -1,0 +1,13 @@
+---
+description: Safety boundaries for repository, Git, Docker, databases and secrets
+alwaysApply: true
+---
+
+- Never modify `.env` values containing real credentials or expose secrets in reports.
+- Never run destructive SQL, production migrations, `docker compose down -v`, volume deletion, `git reset --hard`, force push or history rewriting without explicit human approval.
+- Do not delete user files or untracked changes.
+- Inspect `git status` and `git diff` before implementation and before reporting completion.
+- Do not change `package-lock.json` unless dependency changes are intentional and part of the approved plan.
+- Do not silence type or lint failures using broad `any`, `@ts-ignore`, disabled rules or removed validation.
+- Do not delete functionality merely to make build, lint or tests pass.
+- If the approved plan is insufficient or the required scope expands, stop and report a plan revision instead of silently continuing.

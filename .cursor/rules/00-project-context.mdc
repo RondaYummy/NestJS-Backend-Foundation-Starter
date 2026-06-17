@@ -1,0 +1,13 @@
+---
+description: Core context and operating model for the NestJS backend foundation starter
+alwaysApply: true
+---
+
+- Read `AGENTS.md` before planning or editing code.
+- This repository is a reusable NestJS starter kit, not a single-purpose application.
+- Preserve API, Worker, Cron and Migrations as independently deployable entrypoints.
+- Use npm and the versions declared in `package.json`.
+- Work on one backlog issue at a time unless the user explicitly approves a combined scope.
+- Prefer local, backward-compatible changes over broad rewrites.
+- Treat documentation as a baseline to verify, not as automatic proof of runtime behavior.
+- Never report success without listing the commands that were actually executed and their results.

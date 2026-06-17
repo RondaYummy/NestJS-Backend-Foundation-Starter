@@ -1,0 +1,14 @@
+---
+description: Enforce dependency direction and layer ownership in apps and libraries
+globs: "{apps,libs}/**/*.ts"
+alwaysApply: false
+---
+
+- `libs/domain` must remain pure TypeScript and must not import NestJS, Drizzle, PostgreSQL, Redis, BullMQ, HTTP or provider SDKs.
+- `libs/application` may depend on Domain and Contracts, but must not import concrete Infrastructure implementations.
+- Existing NestJS DI decorators in Application are tolerated only as documented current state; do not expand this coupling during unrelated work.
+- `libs/contracts` owns ports, tokens and provider-neutral boundary data.
+- `libs/infrastructure` implements Contracts and must not leak provider-specific types into Domain or Application.
+- Controllers, guards, workers, cron schedules and migration bootstraps are interface/composition code and must not contain business rules.
+- Register concrete implementations against tokens in composition modules.
+- When changing a token or port, search and update every provider, export, import and consumer before verification.

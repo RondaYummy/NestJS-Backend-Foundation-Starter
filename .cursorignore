@@ -1,0 +1,16 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+dist/
+coverage/
+*.log
+
+# Local editor and operating-system files
+.DS_Store
+
+# Git internals are not useful as indexed code context
+.git/
