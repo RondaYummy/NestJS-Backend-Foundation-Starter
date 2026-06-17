@@ -466,6 +466,39 @@ UI-примітиви: `libs/infrastructure/src/mail/components/` (`Layout`, `Bl
 
 **Не** передавайте HTML з use case — лише `template` + `data`.
 
+### Idempotency для templated email jobs
+
+`TemplatedEmailJob` підтримує опційне поле `idempotencyKey`. `EmailProcessor` застосовує атомарний execution claim через `IJobExecutionStore` перед SMTP side effect.
+
+Приклад ключа (welcome email після реєстрації):
+
+```ts
+idempotencyKey: `user-registered:${event.id}:welcome`;
+```
+
+Потік worker-а:
+
+```txt
+acquire(idempotencyKey, executionTtl=300s)
+  -> null: вже completed або in-flight — вихід без send
+  -> token: render template -> mail.send()
+    -> complete(idempotencyKey, token, retentionTtl=30d) при успіху
+    -> release(idempotencyKey, token) при помилці
+```
+
+Redis-ключ: `job-execution:<idempotencyKey>`.
+
+| Стан ключа       | Поведінка                                                   |
+| ---------------- | ----------------------------------------------------------- |
+| відсутній        | `acquire` повертає token, worker виконує send               |
+| in-flight (UUID) | паралельний `acquire` повертає `null`, duplicate send немає |
+| `completed`      | `acquire` повертає `null` до закінчення retention TTL       |
+| помилка send     | `release` видаляє claim, BullMQ retry може знову `acquire`  |
+
+`RawEmailJob` не має `idempotencyKey` — send виконується без claim (як раніше).
+
+At-least-once застереження: якщо worker впав після успішного SMTP, але до `complete()`, execution TTL дозволить retry — можливе дублювання листа. Для критичних notification flows документуйте це обмеження або додайте durable dedup.
+
 Запуск: Redis + `npm run start:dev:worker` + `MAIL_DRIVER=smtp` (або `null` для dev).
 
 ---

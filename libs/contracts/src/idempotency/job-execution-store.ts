@@ -1,5 +1,7 @@
 export interface IJobExecutionStore {
-  isCompleted(key: string): Promise<boolean>;
+  acquire(key: string, ttlSeconds: number): Promise<string | null>;
 
-  markCompleted(key: string, ttlSeconds: number): Promise<void>;
+  complete(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean>;
+
+  release(key: string, ownershipToken: string): Promise<void>;
 }

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import type { IJobExecutionStore } from '@contracts/idempotency/job-execution-store';
@@ -7,12 +8,29 @@ import { RedisService } from '@infrastructure/redis/redis.service';
 export class RedisJobExecutionStore implements IJobExecutionStore {
   constructor(private readonly redis: RedisService) {}
 
-  async isCompleted(key: string): Promise<boolean> {
-    return this.redis.exists(this.buildKey(key));
+  async acquire(key: string, ttlSeconds: number): Promise<string | null> {
+    const token = randomUUID();
+    const acquired = await this.redis.setIfNotExists(this.buildKey(key), token, ttlSeconds);
+
+    return acquired ? token : null;
   }
 
-  async markCompleted(key: string, ttlSeconds: number): Promise<void> {
-    await this.redis.set(this.buildKey(key), 'completed', ttlSeconds);
+  async complete(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean> {
+    const script = `
+      if redis.call("get", KEYS[1]) == ARGV[1] then
+        return redis.call("set", KEYS[1], "completed", "EX", ARGV[2])
+      end
+
+      return nil
+    `;
+
+    const result = await this.redis.eval(script, 1, this.buildKey(key), ownershipToken, ttlSeconds);
+
+    return result === 'OK';
+  }
+
+  async release(key: string, ownershipToken: string): Promise<void> {
+    await this.redis.compareAndDelete(this.buildKey(key), ownershipToken);
   }
 
   private buildKey(key: string): string {

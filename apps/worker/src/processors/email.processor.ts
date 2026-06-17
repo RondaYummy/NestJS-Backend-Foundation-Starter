@@ -9,6 +9,9 @@ import { QUEUES } from '@contracts/queues/queue-names';
 import { MailTemplateService } from '@infrastructure/mail/mail-template.service';
 import type { IJobExecutionStore } from '@contracts/idempotency/job-execution-store';
 
+const COMPLETED_RETENTION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const EXECUTION_TTL_SECONDS = 300;
+
 @Processor(QUEUES.EMAIL)
 export class EmailProcessor extends WorkerHost {
   constructor(
@@ -24,30 +27,46 @@ export class EmailProcessor extends WorkerHost {
 
   async process(job: Job<EmailJobPayload>): Promise<void> {
     const payload = job.data;
+    const idempotencyKey =
+      'idempotencyKey' in payload && payload.idempotencyKey ? payload.idempotencyKey : null;
 
-    if (
-      'idempotencyKey' in payload &&
-      payload.idempotencyKey &&
-      (await this.executions.isCompleted(payload.idempotencyKey))
-    ) {
-      return;
+    let ownershipToken: string | null = null;
+
+    if (idempotencyKey) {
+      ownershipToken = await this.executions.acquire(idempotencyKey, EXECUTION_TTL_SECONDS);
+
+      if (!ownershipToken) {
+        return;
+      }
     }
 
-    if (isTemplatedEmailJob(payload)) {
-      const { html, text } = await this.mailTemplates.render(payload.template, payload.data);
+    try {
+      if (isTemplatedEmailJob(payload)) {
+        const { html, text } = await this.mailTemplates.render(payload.template, payload.data);
 
-      await this.mail.send({
-        to: payload.to,
-        subject: payload.subject,
-        html,
-        text,
-      });
-    } else {
-      await this.mail.send(payload);
-    }
+        await this.mail.send({
+          to: payload.to,
+          subject: payload.subject,
+          html,
+          text,
+        });
+      } else {
+        await this.mail.send(payload);
+      }
 
-    if ('idempotencyKey' in payload && payload.idempotencyKey) {
-      await this.executions.markCompleted(payload.idempotencyKey, 30 * 24 * 60 * 60);
+      if (idempotencyKey && ownershipToken) {
+        await this.executions.complete(
+          idempotencyKey,
+          ownershipToken,
+          COMPLETED_RETENTION_TTL_SECONDS,
+        );
+      }
+    } catch (error) {
+      if (idempotencyKey && ownershipToken) {
+        await this.executions.release(idempotencyKey, ownershipToken);
+      }
+
+      throw error;
     }
   }
 }
