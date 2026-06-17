@@ -44,8 +44,8 @@ async function bootstrap(): Promise<void> {
     .map((origin: string) => origin.trim())
     .filter(Boolean);
 
-    application.enableCors({
-    origin(origin: string, callback: (err: Error | null, success: boolean) => void) {
+  application.enableCors({
+    origin(origin: string | undefined, callback: (err: Error | null, success: boolean) => void) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
