@@ -47,7 +47,7 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
 
     for (const event of events) {
       try {
-        await this.publishEvent(event);
+        await this.publishEventWithLease(event);
 
         const marked = await this.markProcessed(event.id, event.claimWorkerId);
 
@@ -162,13 +162,82 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
     });
   }
 
-  private async publishEvent(event: OutboxRow): Promise<void> {
-    await this.domainEventRouter.route({
-      id: event.id,
-      name: event.eventName,
-      payload: event.payload,
-      occurredAt: event.occurredAt.toISOString(),
-    });
+  private async renewEventLease(eventId: string, workerId: string): Promise<boolean> {
+    const now = new Date();
+
+    const updated = await this.db
+      .update(outboxEvents)
+      .set({
+        lockedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(outboxEvents.id, eventId),
+          eq(outboxEvents.status, 'processing'),
+          eq(outboxEvents.lockedBy, workerId),
+        ),
+      )
+      .returning({
+        id: outboxEvents.id,
+      });
+
+    return updated.length === 1;
+  }
+
+  private async publishEventWithLease(event: ClaimedOutboxRow): Promise<void> {
+    let ownershipLost = false;
+    let heartbeatInProgress = false;
+    let heartbeat: NodeJS.Timeout | undefined;
+
+    heartbeat = setInterval(() => {
+      if (heartbeatInProgress || ownershipLost) {
+        return;
+      }
+
+      heartbeatInProgress = true;
+
+      void this.renewEventLease(event.id, event.claimWorkerId)
+        .then((renewed) => {
+          if (!renewed) {
+            ownershipLost = true;
+          }
+        })
+        .catch(() => {
+          ownershipLost = true;
+        })
+        .finally(() => {
+          heartbeatInProgress = false;
+        });
+    }, this.options.lockHeartbeatIntervalMs);
+
+    heartbeat.unref();
+
+    try {
+      await Promise.race([
+        this.domainEventRouter.route({
+          id: event.id,
+          name: event.eventName,
+          payload: event.payload,
+          occurredAt: event.occurredAt.toISOString(),
+        }),
+        new Promise<never>((_, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Outbox handler timeout exceeded'));
+          }, this.options.handlerTimeoutMs);
+
+          timeout.unref();
+        }),
+      ]);
+
+      if (ownershipLost) {
+        throw new Error(`Outbox event ownership was lost during publication: ${event.id}`);
+      }
+    } finally {
+      if (heartbeat) {
+        clearInterval(heartbeat);
+      }
+    }
   }
 
   private async markProcessed(id: string, workerId: string): Promise<boolean> {

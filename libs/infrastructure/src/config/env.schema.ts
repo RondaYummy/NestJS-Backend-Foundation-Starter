@@ -49,6 +49,8 @@ export const envSchema = z
     OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).default(50),
     OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(10),
     OUTBOX_LOCK_TTL_MS: z.coerce.number().int().min(1000).default(300_000),
+    OUTBOX_LOCK_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1000).optional(),
+    OUTBOX_HANDLER_TIMEOUT_MS: z.coerce.number().int().min(1000).optional(),
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(1000).default(60_000),
     OUTBOX_CRON_LOCK_TTL_MS: z.coerce.number().int().min(1000).default(55_000),
     OUTBOX_CONCURRENCY: z.coerce.number().int().min(1).default(1),
@@ -123,6 +125,28 @@ export const envSchema = z
         path: ['OUTBOX_RETRY_MAX_DELAY_SECONDS'],
         message:
           'OUTBOX_RETRY_MAX_DELAY_SECONDS must be greater than or equal to OUTBOX_RETRY_BASE_DELAY_SECONDS',
+      });
+    }
+
+    const outboxLockTtlMs = env.OUTBOX_LOCK_TTL_MS;
+    const maxOutboxHeartbeat = Math.floor(outboxLockTtlMs / 2);
+    const outboxHeartbeat =
+      env.OUTBOX_LOCK_HEARTBEAT_INTERVAL_MS ?? Math.max(Math.floor(outboxLockTtlMs / 3), 1000);
+    const outboxHandlerTimeout = env.OUTBOX_HANDLER_TIMEOUT_MS ?? outboxLockTtlMs;
+
+    if (outboxHeartbeat > maxOutboxHeartbeat) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OUTBOX_LOCK_HEARTBEAT_INTERVAL_MS'],
+        message: `OUTBOX_LOCK_HEARTBEAT_INTERVAL_MS must be less than or equal to ${maxOutboxHeartbeat}`,
+      });
+    }
+
+    if (outboxHandlerTimeout < outboxLockTtlMs) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['OUTBOX_HANDLER_TIMEOUT_MS'],
+        message: 'OUTBOX_HANDLER_TIMEOUT_MS must be greater than or equal to OUTBOX_LOCK_TTL_MS',
       });
     }
 

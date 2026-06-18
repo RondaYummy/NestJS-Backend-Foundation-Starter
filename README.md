@@ -1120,6 +1120,8 @@ Environment variables (all optional; defaults match the previous hardcoded behav
 OUTBOX_BATCH_SIZE=50
 OUTBOX_MAX_ATTEMPTS=10
 OUTBOX_LOCK_TTL_MS=300000
+OUTBOX_LOCK_HEARTBEAT_INTERVAL_MS=100000
+OUTBOX_HANDLER_TIMEOUT_MS=300000
 OUTBOX_POLL_INTERVAL_MS=60000
 OUTBOX_CRON_LOCK_TTL_MS=55000
 OUTBOX_CONCURRENCY=1
@@ -1130,13 +1132,17 @@ OUTBOX_RETRY_MAX_DELAY_SECONDS=3600
 Tuning relationships:
 
 - `batchSize` — maximum events claimed per worker job. Higher values improve throughput but increase per-job handler duration.
-- `concurrency` — BullMQ worker parallelism for the outbox queue. Values above `1` allow multiple batches to run at the same time; keep `lockTtlMs` aligned with worst-case handler duration to avoid duplicate reclaim.
-- `lockTtlMs` — lease duration for `processing` rows. If a handler can run longer than this value, another worker may reclaim the event while the first handler is still running. Set `lockTtlMs` above your slowest handler path.
+- `concurrency` — BullMQ worker parallelism for the outbox queue. Values above `1` allow multiple batches to run at the same time; heartbeat renewal prevents duplicate reclaim of the same row while publication is active.
+- `lockTtlMs` — base lease duration for `processing` rows. While a worker is actively publishing, the lease is renewed at `lockHeartbeatIntervalMs` so another worker cannot reclaim the event mid-flight. Size `lockTtlMs` for your expected handler duration and operational tolerance.
+- `lockHeartbeatIntervalMs` — how often the active worker refreshes `locked_at` during publication. Default: `max(floor(lockTtlMs / 3), 1000)`. Must be `<= floor(lockTtlMs / 2)`.
+- `handlerTimeoutMs` — maximum time allowed for a single event route/enqueue call. Default: `lockTtlMs`. Exceeding this marks the event failed and schedules a retry; downstream handlers must remain idempotent because at-least-once delivery can still occur on crash or retry windows.
 - `pollIntervalMs` — how often Cron enqueues an outbox processing job.
 - `cronLockTtlMs` — distributed lock TTL for the cron tick. Must stay below `pollIntervalMs` so only one cron leader enqueues per interval.
 - `maxAttempts` and retry delay env vars — control permanent failure threshold and exponential backoff between retries.
 
-BullMQ job timeout is not configured for outbox jobs in this starter kit. If handlers can exceed `lockTtlMs`, increase the lock TTL or reduce `batchSize` / `concurrency` before adding a queue timeout.
+Outbox delivery remains at-least-once: a handler may still run more than once if the process crashes after a successful route but before `markProcessed()`, or when retries occur after timeout or failure. Design downstream consumers to be idempotent.
+
+BullMQ job timeout is not configured for outbox jobs in this starter kit. If handlers can exceed `handlerTimeoutMs`, increase `OUTBOX_HANDLER_TIMEOUT_MS` and/or `OUTBOX_LOCK_TTL_MS`, or reduce `batchSize` / `concurrency`, before adding a queue timeout.
 
 ---
 
