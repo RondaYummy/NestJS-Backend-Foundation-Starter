@@ -32,8 +32,7 @@
 | `P1-01` | `1. Закрити path traversal у LocalStorageAdapter`                                    |
 | `P1-02` | `2. Не дозволяти помилці cron tick завершувати Cron process`                         |
 | `P1-03` | `3. Посилити production validation JWT secrets`                                      |
-| `P1-04` | `4. Прибрати NestJS decorators з Application layer`                                  |
-| `P1-05` | `5. Зробити infrastructure modules незалежно конфігурованими та явно скомпонованими` |
+| `P1-04` | `5. Зробити infrastructure modules незалежно конфігурованими та явно скомпонованими` |
 
 ## P2 — medium-priority production-readiness and portability defects
 
