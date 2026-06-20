@@ -1,53 +1,66 @@
 # Agent backlog index
 
-This file provides stable identifiers for sections in `NESTJS_STARTER_KIT_REQUIRED_FIXES.md`.
-Agents must work on one ID at a time and must always read the full matching source section.
+> **Synchronized:** 20 June 2026  
+> **Source of truth:** `docs/agent-backlog/NESTJS_STARTER_KIT_REQUIRED_FIXES.md`  
+> **Baseline:** `NestJS-Backend-Foundation-Starter(45).zip`
 
-## P0 — runtime and data integrity
+Agents must work on exactly one ID and read the complete matching section before planning.
 
-| ID | Source section |
-|---|---|
-| `P0-01` | `1. Зробити idempotency email worker атомарною` |
-| `P0-02` | `2. Усунути завершення Outbox lease під час активної обробки batch` |
+## P1 — High
 
-## P1 — portability and composition
+| ID      | Source section                                                                                   |
+| ------- | ------------------------------------------------------------------------------------------------ |
+| `P1-01` | `P1-01. Закрити path traversal у LocalStorageAdapter`                                            |
+| `P1-02` | `P1-02. Додати error boundary та overlap guard для Cron tick`                                    |
+| `P1-03` | `P1-03. Посилити production policy для JWT secrets`                                              |
+| `P1-04` | `P1-04. Зробити infrastructure modules незалежно конфігурованими й явно скомпонованими`          |
+| `P1-05` | `P1-05. Прибрати NestJS DI decorators з Application або офіційно змінити архітектурний контракт` |
 
-| ID | Source section |
-|---|---|
-| `P1-01` | `3. Додати typed forRoot / forRootAsync contracts для reusable infrastructure modules` |
-| `P1-02` | `4. Розділити env validation за entrypoint і модулем` |
-| `P1-03` | `5. Зробити BullMQ registration явною для кожного composition root` |
-| `P1-04` | `6. AuthModule повинен створювати лише вибрану strategy` |
-| `P1-05` | `7. Прибрати NestJS decorators із Application layer або чесно змінити архітектурний контракт` |
-| `P1-06` | `8. Зменшити використання @Global() і зробити provider visibility явною` |
+## P2 — Medium
 
-## P2 — configurability, production readiness and documentation
+| ID      | Source section                                                                        |
+| ------- | ------------------------------------------------------------------------------------- |
+| `P2-01` | `P2-01. Серіалізувати паралельні PostgreSQL migrations`                               |
+| `P2-02` | `P2-02. Узгодити QueueJobRegistry, QUEUES та BullMQ registrations`                    |
+| `P2-03` | `P2-03. Реалізувати справжній forgetByPattern()`                                      |
+| `P2-04` | `P2-04. Не reclaim-ити Outbox event, поки timeouted handler продовжує side effect`    |
+| `P2-05` | `P2-05. Додати bounded deadlines до readiness checks`                                 |
+| `P2-06` | `P2-06. Не авторизовувати користувача лише за stale token/session claims`             |
+| `P2-07` | `P2-07. Обробляти complete() === false після email side effect`                       |
+| `P2-08` | `P2-08. Прибрати другий process.env configuration path для Outbox Worker concurrency` |
+| `P2-09` | `P2-09. Усунути high advisories у production dependency graph`                        |
+| `P2-10` | `P2-10. Не включати .env і .git у release archive`                                    |
+| `P2-11` | `P2-11. Відновити non-formatting lint gate`                                           |
 
-| ID | Source section |
-|---|---|
-| `P2-01` | `9. Винести Outbox runtime constants у typed configuration` |
-| `P2-02` | `10. Виправити неправильний log prefix у Redis startup probe` |
-| `P2-03` | `11. Усунути documentation mismatch щодо idempotency` |
-| `P2-04` | `12. Усунути documentation mismatch щодо незалежного перенесення модулів` |
-| `P2-05` | `13. Уточнити документацію щодо framework independence` |
+## P3 — Low
 
-## Verification backlog
+| ID      | Source section                                                                         |
+| ------- | -------------------------------------------------------------------------------------- |
+| `P3-01` | `P3-01. Узгодити Node engine range з dependency requirements`                          |
+| `P3-02` | `P3-02. Синхронізувати README з фактичними entrypoint, features та EventBus semantics` |
+| `P3-03` | `P3-03. Виправити .env.example і component-specific startup logging`                   |
 
-| ID | Source section |
-|---|---|
-| `V-01` | `14. Виконати чисте встановлення залежностей` |
-| `V-02` | `15. Виконати build і typecheck` |
-| `V-03` | `16. Виконати lint без врахування суто форматувальних проблем` |
-| `V-04` | `17. Перевірити bootstrap кожного entrypoint` |
-| `V-05` | `18. Перевірити Docker startup flow` |
-| `V-06` | `19. Перевірити migration concurrency` |
-| `V-07` | `20. Перевірити graceful shutdown активних BullMQ jobs` |
+## Verification
 
-## Status model
+| ID     | Scope                                    |
+| ------ | ---------------------------------------- |
+| `V-01` | Clean install/build/typecheck/lint/audit |
+| `V-02` | Four entrypoint bootstrap                |
+| `V-03` | LocalStorage traversal                   |
+| `V-04` | Cron failure/overlap                     |
+| `V-05` | JWT secret policy                        |
+| `V-06` | Parallel migrations                      |
+| `V-07` | Queue registry parity                    |
+| `V-08` | Pattern cache invalidation               |
+| `V-09` | Outbox timeout race                      |
+| `V-10` | Health deadlines                         |
+| `V-11` | Auth revocation/freshness                |
+| `V-12` | Email ownership loss                     |
+| `V-13` | Docker/release artifact                  |
+| `V-14` | Unit suite timeout                       |
+| `V-15` | BullMQ graceful shutdown                 |
 
-The source backlog remains the statement of work. Plans and reports track execution state.
-
-Recommended lifecycle:
+## Resolution lifecycle
 
 ```text
 open
@@ -58,4 +71,4 @@ open
   -> accepted by human
 ```
 
-Do not edit this index to claim an issue is resolved. Resolution should be recorded in the plan/report history or the project issue tracker.
+Do not edit this index to claim resolution. Store evidence in plan and implementation/verification reports.

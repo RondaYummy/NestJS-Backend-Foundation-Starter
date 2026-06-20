@@ -1,12 +1,16 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { Injectable } from '@nestjs/common';
 import type { IStorageGateway } from '@contracts/storage/storage-gateway';
 import { AppConfigService } from '../config/app-config.service';
 
 @Injectable()
 export class LocalStorageAdapter implements IStorageGateway {
-  constructor(private readonly config: AppConfigService) {}
+  private readonly storageRoot: string;
+
+  constructor(private readonly config: AppConfigService) {
+    this.storageRoot = resolve(this.config.storage().localPath);
+  }
 
   async putObject(input: {
     key: string;
@@ -15,10 +19,10 @@ export class LocalStorageAdapter implements IStorageGateway {
   }): Promise<{ key: string; url?: string }> {
     if (!Buffer.isBuffer(input.body))
       throw new Error('LocalStorageAdapter supports Buffer in this starter');
-    const path = this.path(input.key);
-    await mkdir(dirname(path), { recursive: true });
-    await writeFile(path, input.body);
-    return { key: input.key, url: path };
+    const filePath = this.path(input.key);
+    await mkdir(dirname(filePath), { recursive: true });
+    await writeFile(filePath, input.body);
+    return { key: input.key };
   }
 
   getObject(key: string): Promise<Buffer> {
@@ -29,11 +33,30 @@ export class LocalStorageAdapter implements IStorageGateway {
     await rm(this.path(key), { force: true });
   }
 
-  async getSignedUrl(key: string): Promise<string> {
-    return Promise.resolve(this.path(key));
+  async getSignedUrl(key: string, _expiresInSeconds: number): Promise<string> {
+    this.path(key);
+    return Promise.resolve(key);
   }
 
   private path(key: string): string {
-    return join(this.config.storage().localPath, key);
+    if (!key || key.trim() === '') {
+      throw new Error('Invalid storage key');
+    }
+    if (key.includes('\0')) {
+      throw new Error('Invalid storage key');
+    }
+    if (isAbsolute(key)) {
+      throw new Error('Invalid storage key');
+    }
+
+    const normalizedKey = key.replaceAll('\\', '/');
+    const candidate = resolve(this.storageRoot, normalizedKey);
+    const rel = relative(this.storageRoot, candidate);
+
+    if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+      throw new Error('Storage key escapes configured root');
+    }
+
+    return candidate;
   }
 }

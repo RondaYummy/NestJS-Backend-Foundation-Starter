@@ -985,6 +985,8 @@ await storage.putObject({
 
 Application не має знати, де фізично лежить файл — локально, в S3 чи Minio.
 
+Local driver: `putObject` and `getSignedUrl` return storage key references, not absolute filesystem paths.
+
 ---
 
 ## 5.11. Transaction Module
