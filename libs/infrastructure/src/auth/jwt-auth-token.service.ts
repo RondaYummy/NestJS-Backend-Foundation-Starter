@@ -13,8 +13,13 @@ import type { CurrentUser } from '@contracts/auth/current-user';
 import type { IJwtTokenStore } from '@contracts/auth/jwt-token-store.service';
 import { TOKENS } from '@contracts/tokens';
 
-import { AppConfigService } from '../config/app-config.service';
 import { AuthenticationError, InvalidAuthRequestError } from '@domain/errors/domain-errors';
+
+import {
+  AUTH_MODULE_OPTIONS,
+  isJwtAuthOptions,
+  type AuthModuleOptions,
+} from './auth.module-options';
 
 type AccessTokenPayload = CurrentUser & {
   type: 'access';
@@ -43,11 +48,20 @@ type TokenPair = {
 export class JwtAuthTokenService implements IAuthTokenService {
   constructor(
     private readonly jwtService: JwtService,
-    private readonly config: AppConfigService,
+    @Inject(AUTH_MODULE_OPTIONS)
+    private readonly options: AuthModuleOptions,
 
     @Inject(TOKENS.JwtTokenStore)
     private readonly tokenStore: IJwtTokenStore,
   ) {}
+
+  private jwtConfig() {
+    if (!isJwtAuthOptions(this.options)) {
+      throw new Error('JwtAuthTokenService requires JWT auth options');
+    }
+
+    return this.options.jwt;
+  }
 
   async createAuthSession(user: CurrentUser): Promise<AuthTokens> {
     const familyId = randomUUID();
@@ -73,7 +87,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   async verifyAccessToken(token: string): Promise<CurrentUser | null> {
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.config.jwt().secret,
+        secret: this.jwtConfig().secret,
       });
 
       if (payload.type !== 'access' || !payload.jti) {
@@ -97,7 +111,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
 
     try {
       payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
-        secret: this.config.jwt().refreshSecret,
+        secret: this.jwtConfig().refreshSecret,
       });
     } catch {
       throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
@@ -149,7 +163,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   ): Promise<AccessTokenPayload | null> {
     try {
       const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.config.jwt().secret,
+        secret: this.jwtConfig().secret,
         ignoreExpiration: true,
       });
 
@@ -201,9 +215,9 @@ export class JwtAuthTokenService implements IAuthTokenService {
     const accessTokenId = randomUUID();
     const refreshTokenId = randomUUID();
 
-    const accessExpiresIn = this.config.jwt().expiresIn;
-
-    const refreshExpiresIn = this.config.jwt().refreshExpiresIn;
+    const jwtConfig = this.jwtConfig();
+    const accessExpiresIn = jwtConfig.expiresIn;
+    const refreshExpiresIn = jwtConfig.refreshExpiresIn;
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
@@ -216,7 +230,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
         },
         {
           expiresIn: accessExpiresIn as StringValue,
-          secret: this.config.jwt().secret,
+          secret: this.jwtConfig().secret,
         },
       ),
 
@@ -231,7 +245,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
         },
         {
           expiresIn: refreshExpiresIn as StringValue,
-          secret: this.config.jwt().refreshSecret,
+          secret: this.jwtConfig().refreshSecret,
         },
       ),
     ]);
@@ -248,7 +262,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
   private async verifyRefreshTokenForRevocation(token: string): Promise<RefreshTokenPayload> {
     try {
       const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
-        secret: this.config.jwt().refreshSecret,
+        secret: this.jwtConfig().refreshSecret,
       });
 
       if (payload.type !== 'refresh' || !payload.jti || !payload.familyId) {

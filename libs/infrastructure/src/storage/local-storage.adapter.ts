@@ -1,15 +1,24 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import type { IStorageGateway } from '@contracts/storage/storage-gateway';
-import { AppConfigService } from '../config/app-config.service';
+
+import {
+  STORAGE_MODULE_OPTIONS,
+  isS3StorageOptions,
+  type StorageModuleOptions,
+} from './storage.module-options';
 
 @Injectable()
 export class LocalStorageAdapter implements IStorageGateway {
   private readonly storageRoot: string;
 
-  constructor(private readonly config: AppConfigService) {
-    this.storageRoot = resolve(this.config.storage().localPath);
+  constructor(@Inject(STORAGE_MODULE_OPTIONS) options: StorageModuleOptions) {
+    if (isS3StorageOptions(options)) {
+      throw new Error('LocalStorageAdapter requires local storage options');
+    }
+
+    this.storageRoot = resolve(options.localPath);
   }
 
   async putObject(input: {

@@ -1,45 +1,42 @@
-import { Global, Module, OnApplicationShutdown } from '@nestjs/common';
+import {
+  ConfigurableModuleBuilder,
+  DynamicModule,
+  Module,
+  OnApplicationShutdown,
+} from '@nestjs/common';
 import Redis from 'ioredis';
+
 import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
 import { AppConfigService } from '../config/app-config.service';
 import { LoggerModule } from '../logger/logger.module';
 import { AppLogger } from '../logger/app-logger.service';
 import { RedisService } from './redis.service';
 import { REDIS_CLIENT } from './redis.tokens';
-@Global()
+import type { RedisModuleOptions } from './redis.module-options';
+
+export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYNC_OPTIONS_TYPE } =
+  new ConfigurableModuleBuilder<RedisModuleOptions>({
+    optionsInjectionToken: 'REDIS_MODULE_OPTIONS',
+  })
+    .setClassMethodName('forRoot')
+    .setFactoryMethodName('forRootAsync')
+    .build();
+
 @Module({
-  imports: [InfrastructureConfigModule, LoggerModule],
+  imports: [LoggerModule],
   providers: [
     {
       provide: REDIS_CLIENT,
-      inject: [AppConfigService, AppLogger],
-      useFactory: (config: AppConfigService, logger: AppLogger) => {
-        const redisConfig = config.redis();
-
+      inject: [MODULE_OPTIONS_TOKEN, AppLogger],
+      useFactory: (options: RedisModuleOptions, logger: AppLogger) => {
         const client = new Redis({
-          host: redisConfig.host,
-          port: redisConfig.port,
-          password: redisConfig.password || undefined,
-          db: redisConfig.db,
-
-          /*
-           * Для довгоживучих Redis operations допускаємо очікування
-           * відновлення connection.
-           */
+          host: options.host,
+          port: options.port,
+          password: options.password || undefined,
+          db: options.db,
           maxRetriesPerRequest: null,
-
-          /*
-           * Один TCP connection attempt не повинен висіти надто довго.
-           */
-          connectTimeout: config.redis().connectTimeoutMs,
-
-          /*
-           * Після успішного startup runtime client повинен переживати
-           * тимчасове падіння Redis.
-           */
-          retryStrategy: (attempt: number): number => {
-            return Math.min(attempt * 250, 5000);
-          },
+          connectTimeout: options.connectTimeoutMs,
+          retryStrategy: (attempt: number): number => Math.min(attempt * 250, 5000),
         });
         client.on('error', (error) => logger.error('Redis connection error', error));
         return client;
@@ -54,9 +51,38 @@ import { REDIS_CLIENT } from './redis.tokens';
   ],
   exports: [REDIS_CLIENT, RedisService],
 })
-export class RedisModule {}
+export class RedisModule extends ConfigurableModuleClass {
+  static forRoot(options: typeof OPTIONS_TYPE): DynamicModule {
+    return {
+      ...super.forRoot(options),
+      global: false,
+    };
+  }
+
+  static forRootAsync(options: typeof ASYNC_OPTIONS_TYPE): DynamicModule {
+    return {
+      ...super.forRootAsync(options),
+      global: false,
+    };
+  }
+
+  /**
+   * @deprecated Use `forRootAsync` at the composition root with typed options instead.
+   */
+  static forRootFromAppConfig(): DynamicModule {
+    return RedisModule.forRootAsync({
+      imports: [InfrastructureConfigModule],
+      inject: [AppConfigService],
+      useFactory: (config: AppConfigService) => config.redis(),
+    });
+  }
+}
+
+export { MODULE_OPTIONS_TOKEN as REDIS_MODULE_OPTIONS_TOKEN };
+
 class RedisShutdown implements OnApplicationShutdown {
   constructor(private readonly client: Redis) {}
+
   async onApplicationShutdown(): Promise<void> {
     await this.client.quit();
   }

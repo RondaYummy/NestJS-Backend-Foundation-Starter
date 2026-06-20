@@ -1,12 +1,20 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module, type ModuleMetadata } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
-import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { AuditLogger } from './audit.logger';
 import { LoggerModule } from '@infrastructure/logger/logger.module';
 
-@Module({
-  imports: [DrizzleModule, LoggerModule],
-  providers: [AuditLogger, { provide: TOKENS.AuditLogger, useExisting: AuditLogger }],
-  exports: [TOKENS.AuditLogger],
-})
-export class AuditModule {}
+type AuditModuleRegisterOptions = {
+  imports?: ModuleMetadata['imports'];
+};
+
+@Module({})
+export class AuditModule {
+  static register(options: AuditModuleRegisterOptions = {}): DynamicModule {
+    return {
+      module: AuditModule,
+      imports: [LoggerModule, ...(options.imports ?? [])],
+      providers: [AuditLogger, { provide: TOKENS.AuditLogger, useExisting: AuditLogger }],
+      exports: [TOKENS.AuditLogger],
+    };
+  }
+}

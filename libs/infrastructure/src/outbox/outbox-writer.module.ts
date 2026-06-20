@@ -1,19 +1,27 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module, type ModuleMetadata } from '@nestjs/common';
 
 import { TOKENS } from '@contracts/tokens';
 
-import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { DrizzleOutboxWriter } from './drizzle-outbox-writer';
 
-@Module({
-  imports: [DrizzleModule],
-  providers: [
-    DrizzleOutboxWriter,
-    {
-      provide: TOKENS.OutboxWriter,
-      useExisting: DrizzleOutboxWriter,
-    },
-  ],
-  exports: [TOKENS.OutboxWriter],
-})
-export class OutboxWriterModule {}
+type OutboxWriterModuleRegisterOptions = {
+  imports?: ModuleMetadata['imports'];
+};
+
+@Module({})
+export class OutboxWriterModule {
+  static register(options: OutboxWriterModuleRegisterOptions = {}): DynamicModule {
+    return {
+      module: OutboxWriterModule,
+      imports: options.imports ?? [],
+      providers: [
+        DrizzleOutboxWriter,
+        {
+          provide: TOKENS.OutboxWriter,
+          useExisting: DrizzleOutboxWriter,
+        },
+      ],
+      exports: [TOKENS.OutboxWriter],
+    };
+  }
+}

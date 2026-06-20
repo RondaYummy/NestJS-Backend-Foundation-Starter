@@ -16,6 +16,7 @@
 10. [Додати BullMQ job (worker)](#10-додати-bullmq-job-worker)
 11. [Додати cron-задачу](#11-додати-cron-задачу)
 12. [Корисні команди](#12-корисні-команди)
+13. [Підключити infrastructure module окремо](#13-підключити-infrastructure-module-окремо)
 
 ---
 
@@ -598,6 +599,35 @@ npm run start:dev:cron
 | Міграції         | `npm run db:generate` → `npm run db:migrate` |
 | Docker           | `docker compose up -d --build`               |
 | Health           | `GET http://localhost:3000/health`           |
+
+---
+
+## 13. Підключити infrastructure module окремо
+
+Кожен переносимий модуль (`RedisModule`, `DrizzleModule`, `InfrastructureBullMqModule`, `AuthModule`, `MailModule`, `StorageModule`) реєструється через `forRoot` / `forRootAsync` у composition root потрібного entrypoint.
+
+Повні standalone-приклади: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
+
+Мінімальний приклад для API:
+
+```ts
+import { RedisModule } from '@infrastructure/redis/redis.module';
+import { mapAppConfigToRedisOptions } from '@infrastructure/config/create-starter-kit-module-options';
+
+@Module({
+  imports: [
+    InfrastructureConfigModule,
+    RedisModule.forRootAsync({
+      imports: [InfrastructureConfigModule],
+      inject: [AppConfigService],
+      useFactory: (config) => mapAppConfigToRedisOptions(config),
+    }),
+  ],
+})
+export class ApiModule {}
+```
+
+`AppConfigService` залишається на межі composition root; всередині adapter-модулів не використовується.
 
 ---
 

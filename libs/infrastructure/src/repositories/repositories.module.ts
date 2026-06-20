@@ -1,15 +1,22 @@
-import { Global, Module } from '@nestjs/common';
+import { DynamicModule, Module, type ModuleMetadata } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
-import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { UserDrizzleRepository } from './user-drizzle.repository';
 
-@Global()
-@Module({
-  imports: [DrizzleModule],
-  providers: [
-    UserDrizzleRepository,
-    { provide: TOKENS.UserRepository, useExisting: UserDrizzleRepository },
-  ],
-  exports: [TOKENS.UserRepository],
-})
-export class RepositoriesModule {}
+type RepositoriesModuleRegisterOptions = {
+  imports?: ModuleMetadata['imports'];
+};
+
+@Module({})
+export class RepositoriesModule {
+  static register(options: RepositoriesModuleRegisterOptions = {}): DynamicModule {
+    return {
+      module: RepositoriesModule,
+      imports: options.imports ?? [],
+      providers: [
+        UserDrizzleRepository,
+        { provide: TOKENS.UserRepository, useExisting: UserDrizzleRepository },
+      ],
+      exports: [TOKENS.UserRepository],
+    };
+  }
+}

@@ -4,7 +4,6 @@ import { access, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { LocalStorageAdapter } from './local-storage.adapter';
-import type { AppConfigService } from '../config/app-config.service';
 
 describe('LocalStorageAdapter', () => {
   let tempRoot: string;
@@ -12,10 +11,10 @@ describe('LocalStorageAdapter', () => {
 
   beforeEach(async () => {
     tempRoot = await mkdtemp(join(tmpdir(), 'local-storage-'));
-    const config = {
-      storage: () => ({ localPath: tempRoot }),
-    } as unknown as AppConfigService;
-    adapter = new LocalStorageAdapter(config);
+    adapter = new LocalStorageAdapter({
+      driver: 'local',
+      localPath: tempRoot,
+    });
   });
 
   afterEach(async () => {

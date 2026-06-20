@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { AppConfigService } from '../config/app-config.service';
 import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
+
+import { AUTH_MODULE_OPTIONS, type AuthModuleOptions } from './auth.module-options';
 
 @Injectable()
 export class BcryptPasswordHasher implements IPasswordHasher {
-  constructor(private readonly config: AppConfigService) {}
+  constructor(
+    @Inject(AUTH_MODULE_OPTIONS)
+    private readonly options: AuthModuleOptions,
+  ) {}
 
   async hash(password: string): Promise<string> {
-    const rounds = this.config.auth().passwordSaltRounds;
-    return await bcrypt.hash(password, rounds);
+    return bcrypt.hash(password, this.options.passwordSaltRounds);
   }
 
   async compare(password: string, hash: string): Promise<boolean> {

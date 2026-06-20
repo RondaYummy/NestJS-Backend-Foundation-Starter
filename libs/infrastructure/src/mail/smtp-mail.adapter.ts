@@ -1,19 +1,30 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import nodemailer from 'nodemailer';
 import type { IEmailGateway } from '@contracts/mail/email-gateway';
-import { AppConfigService } from '../config/app-config.service';
+
+import {
+  MAIL_MODULE_OPTIONS,
+  isSmtpMailOptions,
+  type MailModuleOptions,
+} from './mail.module-options';
 
 @Injectable()
 export class SmtpMailAdapter implements IEmailGateway {
   private readonly transporter: nodemailer.Transporter;
+  private readonly defaultFrom: string;
 
-  constructor(private readonly config: AppConfigService) {
+  constructor(@Inject(MAIL_MODULE_OPTIONS) options: MailModuleOptions) {
+    if (!isSmtpMailOptions(options)) {
+      throw new Error('SmtpMailAdapter requires SMTP mail options');
+    }
+
+    this.defaultFrom = options.smtp.from;
     this.transporter = nodemailer.createTransport({
-      host: this.config.mail().smtp.host,
-      port: this.config.mail().smtp.port,
+      host: options.smtp.host,
+      port: options.smtp.port,
       auth: {
-        user: this.config.mail().smtp.user,
-        pass: this.config.mail().smtp.password,
+        user: options.smtp.user,
+        pass: options.smtp.password,
       },
     });
   }
@@ -26,7 +37,7 @@ export class SmtpMailAdapter implements IEmailGateway {
     from?: string;
   }): Promise<void> {
     await this.transporter.sendMail({
-      from: input.from ?? this.config.mail().smtp.from,
+      from: input.from ?? this.defaultFrom,
       to: input.to,
       subject: input.subject,
       html: input.html,

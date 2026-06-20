@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
+import { Inject, Injectable } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Queue, type Job, type JobsOptions } from 'bullmq';
 import type {
   IQueueGateway,
@@ -7,44 +8,35 @@ import type {
   QueueJobOptions,
   QueueName,
 } from '@contracts/queues/queue-gateway';
-import { AppConfigService } from '../config/app-config.service';
-import { QUEUES } from './queues';
+
+import { BULLMQ_MODULE_OPTIONS, BULLMQ_REGISTERED_QUEUES } from './bullmq.module-options';
+import type { BullMqModuleOptions } from './bullmq.module-options';
 
 @Injectable()
 export class BullQueueGateway implements IQueueGateway {
   private readonly queues: ReadonlyMap<string, Queue>;
 
   constructor(
-    @InjectQueue(QUEUES.DEFAULT) defaultQueue: Queue,
-    @InjectQueue(QUEUES.EMAIL) emailQueue: Queue,
-    @InjectQueue(QUEUES.EVENTS) eventsQueue: Queue,
-    @InjectQueue(QUEUES.OUTBOX) outboxQueue: Queue,
-    @InjectQueue(QUEUES.NOTIFICATIONS) notificationsQueue: Queue,
-    @InjectQueue(QUEUES.INTEGRATIONS) integrationsQueue: Queue,
-    @InjectQueue(QUEUES.ANALYTICS) analyticsQueue: Queue,
-    @InjectQueue(QUEUES.FILES) filesQueue: Queue,
-    @InjectQueue(QUEUES.MAINTENANCE) maintenanceQueue: Queue,
-    private readonly config: AppConfigService,
+    private readonly moduleRef: ModuleRef,
+    @Inject(BULLMQ_REGISTERED_QUEUES) registeredQueues: readonly string[],
+    @Inject(BULLMQ_MODULE_OPTIONS) private readonly options: BullMqModuleOptions,
   ) {
-    this.queues = new Map<string, Queue>([
-      [QUEUES.OUTBOX, outboxQueue],
-      [QUEUES.EMAIL, emailQueue],
-      [QUEUES.NOTIFICATIONS, notificationsQueue],
-      [QUEUES.INTEGRATIONS, integrationsQueue],
-      [QUEUES.ANALYTICS, analyticsQueue],
-      [QUEUES.FILES, filesQueue],
-      [QUEUES.MAINTENANCE, maintenanceQueue],
-      [QUEUES.DEFAULT, defaultQueue],
-      [QUEUES.EVENTS, eventsQueue],
-    ]);
+    this.queues = new Map(
+      registeredQueues.map((name) => [
+        name,
+        this.moduleRef.get<Queue>(getQueueToken(name), { strict: false }),
+      ]),
+    );
   }
 
   private buildJobOptions(options?: QueueJobOptions): JobsOptions {
+    const defaults = this.options.defaultJobOptions ?? { attempts: 3, backoffDelay: 1000 };
+
     return {
-      attempts: this.config.bullmq().defaultAttempts,
+      attempts: defaults.attempts,
       backoff: {
         type: 'exponential',
-        delay: this.config.bullmq().backoffDelay,
+        delay: defaults.backoffDelay,
       },
       removeOnComplete: 1000,
       removeOnFail: 5000,

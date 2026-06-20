@@ -1,10 +1,9 @@
-import { ConfigurableModuleBuilder, Module } from '@nestjs/common';
+import { ConfigurableModuleBuilder, Module, type ModuleMetadata } from '@nestjs/common';
 
 import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
 import { TOKENS } from '@contracts/tokens';
 
 import { AuditModule } from '../audit/audit.module';
-import { DrizzleModule } from '../database/drizzle/drizzle.module';
 import { EventsModule } from '../events/events.module';
 import { LoggerModule } from '../logger/logger.module';
 import { OUTBOX_PROCESSOR_DEFAULT_OPTIONS } from './outbox-processor.defaults';
@@ -19,7 +18,6 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
     .build();
 
 @Module({
-  imports: [DrizzleModule, AuditModule, EventsModule, LoggerModule],
   providers: [
     DrizzleOutboxProcessor,
     {
@@ -30,17 +28,32 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
   exports: [TOKENS.OutboxProcessor, TOKENS.OutboxProcessorOptions],
 })
 export class OutboxProcessorModule extends ConfigurableModuleClass {
+  private static buildFeatureImports(
+    connectionImports: ModuleMetadata['imports'] = [],
+  ): ModuleMetadata['imports'] {
+    return [
+      ...connectionImports,
+      AuditModule.register({ imports: connectionImports }),
+      EventsModule.register({ imports: connectionImports }),
+      LoggerModule,
+    ];
+  }
+
   static forRoot(options: typeof OPTIONS_TYPE = OUTBOX_PROCESSOR_DEFAULT_OPTIONS) {
     return {
       ...super.forRoot(options),
       global: false,
+      imports: OutboxProcessorModule.buildFeatureImports(),
     };
   }
 
   static forRootAsync(options: typeof ASYNC_OPTIONS_TYPE) {
+    const connectionImports = options.imports ?? [];
+
     return {
       ...super.forRootAsync(options),
       global: false,
+      imports: OutboxProcessorModule.buildFeatureImports(connectionImports),
     };
   }
 }

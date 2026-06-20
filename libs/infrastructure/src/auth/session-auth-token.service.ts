@@ -1,5 +1,4 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AppConfigService } from '../config/app-config.service';
 import {
   IAuthTokenService,
   RevokeAuthSessionInput,
@@ -10,17 +9,28 @@ import { TOKENS } from '@contracts/tokens';
 import { CurrentUser } from '@contracts/auth/current-user';
 import { AuthenticationError } from '@domain/errors/domain-errors';
 
+import {
+  AUTH_MODULE_OPTIONS,
+  isSessionAuthOptions,
+  type AuthModuleOptions,
+} from './auth.module-options';
+
 @Injectable()
 export class SessionAuthTokenService implements IAuthTokenService {
   constructor(
     @Inject(TOKENS.SessionStore)
     private readonly sessionStore: ISessionStore,
 
-    private readonly config: AppConfigService,
+    @Inject(AUTH_MODULE_OPTIONS)
+    private readonly options: AuthModuleOptions,
   ) {}
 
   async createAuthSession(user: CurrentUser): Promise<AuthTokens> {
-    const ttlSeconds = this.config.auth().sessionTtlSeconds;
+    if (!isSessionAuthOptions(this.options)) {
+      throw new Error('SessionAuthTokenService requires session auth options');
+    }
+
+    const ttlSeconds = this.options.sessionTtlSeconds;
     const sessionId = await this.sessionStore.create(user, ttlSeconds);
 
     return {
