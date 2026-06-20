@@ -26,7 +26,6 @@ describe('DrizzleOutboxProcessor', () => {
   let db: {
     transaction: jest.Mock;
     update: jest.Mock;
-    update: jest.Mock;
   };
   let domainEventRouter: jest.Mocked<Pick<IDomainEventRouter, 'route'>>;
   let auditLogger: jest.Mocked<Pick<IAuditLogger, 'log'>>;
@@ -37,7 +36,6 @@ describe('DrizzleOutboxProcessor', () => {
 
     db = {
       transaction: jest.fn(),
-      update: jest.fn(),
       update: jest.fn(),
     };
     domainEventRouter = {
@@ -221,9 +219,9 @@ describe('DrizzleOutboxProcessor', () => {
 
           return {
             where: jest.fn().mockReturnValue({
-              returning: jest.fn().mockResolvedValue(
-                extendCallCount === 1 ? [{ id: 'event-1' }] : [],
-              ),
+              returning: jest
+                .fn()
+                .mockResolvedValue(extendCallCount === 1 ? [{ id: 'event-1' }] : []),
             }),
           };
         }

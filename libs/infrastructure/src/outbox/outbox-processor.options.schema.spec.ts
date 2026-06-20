@@ -36,7 +36,7 @@ describe('outboxProcessorEnvSchema', () => {
       }),
     );
 
-    expect(options.lockHeartbeatIntervalMs).toBe(computeLockHeartbeatIntervalMs(300_000));
+    expect(options.heartbeatIntervalMs).toBe(computeLockHeartbeatIntervalMs(300_000));
     expect(options.handlerTimeoutMs).toBe(computeHandlerTimeoutMs(300_000));
   });
 
