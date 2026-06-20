@@ -13,6 +13,8 @@ describe('outboxProcessorEnvSchema', () => {
         OUTBOX_BATCH_SIZE: 50,
         OUTBOX_MAX_ATTEMPTS: 10,
         OUTBOX_LOCK_TTL_MS: 300_000,
+        OUTBOX_HEARTBEAT_INTERVAL_MS: 100_000,
+        OUTBOX_HANDLER_TIMEOUT_MS: 0,
         OUTBOX_POLL_INTERVAL_MS: 60_000,
         OUTBOX_CRON_LOCK_TTL_MS: 55_000,
         OUTBOX_CONCURRENCY: 1,
@@ -46,5 +48,31 @@ describe('outboxProcessorEnvSchema', () => {
     });
 
     expect(parsed.success).toBe(false);
+  });
+
+  it('rejects heartbeat interval greater than half of lock ttl', () => {
+    const parsed = outboxProcessorEnvSchema.safeParse({
+      OUTBOX_LOCK_TTL_MS: 2000,
+      OUTBOX_HEARTBEAT_INTERVAL_MS: 1500,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects handler timeout below lock ttl when enabled', () => {
+    const parsed = outboxProcessorEnvSchema.safeParse({
+      OUTBOX_LOCK_TTL_MS: 300_000,
+      OUTBOX_HANDLER_TIMEOUT_MS: 60_000,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts handler timeout of zero (disabled)', () => {
+    const parsed = outboxProcessorEnvSchema.safeParse({
+      OUTBOX_HANDLER_TIMEOUT_MS: 0,
+    });
+
+    expect(parsed.success).toBe(true);
   });
 });

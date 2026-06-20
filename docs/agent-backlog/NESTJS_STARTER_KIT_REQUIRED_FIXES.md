@@ -1,936 +1,1186 @@
-# NestJS Starter Kit — Required Fixes Backlog
+# NestJS Starter Kit — обов’язкові виправлення
 
-Цей файл є statement of work для AI-агента, який виправлятиме результати рев’ю.
+Цей документ містить консолідований перелік проблем, виявлених під час архітектурного та технічного рев’ю NestJS Starter Kit.
 
-Агент повинен:
+Документ не містить переліку переваг проєкту та не враховує відсутність тестів, Prettier або суто форматувальні lint-помилки.
 
-1. працювати лише над одним ID за раз;
-2. перед зміною коду прочитати весь відповідний розділ;
-3. не позначати проблему виправленою лише через успішний build;
-4. додати окремий implementation report і verification report;
-5. не змінювати архітектурний контракт мовчки — якщо виправлення змінює заявлені правила, оновити документацію.
+## Пріоритети
 
----
-
-# Agent backlog index
-
-## P0 — critical data-integrity defects
-
-| ID      | Source section                                                                |
-| ------- | ----------------------------------------------------------------------------- |
-| `P0-01` | `1. Зробити lease email idempotency безпечним для довгих jobs`                |
-| `P0-02` | `2. Не дозволяти Outbox повторно claim-ити подію під час активної публікації` |
-
-## P1 — high-priority architecture and composition defects
-
-| ID      | Source section                                                                            |
-| ------- | ----------------------------------------------------------------------------------------- |
-| `P1-01` | `3. Розділити env validation за entrypoint і модулем`                                     |
-| `P1-02` | `4. AuthModule повинен створювати лише вибрану auth strategy`                             |
-| `P1-03` | `5. Зробити BullMQ registration явною та queue-specific`                                  |
-| `P1-04` | `6. Прибрати NestJS decorators з Application layer або змінити задокументований контракт` |
-| `P1-05` | `7. Прибрати приховані залежності через @Global()`                                        |
-| `P1-06` | `8. Додати typed registration contracts для reusable infrastructure modules`              |
-
-## P2 — medium-priority production-readiness defects
-
-| ID      | Source section                                                              |
-| ------- | --------------------------------------------------------------------------- |
-| `P2-01` | `9. Не читати Outbox concurrency окремо з process.env у decorator metadata` |
-| `P2-02` | `10. Перевіряти результат завершення email idempotency execution`           |
-| `P2-03` | `11. Виправити startup log prefix Redis probe`                              |
-| `P2-04` | `12. Усунути production dependency та security maintenance debt`            |
-| `P2-05` | `13. Зробити lint чистим без послаблення корисних правил`                   |
-
-## P3 — low-priority documentation and maintainability defects
-
-| ID      | Source section                                                                 |
-| ------- | ------------------------------------------------------------------------------ |
-| `P3-01` | `14. Узгодити документацію з фактичною framework dependence Application layer` |
-| `P3-02` | `15. Уточнити гарантії idempotency та at-least-once delivery`                  |
-| `P3-03` | `16. Уточнити межі незалежного перенесення модулів`                            |
-
-## Verification backlog
-
-| ID     | Source section                                                   |
-| ------ | ---------------------------------------------------------------- |
-| `V-01` | `17. Повторити clean install, build, typecheck і lint`           |
-| `V-02` | `18. Перевірити bootstrap API, Worker і Cron з мінімальними env` |
-| `V-03` | `19. Перевірити email job довший за execution lease`             |
-| `V-04` | `20. Перевірити Outbox publish довший за lock TTL`               |
-| `V-05` | `21. Перевірити паралельний migration startup`                   |
-| `V-06` | `22. Перевірити graceful shutdown активних BullMQ jobs`          |
-| `V-07` | `23. Перевірити Docker development і production flows`           |
+- **P0** — виправити до будь-якого production-використання.
+- **P1** — виправити до позиціонування starter kit як незалежного та переносного фундаменту.
+- **P2** — виправити для production readiness, передбачуваної експлуатації та коректної документації.
 
 ---
 
-# 1. Зробити lease email idempotency безпечним для довгих jobs
+# P0. Runtime, дублювання side effects та цілісність обробки
 
-**Severity:** Critical  
-**Classification:** Confirmed defect
+## 1. Зробити idempotency email worker атомарною
 
-## Доказ
+**Критичність:** High  
+**Класифікація:** Confirmed defect  
+**Пріоритет:** P0
 
-- `apps/worker/src/processors/email.processor.ts`
-- `EXECUTION_TTL_SECONDS = 300`
-- `executions.acquire(...)` викликається один раз перед відправкою.
-- Під час `mailTemplates.render()` та `mail.send()` lease не продовжується.
-- `libs/infrastructure/src/idempotency/redis-job-execution.store.ts` використовує Redis key з TTL як ownership lease.
+### Доказ
 
-## Що зараз не так
+Релевантні компоненти:
 
-Worker отримує lock лише на 300 секунд. Якщо рендер або SMTP-виклик триває довше, Redis видаляє ownership key, хоча перший worker все ще виконує job.
+- `apps/worker/src/processors/email.processor.ts`;
+- `IJobExecutionStore`;
+- Redis-реалізація `JobExecutionStore`.
 
-Інший delivery тієї самої job після спливу TTL зможе успішно виконати `acquire()` та повторно надіслати лист.
-
-## Приклад, чому не працює
+Поточний flow:
 
 ```text
-T+0s    worker A acquire(email:123, 300s)
-T+10s   worker A починає SMTP send
-T+300s  Redis автоматично видаляє lease
-T+305s  worker B отримує retry тієї самої job
-T+306s  worker B успішно acquire(email:123, 300s)
-T+320s  worker A відправляє email
-T+330s  worker B також відправляє email
+isCompleted(idempotencyKey)
+  -> mail.send()
+    -> markCompleted(idempotencyKey)
 ```
 
-Результат: користувач отримує два листи, хоча в job є `idempotencyKey`.
+Перевірка стану і фіксація завершення виконуються окремими Redis-операціями, а зовнішній side effect розташований між ними.
 
-## Що потрібно змінити
+### Що не так
 
-Реалізувати renewable ownership lease або перейти до state model, де активний execution має heartbeat і fencing token.
+Два worker-процеси можуть одночасно пройти перевірку `isCompleted()`, після чого обидва відправлять лист.
 
-Мінімальна цільова поведінка:
+```text
+Worker A -> isCompleted = false
+Worker B -> isCompleted = false
+Worker A -> send email
+Worker B -> send email
+Worker A -> markCompleted
+Worker B -> markCompleted
+```
 
-1. `acquire()` повертає ownership token;
-2. worker періодично продовжує TTL лише якщо Redis value досі дорівнює token;
-3. heartbeat зупиняється у `finally`;
-4. якщо ownership втрачено до side effect, job не надсилає email;
-5. завершення execution виконується compare-and-set операцією;
-6. TTL і heartbeat interval конфігуруються, а не hardcoded.
+Поточний механізм захищає лише від повторного запуску вже завершеної job, але не захищає від конкурентного виконання однієї idempotency key.
 
-## Точні зміни
+### Наслідки
 
-1. Змінити `libs/contracts/src/idempotency/job-execution-store.ts`.
-2. Додати метод на кшталт `extend(key, ownershipToken, ttlSeconds): Promise<boolean>`.
-3. Реалізувати atomic Lua script у `libs/infrastructure/src/idempotency/redis-job-execution.store.ts`.
-4. Оновити `apps/worker/src/processors/email.processor.ts`.
-5. Винести TTL/heartbeat interval у typed worker configuration.
-6. Додати integration test з job, що працює довше за початковий TTL.
+- повторне відправлення email;
+- дублювання notification side effects;
+- некоректна поведінка при at-least-once delivery;
+- особливо високий ризик при повторній доставці Outbox event або BullMQ retry.
 
-## Приклад цільового contract
+### Що потрібно змінити
 
-`libs/contracts/src/idempotency/job-execution-store.ts`
+Замінити контракт із двох незалежних операцій `isCompleted()` / `markCompleted()` на атомарний execution claim.
+
+Рекомендований контракт:
 
 ```ts
 export interface IJobExecutionStore {
   acquire(key: string, ttlSeconds: number): Promise<string | null>;
-  extend(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean>;
-  complete(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean>;
+
+  complete(
+    key: string,
+    ownershipToken: string,
+    ttlSeconds: number,
+  ): Promise<boolean>;
+
   release(key: string, ownershipToken: string): Promise<void>;
 }
 ```
 
----
+### Точні зміни
 
-# 2. Не дозволяти Outbox повторно claim-ити подію під час активної публікації
-
-**Severity:** Critical  
-**Classification:** Confirmed defect
-
-## Доказ
-
-- `libs/infrastructure/src/outbox/drizzle-outbox-processor.ts`
-- `claimPendingBatch()` вважає `processing` row простроченим, коли `lockedAt < now - lockTtlMs`.
-- Після claim поле `lockedAt` більше не оновлюється.
-- `publishEvent()` виконується поза DB transaction і може тривати необмежений час.
-
-## Що зараз не так
-
-Outbox lease є фіксованим timestamp без heartbeat. Якщо handler або зовнішня інтеграція працює довше за `OUTBOX_LOCK_TTL_MS`, інший worker може повторно claim-ити ту саму подію, поки перший worker ще публікує її.
-
-## Приклад, чому не працює
+1. Оновити `libs/contracts/src/idempotency/job-execution-store.ts`.
+2. У Redis adapter реалізувати claim через:
 
 ```text
-lockTtlMs = 300000
-
-12:00:00 worker A claim event E, lockedAt=12:00:00
-12:00:10 worker A починає повільний handler
-12:05:01 worker B бачить lockedAt як expired
-12:05:02 worker B claim event E
-12:05:10 worker A завершує зовнішній side effect
-12:05:15 worker B повторює той самий side effect
+SET execution-key ownership-token NX EX ttl
 ```
 
-`lockedBy` захищає лише фінальне оновлення row. Він не скасовує вже виконаний зовнішній side effect.
+3. Для `complete()` і `release()` використати compare-and-set Lua script, який перевіряє ownership token.
+4. Оновити `apps/worker/src/processors/email.processor.ts`.
+5. Перед відправленням email worker повинен отримати ownership token.
+6. Після успішної відправки worker повинен атомарно перевести execution marker у completed state.
+7. Після помилки worker повинен звільнити claim лише за умови, що він досі є власником.
+8. Execution TTL повинен покривати максимальний час виконання job або продовжуватися heartbeat-механізмом.
+9. Описати failure model у `README.md` та `EXAMPLES.md`.
 
-## Що потрібно змінити
-
-Обрати й реалізувати один чіткий lease protocol:
-
-- renewable lease/heartbeat для кожного claimed event;
-- або sufficiently bounded handler timeout плюс lock TTL, який гарантовано більший за timeout;
-- або claim по одному event з heartbeat і fencing token.
-
-Рекомендований варіант — heartbeat з conditional update:
+### Цільовий flow
 
 ```text
-UPDATE outbox_events
-SET locked_at = now()
-WHERE id = :id
-  AND status = 'processing'
-  AND locked_by = :workerId
+acquire(idempotencyKey)
+  -> ownership token отримано?
+    -> ні: завершити без side effect
+    -> так:
+       -> mail.send()
+       -> complete(idempotencyKey, ownershipToken)
 ```
 
-Якщо heartbeat повернув 0 rows, worker втратив ownership і не повинен продовжувати наступні локальні кроки.
+### Критерії приймання
 
-## Точні зміни
-
-1. Змінити `libs/infrastructure/src/outbox/drizzle-outbox-processor.ts`.
-2. Додати configurable heartbeat interval і handler timeout у `OutboxProcessorOptions`.
-3. Оновити `libs/contracts/src/outbox/outbox-processor.options.ts`.
-4. Оновити env schema та `AppConfigService` mapping.
-5. Додати integration test з двома processor instances і handler latency, більшою за lock TTL.
-6. Задокументувати at-least-once semantics: навіть після виправлення consumer handlers мають бути idempotent.
+- Два паралельні workers не можуть одночасно виконати email side effect для однієї idempotency key.
+- Worker без актуального ownership token не може завершити або звільнити чужий claim.
+- Retry після помилки можливий.
+- Completed execution не запускається повторно протягом configured retention period.
 
 ---
 
-# 3. Розділити env validation за entrypoint і модулем
+## 2. Усунути завершення Outbox lease під час активної обробки batch
 
-**Severity:** High  
-**Classification:** Confirmed architectural defect
+**Критичність:** Medium  
+**Класифікація:** Confirmed defect  
+**Пріоритет:** P0
 
-## Доказ
+### Доказ
 
-- `libs/infrastructure/src/config/env.schema.ts` містить єдину schema для API, Worker і Cron.
-- `DATABASE_URL`, `JWT_SECRET` і `JWT_REFRESH_SECRET` обов’язкові завжди.
-- `InfrastructureConfigModule` імпортується в усі composition roots.
+Релевантний файл:
 
-## Що зараз не так
+- `libs/infrastructure/src/outbox/drizzle-outbox-processor.ts`.
 
-Кожен entrypoint повинен мати env для всіх модулів starter kit, навіть коли ці модулі не використовуються.
+Поточні константи:
 
-Наприклад, Cron, який лише ставить Outbox job у Redis, не повинен вимагати JWT secrets, SMTP credentials або S3 configuration.
-
-## Приклад, чому не працює
-
-```env
-# Мінімальний cron deployment
-REDIS_HOST=redis
-REDIS_PORT=6379
+```ts
+const BATCH_SIZE = 50;
+const LOCK_TTL_MS = 5 * 60 * 1000;
 ```
 
-Cron не bootstrap-иться, бо global schema одночасно вимагає:
+Події після claim обробляються послідовно:
+
+```ts
+for (const event of events) {
+  await this.publishEvent(event);
+  await this.markProcessed(...);
+}
+```
+
+Продовження lease або оновлення `lockedAt` під час виконання відсутнє.
+
+### Що не так
+
+Lease усіх подій починається в момент отримання batch. Якщо обробка batch триває довше за `LOCK_TTL_MS`, інший worker може повторно claim-ити події, які перший worker ще обробляє.
+
+Приклад:
 
 ```text
-DATABASE_URL
-JWT_SECRET
-JWT_REFRESH_SECRET
+50 подій × 8 секунд = 400 секунд
+LOCK_TTL = 300 секунд
 ```
 
-Це робить entrypoint deployment залежним від непотрібних секретів.
+Останні події стають stale до завершення першого worker.
 
-## Що потрібно змінити
+### Наслідки
 
-Створити composable schemas:
+- паралельна публікація однієї події;
+- дублювання side effects;
+- втрата ownership після фактичного publish;
+- повторний retry події, яка вже була опублікована;
+- нестабільна поведінка при кількох Outbox workers.
+
+### Що потрібно змінити
+
+Реалізувати один із безпечних варіантів:
+
+1. claim невеликими batch;
+2. claim наступної події лише після завершення поточної;
+3. heartbeat із продовженням lease;
+4. lease-until, який регулярно оновлюється owner-процесом;
+5. bounded concurrency з heartbeat для всіх активних records.
+
+Рекомендований підхід:
+
+```text
+claim small batch
+  -> process with bounded concurrency
+  -> periodically renew lease for active records
+  -> publish
+  -> mark processed with ownership check
+```
+
+### Точні зміни
+
+1. Оновити `DrizzleOutboxProcessor`.
+2. Додати метод продовження lease в Outbox repository/adapter.
+3. Перевіряти ownership token або worker identifier у:
+   - `renewLease`;
+   - `markProcessed`;
+   - `markFailed`.
+4. При втраті ownership не дозволяти старому worker змінювати record.
+5. Винести batch size і lease TTL у typed options.
+6. Узгодити poll interval, execution timeout і lease TTL.
+
+### Критерії приймання
+
+- Активно оброблювана подія не може бути повторно claimed іншим worker.
+- `markProcessed` виконується лише актуальним owner.
+- Stale recovery працює для worker, який справді перестав оновлювати lease.
+- Кілька Outbox workers можуть безпечно працювати паралельно.
+
+---
+
+# P1. Переносимість та незалежна конфігурація модулів
+
+## 3. Додати typed `forRoot` / `forRootAsync` contracts для reusable infrastructure modules
+
+**Критичність:** High  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
+
+### Доказ
+
+Релевантні модулі:
+
+- `RedisModule`;
+- `DrizzleModule`;
+- `InfrastructureBullMqModule`;
+- `AuthModule`;
+- `MailModule`;
+- `StorageModule`;
+- `RateLimiterModule`;
+- `LocksModule`.
+
+Типовий dependency flow:
+
+```text
+Feature infrastructure module
+  -> InfrastructureConfigModule
+    -> global ConfigModule.forRoot()
+      -> AppConfigService
+        -> process.env
+```
+
+### Що не так
+
+Для перенесення окремого модуля недостатньо перенести його каталог. Разом із ним потрібно переносити:
+
+- `InfrastructureConfigModule`;
+- `AppConfigService`;
+- загальну env schema;
+- спільні назви env variables;
+- іноді logger/config infrastructure;
+- global module assumptions.
+
+Таким чином модулі не мають незалежного public configuration contract.
+
+### Наслідки
+
+- модуль неможливо підключити в інший NestJS-проєкт без перенесення значної частини starter kit;
+- інтегратор залежить від внутрішньої config implementation;
+- складно використовувати власний `ConfigService`;
+- складно створювати декілька connection instances;
+- неможливо замінити внутрішній adapter через module options;
+- заявлена переносимість модулів не досягається повністю.
+
+### Що потрібно змінити
+
+Кожен reusable module повинен мати власні options types і options token.
+
+Приклад для Redis:
+
+```ts
+export interface RedisModuleOptions {
+  host: string;
+  port: number;
+  password?: string;
+  db?: number;
+  keyPrefix?: string;
+  connectTimeoutMs?: number;
+}
+
+export interface RedisModuleAsyncOptions
+  extends Pick<ModuleMetadata, 'imports'> {
+  inject?: FactoryProvider['inject'];
+  useFactory: (
+    ...args: unknown[]
+  ) => RedisModuleOptions | Promise<RedisModuleOptions>;
+}
+```
+
+Public API:
+
+```ts
+RedisModule.forRoot(options);
+RedisModule.forRootAsync(options);
+```
+
+### Модулі, які потрібно оновити
+
+#### Redis
+
+- `redis/redis.module.ts`;
+- додати `REDIS_MODULE_OPTIONS`;
+- lifecycle adapter повинен залежати від options token, а не від `AppConfigService`.
+
+#### PostgreSQL / Drizzle
+
+- `database/drizzle/drizzle.module.ts`;
+- додати `DRIZZLE_MODULE_OPTIONS`;
+- options: connection string, pool limits, timeouts, schema, migration behavior.
+
+#### BullMQ
+
+- `bullmq/bullmq.module.ts`;
+- додати root connection options;
+- окремо реалізувати `registerQueues()`.
+
+#### Mail
+
+- `mail/mail.module.ts`;
+- options для SMTP/provider adapter, sender identity, timeout, retries.
+
+#### Storage
+
+- `storage/storage.module.ts`;
+- options для provider, endpoint, bucket, region, credentials, path style.
+
+#### Auth
+
+- `auth/auth.module.ts`;
+- typed driver configuration;
+- provider overrides;
+- JWT/session-specific options.
+
+#### Rate limiter
+
+- `rate-limiter/rate-limiter.module.ts`;
+- configurable store, prefix, policies, time windows.
+
+#### Locks
+
+- `locks/locks.module.ts`;
+- configurable Redis dependency/token, prefix, TTL, heartbeat.
+
+### Правильна роль `InfrastructureConfigModule`
+
+`InfrastructureConfigModule` може залишитися як готовий preset для цього starter kit:
+
+```ts
+RedisModule.forRootAsync({
+  imports: [InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => config.redis(),
+});
+```
+
+Але reusable modules не повинні самостійно імпортувати його як обов’язкову внутрішню залежність.
+
+### Критерії приймання
+
+- Кожен модуль можна перенести в інший проєкт без `AppConfigService`.
+- Кожен модуль підтримує sync і async configuration.
+- Можна використовувати стандартний `ConfigService` або власний config provider.
+- Можна override-ити concrete adapter через DI.
+- Внутрішній код модуля не потрібно редагувати для інтеграції.
+
+---
+
+## 4. Розділити env validation за entrypoint і модулем
+
+**Критичність:** High  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
+
+### Доказ
+
+Релевантний файл:
+
+- `libs/infrastructure/src/config/env.schema.ts`.
+
+Глобальна schema безумовно вимагає, зокрема:
+
+```ts
+DATABASE_URL: z.string().url(),
+JWT_SECRET: z.string().min(1),
+JWT_REFRESH_SECRET: z.string().min(1),
+```
+
+`InfrastructureConfigModule` використовується різними composition roots.
+
+### Що не так
+
+Cron або Worker змушені мати env values, які їм не потрібні.
+
+Наприклад, Cron, який використовує Redis, BullMQ та distributed lock, однаково може вимагати:
+
+- PostgreSQL URL;
+- JWT secret;
+- JWT refresh secret;
+- Auth configuration.
+
+Session driver також може вимагати JWT secrets, хоча JWT strategy не використовується.
+
+### Наслідки
+
+- entrypoint отримує зайві production secrets;
+- гірша security isolation;
+- зайві deployment dependencies;
+- складніша конфігурація Kubernetes/Compose;
+- окремий entrypoint не може стартувати з мінімально потрібним env;
+- модулі залишаються пов’язаними через спільну schema.
+
+### Що потрібно змінити
+
+Розділити validation:
 
 ```text
 baseEnvSchema
-redisEnvSchema
-bullMqEnvSchema
 apiEnvSchema
 workerEnvSchema
 cronEnvSchema
-mailEnvSchema
-storageEnvSchema
-outboxEnvSchema
+migrationEnvSchema
 ```
 
-Composition root повинен збирати лише потрібні schemas.
+Додатково модулі повинні самостійно валідовувати власні options.
 
-## Точні зміни
+### Auth validation
 
-1. Розділити `libs/infrastructure/src/config/env.schema.ts`.
-2. Зробити `InfrastructureConfigModule.forRoot({ schema })` або окремі typed config modules.
-3. Оновити `apps/api/src/api.module.ts`.
-4. Оновити `apps/worker/src/worker.module.ts`.
-5. Оновити `apps/cron/src/cron.module.ts`.
-6. Додати bootstrap verification з мінімальним env для кожного entrypoint.
+Використати discriminated union:
+
+```ts
+const jwtAuthSchema = z.object({
+  AUTH_DRIVER: z.literal('jwt'),
+  JWT_SECRET: z.string().min(32),
+  JWT_REFRESH_SECRET: z.string().min(32),
+});
+
+const sessionAuthSchema = z.object({
+  AUTH_DRIVER: z.literal('session'),
+  AUTH_SESSION_TTL_SECONDS: z.coerce.number().positive(),
+});
+```
+
+### Точні зміни
+
+Оновити:
+
+- `libs/infrastructure/src/config/env.schema.ts`;
+- `libs/infrastructure/src/config/infrastructure-config.module.ts`;
+- `apps/api/src/api.module.ts`;
+- `apps/worker/src/worker.module.ts`;
+- `apps/cron/src/cron.module.ts`;
+- migrations entrypoint/config.
+
+### Критерії приймання
+
+- API стартує лише з API-required variables.
+- Worker не вимагає JWT secrets, якщо Auth не використовується.
+- Cron не вимагає PostgreSQL або SMTP, якщо ці залежності не імпортовані.
+- Session mode не вимагає JWT configuration.
+- Відсутня конфігурація конкретного модуля виявляється під час його registration/bootstrap.
 
 ---
 
-# 4. AuthModule повинен створювати лише вибрану auth strategy
+## 5. Зробити BullMQ registration явною для кожного composition root
 
-**Severity:** High  
-**Classification:** Confirmed architectural defect
+**Критичність:** Medium  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
 
-## Доказ
+### Доказ
 
-`libs/infrastructure/src/auth/auth.module.ts` завжди реєструє:
-
-```text
-RedisSessionStore
-RedisJwtTokenStore
-JwtAuthTokenService
-SessionAuthTokenService
-```
-
-Factory для `TOKENS.AuthTokenService` лише вибирає один уже створений instance.
-
-## Що зараз не так
-
-`AUTH_DRIVER=session` не відключає JWT infrastructure, а `AUTH_DRIVER=jwt` не відключає session infrastructure.
-
-Обидві strategy створюються, їхні constructor dependencies повинні бути доступні, а невибрана strategy може запускати непотрібну ініціалізацію.
-
-## Приклад, чому не працює
-
-```text
-AUTH_DRIVER=session
-  -> Nest все одно створює JwtAuthTokenService
-  -> Nest все одно створює RedisJwtTokenStore
-  -> JWT-specific dependencies залишаються частиною runtime graph
-```
-
-Це не справжній strategy selection, а лише selection return value.
-
-## Що потрібно змінити
-
-Перетворити AuthModule на dynamic module:
+`InfrastructureBullMqModule` реєструє всі черги через загальний список:
 
 ```ts
-AuthModule.forRoot({ driver: 'jwt' })
-AuthModule.forRoot({ driver: 'session' })
-AuthModule.forRootAsync(...)
+BullModule.registerQueue(
+  ...Object.values(QUEUES).map((name) => ({ name })),
+)
 ```
 
-Dynamic module повинен додавати providers лише вибраної strategy.
+`BullQueueGateway` залежить від фіксованого набору всіх queue providers.
 
-## Точні зміни
+### Що не так
 
-1. Змінити `libs/infrastructure/src/auth/auth.module.ts`.
-2. Додати typed options та injection token.
-3. Розділити JWT і Session provider arrays/modules.
-4. Оновити `apps/api/src/composition/auth-application.module.ts`.
-5. Перевірити, що session mode не потребує JWT secrets, а JWT mode не створює session adapter без потреби.
+Кожен entrypoint реєструє черги, які не використовує.
+
+Наприклад:
+
+```text
+CronModule
+  -> InfrastructureBullMqModule
+    -> default
+    -> email
+    -> events
+    -> outbox
+    -> notifications
+    -> integrations
+    -> analytics
+    -> files
+    -> maintenance
+```
+
+Cron фактично може використовувати лише Outbox queue.
+
+### Наслідки
+
+- composition root не є мінімальним;
+- нова черга автоматично потрапляє в усі entrypoints;
+- зайві providers/connections;
+- складніше визначити реальні runtime dependencies;
+- гірша переносимість QueueModule.
+
+### Що потрібно змінити
+
+Розділити connection registration і queue registration:
+
+```ts
+InfrastructureBullMqModule.forRootAsync({ ... });
+
+InfrastructureBullMqModule.registerQueues([
+  QUEUES.OUTBOX,
+]);
+```
+
+Для Worker:
+
+```ts
+InfrastructureBullMqModule.registerQueues([
+  QUEUES.OUTBOX,
+  QUEUES.EMAIL,
+]);
+```
+
+### Додатково
+
+`BullQueueGateway` не повинен constructor-inject-ити всі відомі черги.
+
+Можливі рішення:
+
+- queue registry;
+- named gateway per queue;
+- dynamic providers;
+- `QueueProducer<TPayload>` на конкретну queue.
+
+### Критерії приймання
+
+- Cron реєструє лише потрібні йому черги.
+- Worker реєструє лише черги з producers/processors, які він використовує.
+- API не створює consumer processors.
+- Додавання нової queue не змінює runtime composition інших entrypoints автоматично.
 
 ---
 
-# 5. Зробити BullMQ registration явною та queue-specific
+## 6. AuthModule повинен створювати лише вибрану strategy
 
-**Severity:** High  
-**Classification:** Architectural risk
+**Критичність:** Medium  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
 
-## Доказ
+### Доказ
 
-`libs/infrastructure/src/bullmq/bullmq.module.ts`:
+У `libs/infrastructure/src/auth/auth.module.ts` одночасно реєструються:
+
+- `RedisSessionStore`;
+- `RedisJwtTokenStore`;
+- `JwtAuthTokenService`;
+- `SessionAuthTokenService`;
+- JWT-related module/providers.
+
+Після створення обох implementations factory лише вибирає одну за `AUTH_DRIVER`.
+
+### Що не так
+
+JWT і Session infrastructure створюються одночасно незалежно від обраної strategy.
+
+### Наслідки
+
+- session mode залежить від JWT configuration;
+- JWT mode створює непотрібні session providers;
+- зайві secrets і adapters;
+- складно додати custom auth strategy;
+- інтегратор повинен редагувати internals для provider replacement.
+
+### Що потрібно змінити
+
+Додати typed dynamic API:
 
 ```ts
-@Global()
-BullModule.registerQueue(...Object.values(QUEUES).map((name) => ({ name })))
+AuthModule.forRoot({
+  driver: 'jwt',
+  jwt: {
+    accessSecret: '...',
+    refreshSecret: '...',
+  },
+});
 ```
 
-Один module завжди реєструє всі queue names і стає global.
+або:
 
-## Що зараз не так
+```ts
+AuthModule.forRootAsync({
+  imports: [ConfigModule],
+  inject: [ConfigService],
+  useFactory: (config: ConfigService) => ({ ... }),
+});
+```
 
-Composition root не декларує, які саме queues він producer/consumer-ить.
-
-Cron для Outbox автоматично отримує email queue. Worker для email автоматично отримує всі майбутні queues. Нове queue name непомітно змінить runtime graph усіх entrypoints.
-
-## Приклад, чому не працює
+Розділити providers:
 
 ```text
-Додали QUEUES.REPORTS
-  -> CronModule автоматично реєструє REPORTS
-  -> WorkerModule автоматично реєструє REPORTS
-  -> жоден composition root явно цього не просив
+JWT_AUTH_PROVIDERS
+SESSION_AUTH_PROVIDERS
 ```
 
-## Що потрібно змінити
+Підключати лише одну колекцію залежно від driver.
 
-Додати typed registration:
+Передбачити custom provider override:
 
 ```ts
-InfrastructureBullMqModule.forRoot({ queues: [QUEUES.OUTBOX] });
-InfrastructureBullMqModule.forRoot({ queues: [QUEUES.EMAIL, QUEUES.OUTBOX] });
+AuthModule.forRoot({
+  authTokenService: {
+    provide: TOKENS.AuthTokenService,
+    useClass: CustomAuthTokenService,
+  },
+});
 ```
 
-Не використовувати `@Global()`.
+### Критерії приймання
 
-## Точні зміни
-
-1. Змінити `libs/infrastructure/src/bullmq/bullmq.module.ts`.
-2. Додати `forRoot`/`forRootAsync` options.
-3. Оновити Worker composition root.
-4. Оновити Cron composition root.
-5. API підключати лише producer queues, які реально використовує.
+- JWT mode не створює session providers.
+- Session mode не вимагає JWT secrets і не створює JWT providers.
+- Можна підключити custom auth adapter без редагування `AuthModule`.
+- Public AuthModule API документований.
 
 ---
 
-# 6. Прибрати NestJS decorators з Application layer або змінити задокументований контракт
+## 7. Прибрати NestJS decorators із Application layer або чесно змінити архітектурний контракт
 
-**Severity:** High  
-**Classification:** Confirmed architectural defect
+**Критичність:** Medium  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
 
-## Доказ
+### Доказ
 
-Усі auth use cases у `libs/application/src/use-cases/auth/*` імпортують `@nestjs/common` і використовують `@Injectable()` / `@Inject()`.
-
-## Що зараз не так
-
-Документація описує Application як внутрішній шар, що залежить від contracts/ports, але реалізація напряму залежить від NestJS DI framework.
-
-## Приклад, чому не працює
-
-Use case неможливо перенести в non-Nest runtime без зміни source code:
+Auth use cases імпортують:
 
 ```ts
 import { Inject, Injectable } from '@nestjs/common';
 ```
 
-Це суперечить заявленій framework-independent Onion boundary.
+Релевантні use cases:
 
-## Що потрібно змінити
+- `register.usecase.ts`;
+- `login.usecase.ts`;
+- `logout.usecase.ts`;
+- `refresh-auth-session.usecase.ts`;
+- `get-current-user.usecase.ts`.
 
-Рекомендований варіант:
+### Що не так
 
-- use cases зробити plain TypeScript classes;
-- provider binding описати у composition module через factories;
-- injection tokens залишити у composition/infrastructure layer.
+Application layer залежить від NestJS DI metadata.
 
-Альтернативно — чесно задокументувати Application як NestJS-aware layer. Не можна одночасно заявляти framework independence і залишати decorators.
+Use cases не є plain TypeScript classes і не можуть використовуватися без `@nestjs/common`.
 
-## Точні зміни
+### Наслідки
 
-1. Оновити всі файли `libs/application/src/use-cases/auth/*.ts`.
-2. Оновити `apps/api/src/composition/auth-application.module.ts`.
-3. Додати explicit factory providers.
-4. Оновити README і architecture rules.
+- framework coupling у внутрішньому шарі;
+- складніше перенести use cases в CLI або інший framework;
+- порушена повна framework independence;
+- dependency direction залишається логічно правильною щодо infrastructure, але не щодо framework.
 
----
+### Варіанти виправлення
 
-# 7. Прибрати приховані залежності через @Global()
+#### Рекомендований варіант
 
-**Severity:** High  
-**Classification:** Architectural risk
-
-## Доказ
-
-`@Global()` використано у:
-
-- `auth/auth.module.ts`
-- `bullmq/bullmq.module.ts`
-- `database/drizzle/drizzle.module.ts`
-- `redis/redis.module.ts`
-- `repositories/repositories.module.ts`
-- `transactions/transactions.module.ts`
-
-## Що зараз не так
-
-Provider visibility залежить не лише від imports конкретного module, а від того, чи був global module колись завантажений у composition root.
-
-Це приховує dependency chain і створює помилки при незалежному перенесенні module.
-
-## Приклад, чому не працює
-
-Module може успішно працювати у starter kit лише тому, що RedisModule був завантажений іншим root import. Після копіювання module в інший проєкт Nest видасть `UnknownDependenciesException`.
-
-## Що потрібно змінити
-
-- прибрати `@Global()` з reusable modules;
-- кожен consumer module повинен явно import module, який export-ить потрібний token;
-- залишити global лише для справді cross-cutting bootstrap concerns, якщо це обґрунтовано.
-
-## Точні зміни
-
-Оновити перелічені modules та перевірити повний dependency graph для API, Worker і Cron.
-
----
-
-# 8. Додати typed registration contracts для reusable infrastructure modules
-
-**Severity:** High  
-**Classification:** Architectural risk
-
-## Доказ
-
-Redis, Drizzle, Mail, Storage, Rate Limiter, Locks, Cache та частина Auth configuration отримують налаштування лише через один `AppConfigService` і global env module.
-
-## Що зараз не так
-
-Модулі не мають власного публічного typed contract для перенесення в інший проєкт. Для використання module необхідно переносити спільний config implementation або редагувати internals.
-
-## Приклад, чому не працює
-
-Щоб перенести `MailModule`, недостатньо скопіювати mail folder. Він імпортує:
-
-```text
-InfrastructureConfigModule
-AppConfigService
-LoggerModule
-```
-
-Отже заявлена незалежна переносимість module не виконується буквально.
-
-## Що потрібно змінити
-
-Для reusable modules додати:
-
-```text
-forRoot(options)
-forRootAsync({ imports, inject, useFactory })
-MODULE_OPTIONS_TOKEN
-public options interface
-```
-
-Почати з Redis, Drizzle, BullMQ, Mail, Storage та Auth.
-
----
-
-# 9. Не читати Outbox concurrency окремо з process.env у decorator metadata
-
-**Severity:** Medium  
-**Classification:** Confirmed defect
-
-## Доказ
-
-- Runtime processor options надаються через `OutboxProcessorModule.forRootAsync(...)`.
-- Але `apps/worker/src/processors/outbox.processor.ts` викликає `buildOutboxProcessorDecoratorOptions()`.
-- Ця функція повторно читає `process.env` через `resolveOutboxOptionsFromEnv()`.
-- При invalid env вона мовчки повертає defaults.
-
-## Що зараз не так
-
-Один Outbox processor має два незалежні configuration paths:
-
-```text
-Nest DI options -> batch size, TTL, retry
-process.env at module evaluation -> BullMQ concurrency
-```
-
-Вони можуть розійтися.
-
-## Приклад, чому не працює
-
-При programmatic configuration:
+Зробити use cases звичайними класами:
 
 ```ts
-OutboxProcessorModule.forRoot({ concurrency: 8, ... })
-```
-
-decorator все одно може отримати `concurrency: 1` із default env path.
-
-## Що потрібно змінити
-
-Не використовувати `process.env` у decorator helper. Реєструвати consumer через dynamic BullMQ configuration або встановлювати concurrency у єдиному composition contract.
-
----
-
-# 10. Перевіряти результат завершення email idempotency execution
-
-**Severity:** Medium  
-**Classification:** Confirmed defect
-
-## Доказ
-
-`RedisJobExecutionStore.complete()` повертає `boolean`, але `EmailProcessor` ігнорує результат.
-
-## Що зараз не так
-
-`false` означає, що worker більше не володіє execution key. Проте job завершується успішно, ніби idempotency state гарантовано записаний.
-
-## Приклад, чому не працює
-
-```text
-email успішно відправлено
-complete(...) -> false
-BullMQ job -> completed
-Redis marker "completed" відсутній
-наступний duplicate delivery -> може повторно виконати send
-```
-
-## Що потрібно змінити
-
-Явно обробляти `false`:
-
-- логувати ownership loss;
-- не стверджувати, що idempotency completion успішний;
-- у поєднанні з P0-01 використовувати heartbeat/fencing protocol.
-
----
-
-# 11. Виправити startup log prefix Redis probe
-
-**Severity:** Medium  
-**Classification:** Confirmed defect
-
-## Доказ
-
-`libs/infrastructure/src/redis/assert-redis-available.ts` завжди логгує:
-
-```text
-[worker-startup]
-```
-
-Ця сама функція викликається з API, Worker і Cron entrypoint.
-
-## Що зараз не так
-
-API та Cron logs помилково маркуються як Worker logs, що ускладнює incident diagnosis.
-
-## Приклад
-
-При падінні Redis під час API startup оператор бачить:
-
-```text
-[worker-startup] Redis connection attempt ... failed
-```
-
-хоча падає API container.
-
-## Що потрібно змінити
-
-Передавати `componentName`/logger у startup probe або не вбудовувати component prefix у reusable utility.
-
----
-
-# 12. Усунути production dependency та security maintenance debt
-
-**Severity:** Medium  
-**Classification:** Confirmed production-readiness risk
-
-## Доказ
-
-`npm ci` завершився, але npm повідомив:
-
-```text
-23 vulnerabilities (20 moderate, 3 high)
-```
-
-Також кілька `@react-email/*` packages позначені npm як deprecated/unsupported.
-
-## Що зараз не так
-
-Starter kit фіксує dependency tree з відомими high vulnerabilities і unsupported packages. Це не доводить exploitability конкретного runtime path, але є production maintenance risk.
-
-## Що потрібно змінити
-
-1. Виконати `npm audit --omit=dev` окремо від dev-only findings.
-2. Для кожної high vulnerability визначити direct/transitive package і runtime reachability.
-3. Оновити dependency versions без `npm audit fix --force` навмання.
-4. Замінити unsupported React Email package set на підтримуваний release path.
-5. Зафіксувати accepted residual risks.
-
----
-
-# 13. Зробити lint чистим без послаблення корисних правил
-
-**Severity:** Medium  
-**Classification:** Confirmed defect
-
-## Доказ
-
-Команда:
-
-```bash
-npm run lint
-```
-
-Результат:
-
-```text
-libs/infrastructure/src/mail/null-mail.adapter.ts
-Async method 'send' has no 'await' expression
-@typescript-eslint/require-await
-```
-
-## Що зараз не так
-
-Repository не проходить власний `lint --max-warnings=0`.
-
-## Що потрібно змінити
-
-Виправити contract/implementation локально. Не вимикати правило глобально.
-
-Наприклад, якщо interface допускає `Promise<void>`, implementation може повертати resolved promise без `async`:
-
-```ts
-send(...): Promise<void> {
-  return Promise.resolve();
+export class RegisterUseCase {
+  constructor(
+    private readonly userRepository: IUserRepository,
+    private readonly passwordHasher: IPasswordHasher,
+    private readonly transactionManager: ITransactionManager,
+    private readonly outboxWriter: IOutboxWriter,
+  ) {}
 }
 ```
 
-Після зміни повторити lint.
+Nest registration винести в composition module:
 
----
-
-# 14. Узгодити документацію з фактичною framework dependence Application layer
-
-**Severity:** Low  
-**Classification:** Documentation mismatch
-
-## Документація заявляє
-
-Application layer є внутрішнім шаром та залежить від ports/contracts, а не framework implementation.
-
-## Фактична реалізація
-
-Application use cases імпортують NestJS DI decorators.
-
-## Правильна цільова поведінка
-
-Виконати P1-04 або змінити документацію так, щоб вона чесно називала Application NestJS-aware.
-
----
-
-# 15. Уточнити гарантії idempotency та at-least-once delivery
-
-**Severity:** Low  
-**Classification:** Documentation mismatch
-
-## Що потрібно уточнити
-
-Документація не повинна створювати враження exactly-once side effects.
-
-Після P0-01 і P0-02 все одно залишаються crash windows:
-
-```text
-external side effect успішний
-process падає до local completion marker
-retry повторює delivery
+```ts
+{
+  provide: RegisterUseCase,
+  inject: [
+    TOKENS.UserRepository,
+    TOKENS.PasswordHasher,
+    TOKENS.TransactionManager,
+    TOKENS.OutboxWriter,
+  ],
+  useFactory: (
+    users: IUserRepository,
+    hasher: IPasswordHasher,
+    transactions: ITransactionManager,
+    outbox: IOutboxWriter,
+  ) => new RegisterUseCase(
+    users,
+    hasher,
+    transactions,
+    outbox,
+  ),
+}
 ```
 
-Правильна гарантія:
+#### Допустимий альтернативний варіант
 
-- transport/outbox — at-least-once;
-- handlers та provider calls мають idempotency key;
-- exactly-once можливий лише за підтримки downstream system або спільної transaction boundary.
+Якщо NestJS coupling є свідомим рішенням, документація не повинна стверджувати повну framework independence Application layer.
 
----
+Потрібно чітко написати:
 
-# 16. Уточнити межі незалежного перенесення модулів
+```text
+Domain і Contracts framework-independent.
+Application не залежить від infrastructure adapters,
+але використовує NestJS DI metadata.
+```
 
-**Severity:** Low  
-**Classification:** Documentation mismatch
+### Критерії приймання
 
-## Документація заявляє
-
-Infrastructure modules можна переносити між проєктами незалежно.
-
-## Фактична реалізація
-
-Більшість modules залежать від shared `InfrastructureConfigModule`, `AppConfigService`, global modules і project path aliases.
-
-## Правильна цільова поведінка
-
-Після P1-05/P1-06 документація повинна для кожного module містити:
-
-- required peer modules;
-- public tokens;
-- required options;
-- sync/async registration example;
-- required migrations/schema;
-- required lifecycle hooks.
+- Або `libs/application` не імпортує `@nestjs/*`.
+- Або документація точно описує фактичний рівень framework coupling.
+- У будь-якому випадку Application не залежить від Redis, Drizzle, BullMQ, HTTP або concrete adapters.
 
 ---
 
-# 17. Повторити clean install, build, typecheck і lint
+## 8. Зменшити використання `@Global()` і зробити provider visibility явною
 
-**ID:** `V-01`
+**Критичність:** Low  
+**Класифікація:** Architectural risk  
+**Пріоритет:** P1
 
-Виконати:
+### Доказ
+
+Глобальними позначені, зокрема:
+
+- `DrizzleModule`;
+- `RedisModule`;
+- `RepositoriesModule`;
+- `TransactionsModule`;
+- `AuthModule`;
+- `InfrastructureBullMqModule`.
+
+### Що не так
+
+Composition roots можуть виглядати коректними, хоча залежності фактично доступні через global Nest container.
+
+### Наслідки
+
+- приховані dependencies;
+- модуль може випадково працювати лише через імпорт global module в іншому місці;
+- складніше переносити feature modules;
+- складніше перевіряти provider visibility;
+- вищий ризик дублювання або неочікуваного sharing instances.
+
+### Що потрібно змінити
+
+1. Переглянути кожен `@Global()`.
+2. Залишити global лише для справді process-wide cross-cutting infrastructure, якщо це обґрунтовано.
+3. Для решти використовувати явні `imports` / `exports`.
+4. Composition module повинен явно імпортувати adapter modules, які надають потрібні tokens.
+
+### Критерії приймання
+
+- Видалення випадкового unrelated module import не ламає DI приховано.
+- Dependency chain читається з `imports/providers/exports` конкретного composition root.
+- Feature module не залежить від того, що інший module раніше зареєстрував global provider.
+
+---
+
+# P2. Configurability, production readiness та документація
+
+## 9. Винести Outbox runtime constants у typed configuration
+
+**Критичність:** Medium  
+**Класифікація:** Production risk  
+**Пріоритет:** P2
+
+### Доказ
+
+У `drizzle-outbox-processor.ts` жорстко задані:
+
+```ts
+const MAX_ATTEMPTS = 10;
+const BATCH_SIZE = 50;
+const LOCK_TTL_MS = 5 * 60 * 1000;
+```
+
+Backoff також hardcoded:
+
+```ts
+Math.min(2 ** attempts * 30, 3600);
+```
+
+### Що не так
+
+Параметри неможливо змінити без редагування внутрішньої реалізації.
+
+### Наслідки
+
+- один набір значень використовується для різних проєктів;
+- неможливо узгодити lease TTL з реальною тривалістю handlers;
+- неможливо змінити batch/concurrency під production load;
+- модуль не відповідає вимозі конфігурації без зміни internals.
+
+### Що потрібно змінити
+
+Додати options contract:
+
+```ts
+export interface OutboxProcessorOptions {
+  batchSize: number;
+  maxAttempts: number;
+  lockTtlMs: number;
+  pollIntervalMs: number;
+  concurrency: number;
+  retryDelaySeconds: (attempt: number) => number;
+}
+```
+
+Інжектити options через окремий token, наприклад:
+
+```ts
+OUTBOX_PROCESSOR_OPTIONS
+```
+
+### Критерії приймання
+
+- Усі runtime policy values задаються composition root.
+- Є безпечні defaults.
+- Значення валідуються.
+- README пояснює взаємозв’язок між batch size, concurrency, handler timeout і lock TTL.
+
+---
+
+## 10. Виправити неправильний log prefix у Redis startup probe
+
+**Критичність:** Low  
+**Класифікація:** Confirmed defect  
+**Пріоритет:** P2
+
+### Доказ
+
+`assert-redis-available.ts` завжди використовує:
+
+```ts
+console.info('[worker-startup] Redis is available ...');
+console.error('[worker-startup] Redis connection attempt ...');
+```
+
+Функція також викликається API і Cron entrypoints.
+
+### Що не так
+
+API та Cron логують Redis startup як `worker-startup`.
+
+### Наслідки
+
+- неправильна атрибуція production logs;
+- складніший пошук startup failures;
+- некоректні dashboards/alerts за component label.
+
+### Що потрібно змінити
+
+Передавати component name:
+
+```ts
+assertRedisAvailable(options, {
+  component: 'api',
+});
+```
+
+Або прибрати component prefix із reusable utility і логувати на рівні entrypoint.
+
+### Критерії приймання
+
+- API logs мають `api` component.
+- Worker logs мають `worker` component.
+- Cron logs мають `cron` component.
+- Structured logger використовується замість hardcoded console prefix, якщо logger уже є в starter kit.
+
+---
+
+## 11. Усунути documentation mismatch щодо idempotency
+
+**Критичність:** Medium  
+**Класифікація:** Documentation mismatch  
+**Пріоритет:** P2
+
+### Документація заявляє
+
+Outbox має at-least-once delivery, тому handlers є idempotent.
+
+### Фактична реалізація
+
+Email handler використовує неатомарний flow:
+
+```text
+check
+  -> side effect
+    -> mark completed
+```
+
+### Правильна цільова поведінка
+
+Idempotency повинна включати конкурентний execution claim до side effect або provider-level idempotency key.
+
+### Що потрібно змінити
+
+Після виправлення проблеми №1 оновити:
+
+- `README.md`;
+- `EXAMPLES.md`;
+- за потреби `MODULES_OVERVIEW_NON_TECH.md`.
+
+Документація повинна описувати:
+
+- at-least-once delivery;
+- можливість повторної доставки;
+- atomic execution claim;
+- completed marker retention;
+- retry після failure;
+- неможливість гарантувати exactly-once без зовнішньої підтримки side-effect provider.
+
+---
+
+## 12. Усунути documentation mismatch щодо незалежного перенесення модулів
+
+**Критичність:** Medium  
+**Класифікація:** Documentation mismatch  
+**Пріоритет:** P2
+
+### Документація заявляє
+
+Infrastructure modules можна підключати незалежно та переносити між проєктами.
+
+### Фактична реалізація
+
+Модулі мають обов’язкову залежність від спільних:
+
+- `InfrastructureConfigModule`;
+- `AppConfigService`;
+- global config;
+- конкретних env names.
+
+### Правильна цільова поведінка
+
+Кожен reusable module має власний typed registration contract і не залежить від конкретної config implementation.
+
+### Що потрібно змінити
+
+Після реалізації проблеми №3 оновити приклади:
+
+```ts
+RedisModule.forRootAsync(...);
+DrizzleModule.forRootAsync(...);
+MailModule.forRootAsync(...);
+AuthModule.forRootAsync(...);
+```
+
+README повинен окремо показувати:
+
+1. інтеграцію через starter `AppConfigService`;
+2. інтеграцію через стандартний Nest `ConfigService`;
+3. інтеграцію через plain options object;
+4. override concrete adapter.
+
+---
+
+## 13. Уточнити документацію щодо framework independence
+
+**Критичність:** Medium  
+**Класифікація:** Documentation mismatch  
+**Пріоритет:** P2
+
+### Документація заявляє
+
+Бізнес-логіка незалежна від framework.
+
+### Фактична реалізація
+
+Application use cases використовують `@Injectable()` та `@Inject()` із `@nestjs/common`.
+
+### Що потрібно змінити
+
+Обрати один варіант:
+
+#### Варіант A — виправити код
+
+Прибрати NestJS із Application layer і залишити framework registration у composition root.
+
+#### Варіант B — виправити документацію
+
+Заявляти незалежність Domain і Contracts, але явно фіксувати NestJS DI coupling Application layer.
+
+Не можна одночасно залишати decorators і заявляти повну framework independence всіх внутрішніх шарів.
+
+---
+
+# Обов’язкова runtime-перевірка після виправлень
+
+Наведені нижче пункти не були підтверджені як дефекти, але мають бути обов’язково перевірені перед фінальною оцінкою starter kit.
+
+## 14. Виконати чисте встановлення залежностей
 
 ```bash
-rm -rf node_modules dist
 npm ci
+```
+
+### Критерії приймання
+
+- команда завершується успішно;
+- lock-файл не змінюється;
+- немає dependency resolution errors;
+- package manager відповідає lock-файлу та документації.
+
+---
+
+## 15. Виконати build і typecheck
+
+```bash
 npm run build
-npx tsc --noEmit
+```
+
+За наявності окремої команди:
+
+```bash
+npm run typecheck
+```
+
+### Критерії приймання
+
+- усі apps і libraries компілюються;
+- path aliases працюють у build output;
+- немає TypeScript errors;
+- build не залежить від локально встановленого global Nest CLI.
+
+---
+
+## 16. Виконати lint без врахування суто форматувальних проблем
+
+```bash
 npm run lint
 ```
 
-Acceptance criteria:
+### Критерії приймання
 
-- усі команди завершуються code 0;
-- немає engine mismatch для заявленого мінімального Node version;
-- lint не вимикається глобальним послабленням правил.
+Не повинно бути lint errors, які вказують на:
 
----
+- unsafe types;
+- floating promises;
+- неправильний async flow;
+- невикористані dependencies, що приховують composition problem;
+- циклічні imports;
+- порушення layer boundaries.
 
-# 18. Перевірити bootstrap API, Worker і Cron з мінімальними env
-
-**ID:** `V-02`
-
-Для кожного entrypoint створити окремий minimal env fixture.
-
-Acceptance criteria:
-
-- API не вимагає worker-only configuration;
-- Worker не вимагає API cookie/CORS configuration;
-- Cron не вимагає JWT/SMTP/S3 secrets, якщо не імпортує ці modules;
-- expected infrastructure errors відокремлені від DI/config errors.
+Prettier і formatting не впливають на архітектурну оцінку.
 
 ---
 
-# 19. Перевірити email job довший за execution lease
+## 17. Перевірити bootstrap кожного entrypoint
 
-**ID:** `V-03`
+Перевірити окремо:
 
-Test scenario:
+- API;
+- Worker;
+- Cron;
+- migrations entrypoint.
 
-1. TTL = 2 seconds.
-2. Перший processor блокується на 5 секунд у fake email gateway.
-3. Запускається другий delivery з тим самим key.
-4. Зафіксувати кількість викликів gateway.
+### Для кожного entrypoint перевірити
 
-Acceptance criteria:
-
-```text
-email gateway called exactly once
-```
-
----
-
-# 20. Перевірити Outbox publish довший за lock TTL
-
-**ID:** `V-04`
-
-Test scenario:
-
-1. Два processor instances.
-2. lock TTL = 2 seconds.
-3. Handler latency = 5 seconds.
-4. Обидва processors запускають `processPending()`.
-
-Acceptance criteria:
-
-- активна подія не виконується паралельно двома owners;
-- ownership loss не маскується як успішна публікація;
-- документація все одно фіксує at-least-once semantics.
+- DI container створюється;
+- підключається лише потрібна infrastructure;
+- Worker/Cron не запускають HTTP server;
+- shutdown hooks працюють;
+- process завершується після SIGTERM;
+- connections закриваються;
+- startup dependency failures не ігноруються;
+- відсутні непотрібні env/secrets requirements.
 
 ---
 
-# 21. Перевірити паралельний migration startup
-
-**ID:** `V-05`
-
-Запустити два migration processes одночасно проти чистої PostgreSQL database.
+## 18. Перевірити Docker startup flow
 
 Перевірити:
 
-- чи Drizzle migration journal/locking запобігає подвійному DDL;
-- чи один process коректно чекає або завершується;
-- чи database не залишається частково мігрованою.
+- `Dockerfile`;
+- `docker-compose.yml`;
+- `docker-compose.prod.yml`;
+- build context;
+- production command;
+- migrations ordering;
+- healthchecks;
+- restart policies;
+- graceful shutdown.
 
-Якщо гарантії бібліотеки недостатні, додати PostgreSQL advisory lock навколо migration runner.
+### Критерії приймання
 
----
-
-# 22. Перевірити graceful shutdown активних BullMQ jobs
-
-**ID:** `V-06`
-
-Test scenario:
-
-1. Запустити довгу email/outbox job.
-2. Надіслати SIGTERM worker container.
-3. Перевірити поведінку протягом `stop_grace_period`.
-
-Acceptance criteria:
-
-- worker припиняє брати нові jobs;
-- активна job або завершується, або безпечно повертається для retry;
-- Redis/PG connections закриваються;
-- немає duplicate side effect через неправильний lease protocol.
+- image збирається з чистого checkout;
+- API, Worker і Cron можна deploy-ити окремо;
+- migrations не запускаються конкурентно кожною replica;
+- application не приймає traffic до завершення required migrations;
+- healthcheck перевіряє реальну готовність entrypoint.
 
 ---
 
-# 23. Перевірити Docker development і production flows
+## 19. Перевірити migration concurrency
 
-**ID:** `V-07`
+### Ризик, який потрібно виключити
 
-Перевірити обидва сценарії:
+Кілька production instances або migration containers не повинні одночасно виконувати один migration set без coordination.
 
-```bash
-docker compose up --build
-```
+### Що перевірити
 
-та production image:
+- чи Drizzle migration table достатньо захищає concurrent startup;
+- чи використовується advisory lock або окремий one-shot migration job;
+- чи API replicas не запускають migrations автоматично одночасно;
+- чи failed migration блокує application startup.
 
-```bash
-docker build --target runtime -t starter:review .
-```
-
-Acceptance criteria:
-
-- migrations folder доступний у runtime image;
-- `start:prod:*` paths відповідають фактичному build output;
-- API, Worker і Cron можуть запускатися окремими runtime containers;
-- health/readiness відображають реальний стан dependencies.
-
----
-
-# Перевірки, виконані під час рев’ю
-
-## Clean install
+### Рекомендований flow
 
 ```text
-Команда: npm ci
-Результат: успішно, code 0
-Додатково: npm повідомив 23 vulnerabilities — 20 moderate, 3 high.
-```
-
-## Build
-
-```text
-Команда: npm run build
-Результат: успішно, code 0
-Entrypoints: api, worker, cron, migrations
-```
-
-## TypeScript
-
-```text
-Команда: npx tsc --noEmit
-Результат: успішно, code 0
-```
-
-## Lint
-
-```text
-Команда: npm run lint
-Результат: code 1
-Причина: require-await у null-mail.adapter.ts
-```
-
-## Runtime bootstrap
-
-```text
-Не підтверджено повністю.
-Причина: рев’ю-середовище не мало піднятих PostgreSQL, Redis та SMTP services для повного integration startup.
-Build/typecheck не замінюють runtime DI/bootstrap verification.
+one-shot migration job
+  -> successful completion
+    -> API/Worker/Cron deployment
 ```
 
 ---
 
-# Status model
+## 20. Перевірити graceful shutdown активних BullMQ jobs
 
-```text
-open
-  -> plan proposed
-  -> plan approved by human
-  -> implemented
-  -> independently verified
-  -> accepted by human
-```
+### Що перевірити
 
-Не редагувати цей backlog, щоб заявити про завершення задачі. Стан виконання зберігати у plan/report history або issue tracker.
+- worker припиняє брати нові jobs після SIGTERM;
+- активним jobs надається час завершитися;
+- BullMQ worker/queue/events connections закриваються;
+- незавершена job повертається в retry/stalled flow коректно;
+- email side effect не дублюється після restart;
+- Outbox ownership/lease звільняється або стає stale передбачувано.
 
-Для кожного ID AI-агент повинен створити:
+---
 
-```text
-.agent/plans/<ID>-plan.md
-.agent/reports/<ID>-implementation.md
-.agent/reports/<ID>-verification.md
-```
+# Порядок реалізації
+
+Рекомендована послідовність:
+
+1. Атомарний `IJobExecutionStore` та `EmailProcessor`.
+2. Outbox lease renewal і ownership checks.
+3. Typed options для Outbox processor.
+4. `forRoot` / `forRootAsync` для Redis, Drizzle, BullMQ, Mail, Storage, Auth, RateLimiter і Locks.
+5. Entry-point-specific env validation.
+6. Явна BullMQ queue registration.
+7. Strategy-specific Auth providers.
+8. Прибрати або мінімізувати `@Global()`.
+9. Визначити остаточну політику щодо NestJS у Application layer.
+10. Оновити README, examples і non-technical overview.
+11. Виконати чистий build/typecheck/lint.
+12. Перевірити API, Worker, Cron, migrations і Docker runtime.
+
+---
+
+# Definition of Done для starter kit
+
+Starter Kit можна вважати готовим до повторного production-використання, коли виконані всі умови:
+
+- email та інші зовнішні side effects мають конкурентно безпечну idempotency;
+- Outbox lease не завершується під час активної обробки;
+- business write та Outbox write залишаються в одній DB transaction;
+- reusable modules мають typed `forRoot` / `forRootAsync` API;
+- жоден reusable module не вимагає `AppConfigService` як обов’язкову dependency;
+- API, Worker, Cron і migrations мають мінімальні окремі composition roots;
+- кожен entrypoint валідує лише власну конфігурацію;
+- Auth створює лише вибрану strategy;
+- BullMQ реєструє лише потрібні queues;
+- global modules не приховують dependency chains;
+- документація точно відповідає реалізації;
+- `npm ci`, build, typecheck і meaningful lint завершуються успішно;
+- усі entrypoints проходять bootstrap і graceful shutdown;
+- Docker image та Compose startup перевірені;
+- migration flow безпечний для multi-instance deployment.

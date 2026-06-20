@@ -10,6 +10,8 @@ export const OUTBOX_PROCESSOR_DEFAULT_OPTIONS: OutboxProcessorOptions = {
   batchSize: 50,
   maxAttempts: 10,
   lockTtlMs: 5 * 60 * 1000,
+  heartbeatIntervalMs: 100_000,
+  handlerTimeoutMs: 0,
   pollIntervalMs: 60_000,
   cronLockTtlMs: 55_000,
   concurrency: 1,

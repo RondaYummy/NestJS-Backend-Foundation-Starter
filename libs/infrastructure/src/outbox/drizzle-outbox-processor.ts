@@ -46,8 +46,39 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
     let failed = 0;
 
     for (const event of events) {
+      let ownershipLost = false;
+      let heartbeatInProgress = false;
+      let heartbeat: NodeJS.Timeout | undefined;
+
+      heartbeat = setInterval(() => {
+        if (heartbeatInProgress || ownershipLost) {
+          return;
+        }
+
+        heartbeatInProgress = true;
+
+        void this.extendLock(event.id, event.claimWorkerId)
+          .then((extended) => {
+            if (!extended) {
+              ownershipLost = true;
+            }
+          })
+          .catch(() => {
+            ownershipLost = true;
+          })
+          .finally(() => {
+            heartbeatInProgress = false;
+          });
+      }, this.options.heartbeatIntervalMs);
+
+      heartbeat.unref();
+
       try {
-        await this.publishEvent(event);
+        await this.publishEventWithTimeout(event);
+
+        if (ownershipLost) {
+          throw new Error(`Outbox event ownership was lost during publish: ${event.id}`);
+        }
 
         const marked = await this.markProcessed(event.id, event.claimWorkerId);
 
@@ -75,6 +106,10 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
         }
 
         failed += 1;
+      } finally {
+        if (heartbeat) {
+          clearInterval(heartbeat);
+        }
       }
     }
 
@@ -169,6 +204,57 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
       payload: event.payload,
       occurredAt: event.occurredAt.toISOString(),
     });
+  }
+
+  private async publishEventWithTimeout(event: OutboxRow): Promise<void> {
+    if (this.options.handlerTimeoutMs <= 0) {
+      await this.publishEvent(event);
+      return;
+    }
+
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    try {
+      await Promise.race([
+        this.publishEvent(event),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(
+            () =>
+              reject(
+                new Error(`Outbox handler timeout after ${this.options.handlerTimeoutMs}ms`),
+              ),
+            this.options.handlerTimeoutMs,
+          );
+        }),
+      ]);
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }
+
+  private async extendLock(id: string, workerId: string): Promise<boolean> {
+    const now = new Date();
+
+    const updated = await this.db
+      .update(outboxEvents)
+      .set({
+        lockedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(outboxEvents.id, id),
+          eq(outboxEvents.status, 'processing'),
+          eq(outboxEvents.lockedBy, workerId),
+        ),
+      )
+      .returning({
+        id: outboxEvents.id,
+      });
+
+    return updated.length === 1;
   }
 
   private async markProcessed(id: string, workerId: string): Promise<boolean> {

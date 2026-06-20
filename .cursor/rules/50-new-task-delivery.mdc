@@ -1,0 +1,16 @@
+---
+description: Enforce the specification, approval, implementation and independent verification workflow for new tasks.
+alwaysApply: true
+---
+
+- New non-bugfix work uses stable IDs in the form `TASK-001`, `TASK-002`, and so on.
+- A new task must have a specification under `docs/agent-tasks/` before implementation planning begins.
+- Production code must not be changed until both the task specification and implementation plan are human-approved.
+- Work on exactly one task ID at a time.
+- Bugfixes from `docs/agent-backlog/` continue to use the separate P0/P1/P2 bugfix workflow.
+- The approved task specification is the source of truth for expected behavior.
+- The approved implementation plan is the source of truth for implementation scope.
+- An implementer must not approve its own specification, plan, or implementation.
+- Verification must inspect the actual diff and execute relevant commands.
+- Do not silently add requirements, remove acceptance criteria, or expand scope.
+- When requirements are ambiguous, document assumptions and open decisions instead of inventing behavior.

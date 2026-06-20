@@ -250,3 +250,101 @@ A fix is complete only when:
 5. relevant build, lint, test and bootstrap checks are executed;
 6. public behavior and documentation remain aligned;
 7. remaining risks and unverified areas are explicitly reported.
+
+## New task workflow
+
+New work that is not a confirmed defect uses stable task IDs:
+
+```text
+TASK-001
+TASK-002
+TASK-003
+```
+
+Task specifications are stored under:
+
+```text
+docs/agent-tasks/
+```
+
+Supported task types:
+
+- feature;
+- technical;
+- refactor;
+- infrastructure;
+- documentation.
+
+The required lifecycle is:
+
+```text
+rough request
+  -> proposed task specification
+  -> human specification approval
+  -> proposed implementation plan
+  -> human plan approval
+  -> implementation
+  -> independent verification
+  -> human acceptance
+```
+
+### Task definition
+
+- Use exactly one new request.
+- Inspect the current codebase before defining requirements.
+- Do not edit production code.
+- Create a specification under `docs/agent-tasks/`.
+- Update `docs/agent-tasks/INDEX.md`.
+- Leave specification status as `proposed`.
+
+### Task specification approval
+
+Only a human may change:
+
+```yaml
+status: proposed
+```
+
+to:
+
+```yaml
+status: approved
+```
+
+A task planner must not plan an unapproved specification.
+
+### Task planning
+
+- Work on exactly one approved `TASK-xxx` specification.
+- Do not edit production code.
+- Map every acceptance criterion to implementation steps and verification.
+- Create a plan under `docs/agent-plans/`.
+- Leave plan status as `proposed`.
+
+### Task implementation
+
+- Implement only when both specification and plan are human-approved.
+- Do not change approved requirements silently.
+- Do not combine another task or backlog issue.
+- Stop and request a revised plan when a material unplanned change is required.
+
+### Task verification
+
+- Use a fresh verifier context when possible.
+- Verify approved requirements, approved plan, actual diff and runtime evidence.
+- Do not modify implementation code.
+- Return `approved`, `changes-required` or `not-confirmed`.
+
+## Definition of done for a new task
+
+A new task is complete only when:
+
+1. its specification is human-approved;
+2. its implementation plan is human-approved;
+3. all approved requirements and acceptance criteria are implemented;
+4. all affected contracts, providers, consumers and entrypoints are consistent;
+5. migrations and rollout behavior are safe where applicable;
+6. required build, lint, test and bootstrap checks are executed;
+7. public behavior and documentation are aligned;
+8. independent verification returns `approved`;
+9. remaining risks and unverified areas are explicitly documented.

@@ -14,6 +14,8 @@ describe('DrizzleOutboxProcessor', () => {
     batchSize: 25,
     maxAttempts: 4,
     lockTtlMs: 120_000,
+    heartbeatIntervalMs: 1000,
+    handlerTimeoutMs: 0,
     pollIntervalMs: 60_000,
     cronLockTtlMs: 55_000,
     concurrency: 2,
@@ -23,6 +25,7 @@ describe('DrizzleOutboxProcessor', () => {
   let processor: DrizzleOutboxProcessor;
   let db: {
     transaction: jest.Mock;
+    update: jest.Mock;
   };
   let domainEventRouter: jest.Mocked<Pick<IDomainEventRouter, 'route'>>;
   let auditLogger: jest.Mocked<Pick<IAuditLogger, 'log'>>;
@@ -31,6 +34,7 @@ describe('DrizzleOutboxProcessor', () => {
   beforeEach(() => {
     db = {
       transaction: jest.fn(),
+      update: jest.fn(),
     };
     domainEventRouter = {
       route: jest.fn(),
@@ -50,6 +54,10 @@ describe('DrizzleOutboxProcessor', () => {
       domainEventRouter,
       options,
     );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('uses configured batch size and max attempts when claiming pending events', async () => {
@@ -115,5 +123,126 @@ describe('DrizzleOutboxProcessor', () => {
     );
 
     expect(retryDelaySeconds).toHaveBeenCalledWith(2);
+  });
+
+  it('returns true from extendLock when the conditional update succeeds', async () => {
+    const returning = jest.fn().mockResolvedValue([{ id: 'event-1' }]);
+    const where = jest.fn().mockReturnValue({ returning });
+    const set = jest.fn().mockReturnValue({ where });
+    db.update.mockReturnValue({ set });
+
+    const extendLock = (
+      processor as unknown as {
+        extendLock: (id: string, workerId: string) => Promise<boolean>;
+      }
+    ).extendLock.bind(processor);
+
+    const extended = await extendLock('event-1', 'worker-1');
+
+    expect(extended).toBe(true);
+    expect(where).toHaveBeenCalled();
+  });
+
+  it('returns false from extendLock when lockedBy does not match', async () => {
+    const returning = jest.fn().mockResolvedValue([]);
+    const where = jest.fn().mockReturnValue({ returning });
+    const set = jest.fn().mockReturnValue({ where });
+    db.update.mockReturnValue({ set });
+
+    const extendLock = (
+      processor as unknown as {
+        extendLock: (id: string, workerId: string) => Promise<boolean>;
+      }
+    ).extendLock.bind(processor);
+
+    const extended = await extendLock('event-1', 'wrong-worker');
+
+    expect(extended).toBe(false);
+  });
+
+  it('does not count processed when ownership is lost during publish', async () => {
+    jest.useFakeTimers();
+
+    const claimedEvent = {
+      id: 'event-1',
+      eventName: 'user.created',
+      payload: { userId: 'u-1' },
+      status: 'processing',
+      attempts: 0,
+      availableAt: new Date(),
+      lockedAt: new Date(),
+      lockedBy: 'worker-1',
+      occurredAt: new Date(),
+      processedAt: null,
+      error: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      claimWorkerId: 'worker-1',
+    };
+
+    const forUpdate = jest.fn().mockResolvedValue([claimedEvent]);
+    const limit = jest.fn().mockReturnValue({ for: forUpdate });
+    const orderBy = jest.fn().mockReturnValue({ limit });
+    const where = jest.fn().mockReturnValue({ orderBy });
+    const from = jest.fn().mockReturnValue({ where });
+    const select = jest.fn().mockReturnValue({ from });
+    const trxUpdate = jest.fn().mockReturnValue({
+      set: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue(undefined),
+      }),
+    });
+    const trx = { select, update: trxUpdate };
+
+    db.transaction.mockImplementation(
+      async (callback: (innerTrx: typeof trx) => Promise<unknown>) => callback(trx),
+    );
+
+    let extendCallCount = 0;
+
+    domainEventRouter.route.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 2500);
+        }),
+    );
+
+    db.update.mockImplementation(() => ({
+      set: jest.fn().mockImplementation((values: Record<string, unknown>) => {
+        if ('lockedAt' in values && !('status' in values)) {
+          extendCallCount += 1;
+
+          return {
+            where: jest.fn().mockReturnValue({
+              returning: jest.fn().mockResolvedValue(
+                extendCallCount === 1 ? [{ id: 'event-1' }] : [],
+              ),
+            }),
+          };
+        }
+
+        return {
+          where: jest.fn().mockReturnValue({
+            returning: jest.fn().mockResolvedValue([]),
+          }),
+        };
+      }),
+    }));
+
+    const processPromise = processor.processPending();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(1500);
+    await jest.runAllTimersAsync();
+
+    const result = await processPromise;
+
+    expect(result.processed).toBe(0);
+    expect(domainEventRouter.route).toHaveBeenCalled();
+    expect(auditLogger.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: 'outbox.ownershipLost',
+        entityId: 'event-1',
+      }),
+    );
   });
 });

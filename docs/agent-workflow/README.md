@@ -1,42 +1,73 @@
 # Cursor agent workflow
 
-## Components
+Цей каталог описує єдиний workflow для review, bugfix і нових задач.
 
-- `AGENTS.md` — repository-wide operating contract.
-- `.cursor/rules/` — persistent or path-scoped constraints.
-- `.cursor/skills/` — reusable multi-step procedures.
-- `.cursor/agents/` — specialized roles with narrow authority.
-- `.cursor/commands/` — short workflow entrypoints.
-- `docs/agent-backlog/` — source issues and stable IDs.
-- `docs/agent-plans/` — reviewable implementation plans.
-- `docs/agent-reports/` — review, implementation and verification evidence.
+## Компоненти
 
-## Standard bugfix flow
+- `AGENTS.md` — головний repository contract.
+- `.cursor/rules/` — автоматичні constraints.
+- `.cursor/skills/` — детальні процедури.
+- `.cursor/agents/` — спеціалізовані ролі.
+- `.cursor/commands/` — короткі entrypoints.
+- `docs/agent-backlog/` — confirmed defects.
+- `docs/agent-tasks/` — new-task specifications.
+- `docs/agent-plans/` — implementation plans.
+- `docs/agent-reports/` — evidence та verdicts.
 
-```text
-/plan-fix P0-01
-  -> review generated plan
-  -> manually change status: proposed -> approved
-/implement-fix P0-01
-/verify-fix P0-01
-  -> human accepts or requests corrections
-```
+## Команди
 
-## Full review flow
+### Повне review
 
 ```text
 /review-starter
 ```
 
-The reviewer is read-only and writes the result to `docs/agent-reports/`.
+### Bugfix
 
-## Human approval boundary
+```text
+/plan-fix P0-01
+/implement-fix P0-01
+/verify-fix P0-01
+```
 
-The architecture deliberately separates:
+### Нова задача
 
-- planner;
-- implementer;
-- verifier;
-- human approver.
+```text
+/define-task <опис>
+/plan-task TASK-001
+/implement-task TASK-001
+/verify-task TASK-001
+```
 
-The same agent must not plan, implement and approve its own work as one unreviewed operation.
+## Approval gates
+
+### Bugfix
+
+Planner створює `status: proposed`. Лише людина змінює його на `approved`.
+
+### New task
+
+Потрібні два approvals:
+
+1. specification under `docs/agent-tasks/`;
+2. implementation plan under `docs/agent-plans/`.
+
+## Незалежна verification
+
+Verifier запускається в новому chat, не змінює production code та повертає:
+
+- `approved`;
+- `changes-required`;
+- `not-confirmed`.
+
+## Fallback без slash-команд
+
+```text
+Read @.cursor/commands/<command>.md and execute it ...
+```
+
+Повна інструкція:
+
+```text
+README_CURSOR_AGENTS.md
+```

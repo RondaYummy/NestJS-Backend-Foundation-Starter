@@ -1,20 +1,21 @@
 # Agent plans
 
-This directory contains one implementation plan per backlog issue.
+This directory contains one implementation plan per bugfix issue or new task.
 
 Naming convention:
 
 ```text
-<issue-id>-<short-slug>.md
+<id>-<short-slug>.md
 ```
 
-Example:
+Examples:
 
 ```text
 P0-01-atomic-email-idempotency.md
+TASK-001-password-reset.md
 ```
 
-Required frontmatter:
+## Bugfix plan frontmatter
 
 ```yaml
 ---
@@ -24,9 +25,20 @@ owner: human-approval-required
 ---
 ```
 
+## New-task plan frontmatter
+
+```yaml
+---
+task_id: TASK-001
+specification: docs/agent-tasks/TASK-001-password-reset.md
+status: proposed
+owner: human-approval-required
+---
+```
+
 Allowed statuses:
 
-- `proposed` — created by planner and not approved;
+- `proposed` — created by a planner and not approved;
 - `approved` — manually approved by a human;
 - `rejected` — rejected by a human;
 - `superseded` — replaced by a newer plan.
