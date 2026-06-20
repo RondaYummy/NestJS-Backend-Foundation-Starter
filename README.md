@@ -2395,6 +2395,24 @@ RATE_LIMIT_MAX=100
 LOGGER_LEVEL=debug
 ```
 
+### Production JWT secrets
+
+When `NODE_ENV=production`, bootstrap rejects JWT secrets that are too short, use known placeholders, or are identical to each other.
+
+Requirements:
+
+- at least 32 bytes of entropy (validated as ≥ 43 trimmed characters, e.g. output of `openssl rand -base64 32`);
+- `JWT_SECRET` and `JWT_REFRESH_SECRET` must be different independently generated values.
+
+Generate secrets locally (do not commit real values):
+
+```bash
+openssl rand -base64 32
+openssl rand -hex 32
+```
+
+Development and test environments may keep short placeholders such as `dev-secret`; production bootstrap rejects them.
+
 Для Docker:
 
 ```env

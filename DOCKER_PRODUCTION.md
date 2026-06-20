@@ -8,6 +8,8 @@ cp .env.example .env
 
 Замініть усі `CHANGE_ME_*` значення. Значення пароля PostgreSQL у `POSTGRES_PASSWORD` і в `DATABASE_URL` мають збігатися.
 
+- Перед `docker compose ... up` задайте сильні незалежні `JWT_SECRET` і `JWT_REFRESH_SECRET` (див. README §21 — Production JWT secrets).
+
 ## 2. Зібрати та запустити
 
 ```bash

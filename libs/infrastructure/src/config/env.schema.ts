@@ -1,5 +1,17 @@
 import { z } from 'zod';
 
+export const JWT_SECRET_MIN_LENGTH = 43;
+export const JWT_SECRET_FIELDS = ['JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
+export const JWT_PLACEHOLDER_VALUES = new Set([
+  'secret',
+  'changeme',
+  'development',
+  'dev-secret',
+  'dev-refresh-secret',
+  'dev-access-secret-change-me',
+  'dev-refresh-secret-change-me',
+]);
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -158,6 +170,31 @@ export const envSchema = z
         path: ['JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS'],
         message: `JOB_EXECUTION_HEARTBEAT_INTERVAL_SECONDS must be less than or equal to ${maxJobExecutionHeartbeat}`,
       });
+    }
+
+    if (env.NODE_ENV === 'production') {
+      for (const field of JWT_SECRET_FIELDS) {
+        const value = env[field].trim();
+
+        if (
+          value.length < JWT_SECRET_MIN_LENGTH ||
+          JWT_PLACEHOLDER_VALUES.has(value.toLowerCase())
+        ) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [field],
+            message: `${field} must contain at least 32 bytes of non-placeholder entropy`,
+          });
+        }
+      }
+
+      if (env.JWT_SECRET.trim() === env.JWT_REFRESH_SECRET.trim()) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['JWT_REFRESH_SECRET'],
+          message: 'JWT access and refresh secrets must be different',
+        });
+      }
     }
   });
 
