@@ -26,14 +26,18 @@ describe('DrizzleOutboxProcessor', () => {
   let db: {
     transaction: jest.Mock;
     update: jest.Mock;
+    update: jest.Mock;
   };
   let domainEventRouter: jest.Mocked<Pick<IDomainEventRouter, 'route'>>;
   let auditLogger: jest.Mocked<Pick<IAuditLogger, 'log'>>;
   let logger: jest.Mocked<Pick<AppLogger, 'warn' | 'error'>>;
 
   beforeEach(() => {
+    jest.useFakeTimers();
+
     db = {
       transaction: jest.fn(),
+      update: jest.fn(),
       update: jest.fn(),
     };
     domainEventRouter = {
@@ -54,6 +58,10 @@ describe('DrizzleOutboxProcessor', () => {
       domainEventRouter,
       options,
     );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   afterEach(() => {

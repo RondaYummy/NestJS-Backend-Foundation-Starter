@@ -1,10 +1,17 @@
 import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
 
-import { mapOutboxEnvToOptions, outboxProcessorEnvSchema } from './outbox-processor.options.schema';
+import {
+  computeHandlerTimeoutMs,
+  computeLockHeartbeatIntervalMs,
+  mapOutboxEnvToOptions,
+  outboxProcessorEnvSchema,
+} from './outbox-processor.options.schema';
 
 export function defaultRetryDelaySeconds(attempt: number): number {
   return Math.min(2 ** attempt * 30, 3600);
 }
+
+const defaultLockTtlMs = 5 * 60 * 1000;
 
 export const OUTBOX_PROCESSOR_DEFAULT_OPTIONS: OutboxProcessorOptions = {
   batchSize: 50,

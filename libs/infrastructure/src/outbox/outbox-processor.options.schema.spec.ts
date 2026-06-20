@@ -1,6 +1,11 @@
 /// <reference types="jest" />
 
-import { outboxProcessorEnvSchema } from './outbox-processor.options.schema';
+import {
+  computeHandlerTimeoutMs,
+  computeLockHeartbeatIntervalMs,
+  mapOutboxEnvToOptions,
+  outboxProcessorEnvSchema,
+} from './outbox-processor.options.schema';
 
 describe('outboxProcessorEnvSchema', () => {
   it('accepts default-compatible values', () => {
@@ -22,6 +27,17 @@ describe('outboxProcessorEnvSchema', () => {
         OUTBOX_RETRY_MAX_DELAY_SECONDS: 3600,
       });
     }
+  });
+
+  it('maps computed heartbeat and handler timeout defaults from lock ttl', () => {
+    const options = mapOutboxEnvToOptions(
+      outboxProcessorEnvSchema.parse({
+        OUTBOX_LOCK_TTL_MS: 300_000,
+      }),
+    );
+
+    expect(options.lockHeartbeatIntervalMs).toBe(computeLockHeartbeatIntervalMs(300_000));
+    expect(options.handlerTimeoutMs).toBe(computeHandlerTimeoutMs(300_000));
   });
 
   it('rejects cron lock ttl greater than or equal to poll interval', () => {

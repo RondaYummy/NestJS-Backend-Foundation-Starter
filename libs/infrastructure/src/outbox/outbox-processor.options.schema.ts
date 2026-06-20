@@ -2,6 +2,14 @@ import { z } from 'zod';
 
 import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
 
+export function computeLockHeartbeatIntervalMs(lockTtlMs: number): number {
+  return Math.max(Math.floor(lockTtlMs / 3), 1000);
+}
+
+export function computeHandlerTimeoutMs(lockTtlMs: number): number {
+  return lockTtlMs;
+}
+
 export const outboxProcessorEnvSchema = z
   .object({
     OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).default(50),
@@ -56,6 +64,8 @@ export const outboxProcessorEnvSchema = z
 export type OutboxProcessorEnv = z.infer<typeof outboxProcessorEnvSchema>;
 
 export function mapOutboxEnvToOptions(env: OutboxProcessorEnv): OutboxProcessorOptions {
+  const lockTtlMs = env.OUTBOX_LOCK_TTL_MS;
+
   return {
     batchSize: env.OUTBOX_BATCH_SIZE,
     maxAttempts: env.OUTBOX_MAX_ATTEMPTS,
