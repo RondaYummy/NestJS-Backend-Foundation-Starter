@@ -126,7 +126,7 @@ Enforced rules:
 
 ## Package manager and commands
 
-- Node.js: `>=22 <25`
+- Node.js: `>=22.22.1 <25`
 - npm: `>=10`
 - Clean install: `npm ci`
 

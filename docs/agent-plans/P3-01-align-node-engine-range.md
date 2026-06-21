@@ -1,6 +1,6 @@
 ---
 issue_id: P3-01
-status: proposed
+status: approved
 owner: human-approval-required
 ---
 
