@@ -37,6 +37,7 @@ type ConfigShape = {
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
   logger: { level: string };
+  health: { checkTimeoutMs: number };
   outbox: OutboxProcessorOptions;
   jobExecution: JobExecutionOptions;
 };
@@ -70,6 +71,10 @@ export class AppConfigService {
 
   logger(): ConfigShape['logger'] {
     return this.config.get('logger', { infer: true });
+  }
+
+  health(): ConfigShape['health'] {
+    return this.config.get('health', { infer: true });
   }
 
   bullmq(): ConfigShape['bullmq'] {

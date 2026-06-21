@@ -1,13 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { sql } from 'drizzle-orm';
 import type Redis from 'ioredis';
 
-import { QUEUES } from '@contracts/queues/queue-names';
-
-import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
-import { REDIS_CLIENT } from '../redis/redis.tokens';
+import type { HealthModuleOptions } from './health.module-options';
+import { withHealthCheckTimeout } from './with-health-check-timeout';
 
 type DependencyStatus = 'ok' | 'error';
 
@@ -20,19 +16,14 @@ type HealthResult = {
   };
 };
 
-@Injectable()
 export class HealthService {
   constructor(
-    @Inject(DRIZZLE_DB)
     private readonly db: {
       execute: (query: unknown) => Promise<unknown>;
     },
-
-    @Inject(REDIS_CLIENT)
     private readonly redis: Redis,
-
-    @InjectQueue(QUEUES.OUTBOX)
     private readonly outboxQueue: Queue,
+    private readonly options: HealthModuleOptions,
   ) {}
 
   async check(): Promise<HealthResult> {
@@ -42,10 +33,14 @@ export class HealthService {
       bullmq: 'ok',
     };
 
-    await Promise.all([
-      this.checkPostgres(services),
-      this.checkRedis(services),
-      this.checkBullMq(services),
+    await Promise.allSettled([
+      this.runCheck(this.db.execute(sql`select 1`), services, 'postgres'),
+      this.runCheck(this.redis.ping(), services, 'redis'),
+      this.runCheck(
+        this.outboxQueue.getJobCounts('waiting', 'active', 'delayed', 'failed'),
+        services,
+        'bullmq',
+      ),
     ]);
 
     return {
@@ -54,27 +49,15 @@ export class HealthService {
     };
   }
 
-  private async checkPostgres(services: HealthResult['services']): Promise<void> {
+  private async runCheck(
+    operation: Promise<unknown>,
+    services: HealthResult['services'],
+    key: keyof HealthResult['services'],
+  ): Promise<void> {
     try {
-      await this.db.execute(sql`select 1`);
+      await withHealthCheckTimeout(operation, this.options.checkTimeoutMs);
     } catch {
-      services.postgres = 'error';
-    }
-  }
-
-  private async checkRedis(services: HealthResult['services']): Promise<void> {
-    try {
-      await this.redis.ping();
-    } catch {
-      services.redis = 'error';
-    }
-  }
-
-  private async checkBullMq(services: HealthResult['services']): Promise<void> {
-    try {
-      await this.outboxQueue.getJobCounts('waiting', 'active', 'delayed', 'failed');
-    } catch {
-      services.bullmq = 'error';
+      services[key] = 'error';
     }
   }
 }

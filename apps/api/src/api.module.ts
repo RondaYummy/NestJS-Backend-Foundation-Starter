@@ -16,6 +16,7 @@ import { AppConfigService } from '@infrastructure/config/app-config.service';
 import {
   mapAppConfigToBullMqOptions,
   mapAppConfigToDrizzleOptions,
+  mapAppConfigToHealthOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
@@ -46,6 +47,12 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues([QUEUES.OUT
   imports: [bullMqConnectionModule],
 });
 
+const healthModule = HealthModule.registerAsync({
+  imports: [InfrastructureConfigModule, redisModule, drizzleModule, bullMqQueuesModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => mapAppConfigToHealthOptions(config),
+});
+
 @Module({
   imports: [
     LoggerModule,
@@ -56,9 +63,7 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues([QUEUES.OUT
     bullMqConnectionModule,
     bullMqQueuesModule,
     IdempotencyModule.register({ imports: [redisModule] }),
-    HealthModule.register({
-      imports: [redisModule, drizzleModule, bullMqQueuesModule],
-    }),
+    healthModule,
     AuthApplicationCompositionModule,
     RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
   ],

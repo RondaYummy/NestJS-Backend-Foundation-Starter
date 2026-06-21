@@ -112,6 +112,43 @@ describe('envSchema production JWT secret policy', () => {
   });
 });
 
+describe('envSchema HEALTH_CHECK_TIMEOUT_MS', () => {
+  const baseEnv = {
+    NODE_ENV: 'development',
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/app',
+    JWT_SECRET: 'dev-secret',
+    JWT_REFRESH_SECRET: 'dev-refresh-secret',
+  };
+
+  it('defaults to 3000 when omitted', () => {
+    const parsed = envSchema.safeParse(baseEnv);
+
+    expect(parsed.success).toBe(true);
+
+    if (parsed.success) {
+      expect(parsed.data.HEALTH_CHECK_TIMEOUT_MS).toBe(3000);
+    }
+  });
+
+  it('accepts a positive integer override', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      HEALTH_CHECK_TIMEOUT_MS: '1500',
+    });
+
+    expect(parsed.success).toBe(true);
+
+    if (parsed.success) {
+      expect(parsed.data.HEALTH_CHECK_TIMEOUT_MS).toBe(1500);
+    }
+  });
+
+  it('rejects zero or negative values', () => {
+    expect(envSchema.safeParse({ ...baseEnv, HEALTH_CHECK_TIMEOUT_MS: '0' }).success).toBe(false);
+    expect(envSchema.safeParse({ ...baseEnv, HEALTH_CHECK_TIMEOUT_MS: '-1' }).success).toBe(false);
+  });
+});
+
 describe('envSchema development and test JWT permissiveness', () => {
   it('accepts .env.example-style placeholders in development', () => {
     const parsed = envSchema.safeParse({

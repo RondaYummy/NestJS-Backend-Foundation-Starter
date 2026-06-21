@@ -74,6 +74,7 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
             authMax: e.RATE_LIMIT_AUTH_MAX,
           },
           logger: { level: e.LOGGER_LEVEL },
+          health: { checkTimeoutMs: e.HEALTH_CHECK_TIMEOUT_MS },
           outbox: mapOutboxEnvToOptions({
             OUTBOX_BATCH_SIZE: e.OUTBOX_BATCH_SIZE,
             OUTBOX_MAX_ATTEMPTS: e.OUTBOX_MAX_ATTEMPTS,

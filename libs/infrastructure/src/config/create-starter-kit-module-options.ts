@@ -5,6 +5,7 @@ import type { DrizzleModuleOptions } from '../database/drizzle/drizzle.module-op
 import type { MailModuleOptions } from '../mail/mail.module-options';
 import type { RedisModuleOptions } from '../redis/redis.module-options';
 import type { StorageModuleOptions } from '../storage/storage.module-options';
+import type { HealthModuleOptions } from '../health/health.module-options';
 
 export function mapAppConfigToRedisOptions(config: AppConfigService): RedisModuleOptions {
   return config.redis();
@@ -64,6 +65,10 @@ export function mapAppConfigToMailOptions(config: AppConfigService): MailModuleO
   }
 
   return { driver: 'null' };
+}
+
+export function mapAppConfigToHealthOptions(config: AppConfigService): HealthModuleOptions {
+  return config.health();
 }
 
 export function mapAppConfigToStorageOptions(config: AppConfigService): StorageModuleOptions {

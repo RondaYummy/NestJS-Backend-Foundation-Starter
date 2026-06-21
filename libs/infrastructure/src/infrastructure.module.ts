@@ -10,6 +10,7 @@ import {
   mapAppConfigToAuthOptions,
   mapAppConfigToBullMqOptions,
   mapAppConfigToDrizzleOptions,
+  mapAppConfigToHealthOptions,
   mapAppConfigToMailOptions,
   mapAppConfigToRedisOptions,
   mapAppConfigToStorageOptions,
@@ -98,8 +99,10 @@ export class InfrastructureModule {
           inject: [AppConfigService],
           useFactory: (config: AppConfigService) => mapAppConfigToAuthOptions(config),
         }),
-        HealthModule.register({
-          imports: [redisModule, drizzleModule, bullMqQueuesModule],
+        HealthModule.registerAsync({
+          imports: [InfrastructureConfigModule, redisModule, drizzleModule, bullMqQueuesModule],
+          inject: [AppConfigService],
+          useFactory: (config: AppConfigService) => mapAppConfigToHealthOptions(config),
         }),
       ],
       exports: [
