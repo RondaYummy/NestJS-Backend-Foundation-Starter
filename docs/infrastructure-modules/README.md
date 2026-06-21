@@ -52,6 +52,8 @@ InfrastructureBullMqModule.forRootAsync({
 InfrastructureBullMqModule.registerQueues([QUEUES.OUTBOX]),
 ```
 
+Every `QUEUES.*` constant must have a matching entry in `QueueJobRegistry` (`libs/contracts/src/queues/queue-gateway.ts`). Register a queue only in entrypoints that enqueue or consume it; do not register placeholder queues without typed job contracts.
+
 Starter-kit queue sets:
 
 | Entrypoint | Queues            |

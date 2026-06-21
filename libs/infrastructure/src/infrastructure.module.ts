@@ -54,9 +54,13 @@ export class InfrastructureModule {
       useFactory: (config: AppConfigService) => mapAppConfigToBullMqOptions(config),
     });
 
-    const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(Object.values(QUEUES), {
-      imports: [bullMqConnectionModule],
-    });
+    // Facade registers only registry-backed queues (see QueueJobRegistry in contracts).
+    const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(
+      [QUEUES.OUTBOX, QUEUES.EMAIL],
+      {
+        imports: [bullMqConnectionModule],
+      },
+    );
 
     return {
       module: InfrastructureModule,

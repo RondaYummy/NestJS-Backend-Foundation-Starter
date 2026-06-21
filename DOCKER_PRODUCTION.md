@@ -45,6 +45,7 @@ docker compose --env-file .env -f docker-compose.prod.yml down
 
 - PostgreSQL і Redis не публікуються на host.
 - API за замовчуванням доступний тільки на `127.0.0.1:3000`; зовні його слід відкривати через Nginx/Traefik.
-- Міграції запускаються окремим compiled entrypoint і не потребують `drizzle-kit` у runtime image.
+- Міграції запускаються окремим compiled entrypoint як **one-shot deployment job** (не long-running sidecar) і не потребують `drizzle-kit` у runtime image.
+- Production runner серіалізує паралельні запуски через PostgreSQL advisory lock: безпечно виконати `docker compose run --rm migrations`, поки інший migration job ще працює — другий процес почекає, потім завершиться успішно або з timeout помилки.
 - Усі entrypoint використовують один immutable image.
 - `.env` виключено з Docker build context через `.dockerignore`.

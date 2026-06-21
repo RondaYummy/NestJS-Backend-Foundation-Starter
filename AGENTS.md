@@ -47,7 +47,8 @@ Do not assume documentation is correct when code or runtime evidence contradicts
 ### Migrations
 
 - Bootstrap: `apps/migrations/src/main.ts`
-- Purpose: production migration execution as a separate process.
+- Purpose: production migration execution as a dedicated **one-shot deployment job** (not an API, Worker, or Cron startup side effect).
+- Serializes concurrent migration attempts against the same PostgreSQL database via a session-level advisory lock with bounded lock and statement timeouts.
 - Must never be run against an unknown or production database without explicit human approval.
 
 ## Architectural layers

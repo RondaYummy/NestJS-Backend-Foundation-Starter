@@ -4,6 +4,8 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Queue, type Job, type JobsOptions } from 'bullmq';
 import type {
   IQueueGateway,
+  JobName,
+  JobPayload,
   QueueJobItem,
   QueueJobOptions,
   QueueName,
@@ -14,20 +16,13 @@ import type { BullMqModuleOptions } from './bullmq.module-options';
 
 @Injectable()
 export class BullQueueGateway implements IQueueGateway {
-  private readonly queues: ReadonlyMap<string, Queue>;
+  private readonly queueCache = new Map<string, Queue>();
 
   constructor(
     private readonly moduleRef: ModuleRef,
-    @Inject(BULLMQ_REGISTERED_QUEUES) registeredQueues: readonly string[],
+    @Inject(BULLMQ_REGISTERED_QUEUES) private readonly registeredQueues: readonly string[],
     @Inject(BULLMQ_MODULE_OPTIONS) private readonly options: BullMqModuleOptions,
-  ) {
-    this.queues = new Map(
-      registeredQueues.map((name) => [
-        name,
-        this.moduleRef.get<Queue>(getQueueToken(name), { strict: false }),
-      ]),
-    );
-  }
+  ) {}
 
   private buildJobOptions(options?: QueueJobOptions): JobsOptions {
     const defaults = this.options.defaultJobOptions ?? { attempts: 3, backoffDelay: 1000 };
@@ -44,10 +39,10 @@ export class BullQueueGateway implements IQueueGateway {
     };
   }
 
-  async add<T>(
-    queueName: string,
-    jobName: string,
-    payload: T,
+  async add<TQueue extends QueueName, TJob extends JobName<TQueue>>(
+    queueName: TQueue,
+    jobName: TJob,
+    payload: JobPayload<TQueue, TJob>,
     options?: QueueJobOptions,
   ): Promise<string> {
     const job = await this.getQueue(queueName).add(jobName, payload, this.buildJobOptions(options));
@@ -72,8 +67,19 @@ export class BullQueueGateway implements IQueueGateway {
   }
 
   private getQueue(name: string): Queue {
-    const queue = this.queues.get(name);
-    if (!queue) throw new Error(`Unknown queue: ${name}`);
+    if (!this.registeredQueues.includes(name)) {
+      throw new Error(`Unknown queue: ${name}`);
+    }
+
+    let queue = this.queueCache.get(name);
+    if (!queue) {
+      queue = this.moduleRef.get<Queue>(getQueueToken(name), { strict: false });
+      if (!queue) {
+        throw new Error(`Unknown queue: ${name}`);
+      }
+      this.queueCache.set(name, queue);
+    }
+
     return queue;
   }
 }

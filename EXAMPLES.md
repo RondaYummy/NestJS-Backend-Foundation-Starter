@@ -506,7 +506,18 @@ At-least-once застереження: якщо worker впав після ус
 
 ## 10. Додати BullMQ job (worker)
 
-### 1. Ім'я черги
+### 1. QueueJobRegistry і константа черги
+
+`libs/contracts/src/queues/queue-gateway.ts` — додати queue і typed job payload:
+
+```ts
+export interface QueueJobRegistry {
+  // ... існуючі outbox, email
+  reports: {
+    'generate-report': { reportId: string };
+  };
+}
+```
 
 `libs/contracts/src/queues/queue-names.ts`:
 
@@ -514,43 +525,49 @@ At-least-once застереження: якщо worker впав після ус
 export const QUEUES = {
   OUTBOX: 'outbox',
   EMAIL: 'email',
-  NOTIFICATIONS: 'notifications',
-  INTEGRATIONS: 'integrations',
-  ANALYTICS: 'analytics',
-  FILES: 'files',
-  MAINTENANCE: 'maintenance',
+  REPORTS: 'reports',
 } as const;
 ```
 
-### 2. Processor
+### 2. Реєстрація черги в entrypoint
 
-`apps/worker/src/processors/my-job.processor.ts`:
+У `apps/worker/src/worker.module.ts` (або API/Cron, якщо там enqueue):
+
+```ts
+InfrastructureBullMqModule.registerQueues([QUEUES.OUTBOX, QUEUES.EMAIL, QUEUES.REPORTS], {
+  imports: [bullMqConnectionModule],
+});
+```
+
+### 3. Processor
+
+`apps/worker/src/processors/report.processor.ts`:
 
 ```ts
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import type { Job } from 'bullmq';
 import { QUEUES } from '@contracts/queues/queue-names';
 
-@Processor(QUEUES.MY_JOB)
-export class MyJobProcessor extends WorkerHost {
-  async process(job: Job<{ userId: string }>): Promise<void> {
+@Processor(QUEUES.REPORTS)
+export class ReportProcessor extends WorkerHost {
+  async process(job: Job<{ reportId: string }>): Promise<void> {
     // Тут не розміщується бізнес-логіка.
     // Processor повинен викликати application use case.
-    await this.myJobUseCase.execute(job.data);
+    await this.generateReportUseCase.execute(job.data);
   }
 }
 ```
 
-### 3. Реєстрація
+### 4. Реєстрація processor
 
 `apps/worker/src/worker.module.ts` — додати processor у `providers`.
 
-### 4. Постановка в чергу (з API або cron)
+### 5. Постановка в чергу (з API або cron)
 
 ```ts
 constructor(@Inject(TOKENS.QueueGateway) private readonly queues: IQueueGateway) {}
 
-await this.queues.add(QUEUES.MY_JOB, 'do-something', { userId: '...' });
+await this.queues.add(QUEUES.REPORTS, 'generate-report', { reportId: '...' });
 ```
 
 Запуск worker:

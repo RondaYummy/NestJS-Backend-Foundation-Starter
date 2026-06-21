@@ -629,35 +629,30 @@ libs/infrastructure/src/bullmq
 - job logging;
 - graceful shutdown.
 
-Базові queue names:
+Базові queue names (лише черги з `QueueJobRegistry`):
 
 ```ts
 export const QUEUES = {
   OUTBOX: 'outbox',
   EMAIL: 'email',
-  NOTIFICATIONS: 'notifications',
-  INTEGRATIONS: 'integrations',
-  ANALYTICS: 'analytics',
-  FILES: 'files',
-  MAINTENANCE: 'maintenance',
 } as const;
 ```
 
-Основний контракт:
+Основний контракт (`IQueueGateway`):
 
 ```ts
-add<T>(
-  queueName: string,
-  jobName: string,
-  payload: T,
+add<TQueue extends QueueName, TJob extends JobName<TQueue>>(
+  queueName: TQueue,
+  jobName: TJob,
+  payload: JobPayload<TQueue, TJob>,
   options?: QueueJobOptions,
 ): Promise<string>
 
-addBulk<T>(
-  queueName: string,
+addBulk<TQueue extends QueueName, TJob extends JobName<TQueue>>(
+  queueName: TQueue,
   jobs: Array<{
-    name: string;
-    payload: T;
+    name: TJob;
+    payload: JobPayload<TQueue, TJob>;
     options?: QueueJobOptions;
   }>,
 ): Promise<string[]>
@@ -886,7 +881,7 @@ Use case **не** містить HTML — лише `template` і `data`:
 ```ts
 import { EMAIL_TEMPLATE } from '@contracts/mail/email-template-id';
 
-await queueGateway.add(QUEUES.EMAIL, 'send-welcome', {
+await queueGateway.add(QUEUES.EMAIL, 'send-welcome-email', {
   to: user.email,
   subject: 'Welcome',
   template: EMAIL_TEMPLATE.WELCOME,
@@ -1919,10 +1914,13 @@ Controller має викликати use-case.
 
 # 14. Як додати новий queue processor
 
-1. Додати queue name в `QUEUES`, якщо потрібно.
-2. Створити processor у `apps/worker/src/processors`.
-3. Processor має приймати job і викликати use-case.
-4. Зареєструвати processor у `WorkerModule`.
+1. Додати queue і job payload types у `QueueJobRegistry` (`libs/contracts/src/queues/queue-gateway.ts`).
+2. Додати константу в `libs/contracts/src/queues/queue-names.ts` (значення має збігатися з ключем registry).
+3. Викликати `InfrastructureBullMqModule.registerQueues([...])` у composition root entrypoint, який enqueue або consume цю чергу (API, Worker або Cron).
+4. Створити processor у `apps/worker/src/processors` з `@Processor(QUEUES.YOUR_QUEUE)`.
+5. Processor має приймати job і викликати use-case.
+6. Поставити job через typed `IQueueGateway.add(QUEUES.YOUR_QUEUE, 'your-job-name', payload)`.
+7. Зареєструвати processor у `WorkerModule`.
 
 Приклад:
 
@@ -1932,13 +1930,14 @@ import type { Job } from 'bullmq';
 
 import { QUEUES } from '@contracts/queues/queue-names';
 
-@Processor(QUEUES.MY_JOB)
-export class MyJobProcessor extends WorkerHost {
-  constructor(private readonly useCase: MyJobUseCase) {
+// Припустимо, у QueueJobRegistry додано reports: { 'generate-report': ReportJobPayload }
+@Processor(QUEUES.REPORTS)
+export class ReportProcessor extends WorkerHost {
+  constructor(private readonly useCase: GenerateReportUseCase) {
     super();
   }
 
-  async process(job: Job<MyJobPayload>): Promise<void> {
+  async process(job: Job<ReportJobPayload>): Promise<void> {
     await this.useCase.execute(job.data);
   }
 }
