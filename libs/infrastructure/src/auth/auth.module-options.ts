@@ -1,3 +1,5 @@
+import type { CurrentUser } from '@contracts/auth/current-user';
+
 export type AuthJwtOptions = {
   secret: string;
   expiresIn: string;
@@ -15,6 +17,7 @@ export type AuthModuleOptions =
       driver: 'session';
       passwordSaltRounds: number;
       sessionTtlSeconds: number;
+      resolveSessionUser: (userId: string) => Promise<CurrentUser | null>;
     };
 
 export const AUTH_MODULE_OPTIONS = Symbol('AUTH_MODULE_OPTIONS');

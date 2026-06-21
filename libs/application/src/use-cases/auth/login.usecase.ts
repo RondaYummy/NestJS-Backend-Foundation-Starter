@@ -34,6 +34,7 @@ export class LoginUseCase {
       id: user.id,
       email: user.email.toString(),
       roles: user.roles,
+      authVersion: user.authVersion,
     });
 
     return {

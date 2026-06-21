@@ -7,6 +7,7 @@ import ms, { type StringValue } from 'ms';
 import type {
   AuthTokens,
   IAuthTokenService,
+  ParsedRefreshToken,
   RevokeAuthSessionInput,
 } from '@contracts/auth/auth-token.service';
 import type { CurrentUser } from '@contracts/auth/current-user';
@@ -106,32 +107,30 @@ export class JwtAuthTokenService implements IAuthTokenService {
     }
   }
 
-  async refreshAuthSession(refreshToken: string): Promise<AuthTokens> {
-    let payload: RefreshTokenPayload;
+  async parseRefreshToken(refreshToken: string): Promise<ParsedRefreshToken> {
+    const payload = await this.verifyRefreshTokenPayload(refreshToken);
 
-    try {
-      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
-        secret: this.jwtConfig().refreshSecret,
-      });
-    } catch {
-      throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
-    }
+    return {
+      userId: payload.id,
+      familyId: payload.familyId,
+      tokenId: payload.jti,
+      authVersion: payload.authVersion ?? 0,
+    };
+  }
 
-    if (payload.type !== 'refresh' || !payload.jti || !payload.familyId) {
-      throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid refresh token');
-    }
-
-    const user = this.toCurrentUser(payload);
-
-    const nextPair = await this.issueTokenPair(user, payload.familyId);
+  async rotateAuthSession(
+    parsed: ParsedRefreshToken,
+    freshUser: CurrentUser,
+  ): Promise<AuthTokens> {
+    const nextPair = await this.issueTokenPair(freshUser, parsed.familyId);
 
     const rotated = await this.tokenStore.rotateRefreshToken({
-      currentTokenId: payload.jti,
+      currentTokenId: parsed.tokenId,
       nextTokenId: nextPair.refreshTokenId,
-      familyId: payload.familyId,
+      familyId: parsed.familyId,
       nextRecord: {
-        userId: payload.id,
-        familyId: payload.familyId,
+        userId: parsed.userId,
+        familyId: parsed.familyId,
       },
       ttlSeconds: nextPair.refreshTokenTtlSeconds,
     });
@@ -144,7 +143,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
        * Це може означати replay attack.
        * Відкликаємо поточний token family.
        */
-      await this.tokenStore.revokeRefreshTokenFamily(payload.familyId);
+      await this.tokenStore.revokeRefreshTokenFamily(parsed.familyId);
 
       throw new AuthenticationError(
         'REFRESH_TOKEN_USED_OR_REVOKED',
@@ -156,6 +155,15 @@ export class JwtAuthTokenService implements IAuthTokenService {
       accessToken: nextPair.accessToken,
       refreshToken: nextPair.refreshToken,
     };
+  }
+
+  refreshAuthSession(_refreshToken: string): Promise<AuthTokens> {
+    return Promise.reject(
+      new InvalidAuthRequestError(
+        'REFRESH_ORCHESTRATION_REQUIRED',
+        'Use RefreshAuthSessionUseCase to refresh with fresh user authorization data',
+      ),
+    );
   }
 
   private async tryVerifyAccessTokenForRevocation(
@@ -225,6 +233,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
           id: user.id,
           email: user.email,
           roles: user.roles,
+          authVersion: user.authVersion,
           type: 'access',
           jti: accessTokenId,
         },
@@ -239,6 +248,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
           id: user.id,
           email: user.email,
           roles: user.roles,
+          authVersion: user.authVersion,
           type: 'refresh',
           jti: refreshTokenId,
           familyId,
@@ -259,9 +269,9 @@ export class JwtAuthTokenService implements IAuthTokenService {
     };
   }
 
-  private async verifyRefreshTokenForRevocation(token: string): Promise<RefreshTokenPayload> {
+  private async verifyRefreshTokenPayload(refreshToken: string): Promise<RefreshTokenPayload> {
     try {
-      const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(token, {
+      const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(refreshToken, {
         secret: this.jwtConfig().refreshSecret,
       });
 
@@ -277,6 +287,10 @@ export class JwtAuthTokenService implements IAuthTokenService {
 
       throw new AuthenticationError('INVALID_REFRESH_TOKEN', 'Invalid or expired refresh token');
     }
+  }
+
+  private async verifyRefreshTokenForRevocation(token: string): Promise<RefreshTokenPayload> {
+    return this.verifyRefreshTokenPayload(token);
   }
 
   private getRemainingTtlSeconds(expiresAt: number): number {
@@ -295,11 +309,12 @@ export class JwtAuthTokenService implements IAuthTokenService {
     return Math.ceil(durationMilliseconds / 1000);
   }
 
-  private toCurrentUser(payload: CurrentUser): CurrentUser {
+  private toCurrentUser(payload: CurrentUser & { authVersion?: number }): CurrentUser {
     return {
       id: payload.id,
       email: payload.email,
       roles: payload.roles,
+      authVersion: payload.authVersion ?? 0,
     };
   }
 }

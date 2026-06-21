@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 import {
   DuplicateRecordError,
@@ -63,6 +63,7 @@ export class UserDrizzleRepository implements IUserRepository {
         email: data.email,
         passwordHash: data.passwordHash,
         roles: data.roles,
+        authVersion: data.authVersion,
         updatedAt: new Date(),
       })
       .where(eq(users.id, data.id))
@@ -73,6 +74,25 @@ export class UserDrizzleRepository implements IUserRepository {
     if (updated.length === 0) {
       throw new RepositoryRecordNotFoundError('users', data.id);
     }
+  }
+
+  async incrementAuthVersion(userId: string, trx?: TransactionContext): Promise<number> {
+    const db = this.resolveDb(trx);
+
+    const [row] = await db
+      .update(users)
+      .set({
+        authVersion: sql`${users.authVersion} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning({ authVersion: users.authVersion });
+
+    if (!row) {
+      throw new RepositoryRecordNotFoundError('users', userId);
+    }
+
+    return row.authVersion;
   }
 
   private resolveDb(trx?: TransactionContext): DrizzleExecutor {

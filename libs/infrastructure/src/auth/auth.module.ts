@@ -98,6 +98,12 @@ export class AuthModule {
             driver: 'session',
             passwordSaltRounds: auth.passwordSaltRounds,
             sessionTtlSeconds: auth.sessionTtlSeconds,
+            resolveSessionUser: () =>
+              Promise.reject(
+                new Error(
+                  'Session user resolver must be wired at the composition root (AuthApplicationCompositionModule)',
+                ),
+              ),
           };
         }
 

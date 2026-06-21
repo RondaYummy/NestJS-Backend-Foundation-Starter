@@ -66,6 +66,7 @@ describe('AuthModule', () => {
           driver: 'session',
           passwordSaltRounds: 10,
           sessionTtlSeconds: 3600,
+          resolveSessionUser: () => Promise.resolve(null),
         }),
       ],
     }).compile();

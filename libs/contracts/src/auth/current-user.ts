@@ -4,4 +4,5 @@ export interface CurrentUser {
   id: string;
   email: string;
   roles: string[];
+  authVersion: number;
 }

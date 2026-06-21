@@ -7,6 +7,7 @@ export class UserMapper {
     email: string;
     passwordHash: string;
     roles: string[];
+    authVersion: number;
     createdAt: Date;
     updatedAt: Date;
   }): User {
@@ -15,6 +16,7 @@ export class UserMapper {
       email: Email.create(row.email),
       passwordHash: row.passwordHash,
       roles: row.roles,
+      authVersion: row.authVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
@@ -26,6 +28,7 @@ export class UserMapper {
       email: user.email.toString(),
       passwordHash: user.passwordHash,
       roles: user.roles,
+      authVersion: user.authVersion,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

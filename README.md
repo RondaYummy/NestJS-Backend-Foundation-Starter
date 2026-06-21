@@ -2160,6 +2160,28 @@ path=/
 
 Під час logout Redis-сесія видаляється, а cookie очищується.
 
+## Authorization freshness (`authVersion`)
+
+Кожен користувач має поле `auth_version` у таблиці `users`. Воно збільшується через `IUserRepository.incrementAuthVersion(userId)` під час подій безпеки (зміна ролей, пароля, примусовий logout тощо). Downstream-додатки **повинні** викликати цей метод при таких подіях.
+
+`authVersion` вбудовується в JWT access/refresh claims і в Redis session record (`{ userId, authVersion }`) під час login. Повний snapshot ролей у session Redis **не** зберігається.
+
+### Максимальна затримка відкликання
+
+| Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion` |
+| ----------- | ------------------------------ | ------------------------------------------------------------- |
+| JWT access  | Role change / authVersion bump | `JWT_EXPIRES_IN` (за замовчуванням **15m**) — access verify не читає DB |
+| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`             |
+| Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie          |
+
+**Refresh path:** `RefreshAuthSessionUseCase` завантажує користувача з `IUserRepository`, відхиляє запит при `authVersion` mismatch і видає нові токени з актуальними `email` та `roles`.
+
+**Session path:** `verifyAccessToken` завантажує користувача через resolver у composition root і порівнює `authVersion` з session record.
+
+**Legacy JWT:** токени без claim `authVersion` трактуються як версія `0`.
+
+**Breaking change (session):** після деплою формат Redis session змінюється — існуючі сесії стають невалідними; користувачі повинні виконати login повторно.
+
 # 17. Outbox
 
 Outbox потрібен для надійної доставки domain events.

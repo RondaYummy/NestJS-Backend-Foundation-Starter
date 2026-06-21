@@ -7,6 +7,13 @@ export interface AuthTokens {
   expiresAt?: Date;
 }
 
+export interface ParsedRefreshToken {
+  userId: string;
+  familyId: string;
+  tokenId: string;
+  authVersion: number;
+}
+
 export interface RevokeAuthSessionInput {
   /**
    * JWT access token.
@@ -26,6 +33,10 @@ export interface RevokeAuthSessionInput {
 
 export interface IAuthTokenService {
   createAuthSession(user: CurrentUser): Promise<AuthTokens>;
+
+  parseRefreshToken(refreshToken: string): Promise<ParsedRefreshToken>;
+
+  rotateAuthSession(parsed: ParsedRefreshToken, freshUser: CurrentUser): Promise<AuthTokens>;
 
   refreshAuthSession(refreshToken: string): Promise<AuthTokens>;
 

@@ -43,8 +43,32 @@ const drizzleModule = DrizzleModule.forRootAsync({
 
 const authModule = AuthModule.forRootAsync({
   imports: [InfrastructureConfigModule, redisModule],
-  inject: [AppConfigService],
-  useFactory: (config: AppConfigService) => mapAppConfigToAuthOptions(config),
+  inject: [AppConfigService, TOKENS.UserRepository],
+  useFactory: (config: AppConfigService, users: IUserRepository) => {
+    const base = mapAppConfigToAuthOptions(config);
+
+    if (base.driver === 'session') {
+      return {
+        ...base,
+        resolveSessionUser: async (userId: string) => {
+          const user = await users.findById(userId);
+
+          if (!user) {
+            return null;
+          }
+
+          return {
+            id: user.id,
+            email: user.email.toString(),
+            roles: user.roles,
+            authVersion: user.authVersion,
+          };
+        },
+      };
+    }
+
+    return base;
+  },
 });
 
 @Module({
@@ -87,8 +111,9 @@ const authModule = AuthModule.forRootAsync({
     },
     {
       provide: RefreshAuthSessionUseCase,
-      inject: [TOKENS.AuthTokenService],
-      useFactory: (authTokens: IAuthTokenService) => new RefreshAuthSessionUseCase(authTokens),
+      inject: [TOKENS.AuthTokenService, TOKENS.UserRepository],
+      useFactory: (authTokens: IAuthTokenService, users: IUserRepository) =>
+        new RefreshAuthSessionUseCase(authTokens, users),
     },
     {
       provide: GetCurrentUserUseCase,

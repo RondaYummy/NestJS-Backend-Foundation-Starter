@@ -1,7 +1,7 @@
-import type { CurrentUser } from './current-user';
+import type { SessionRecord } from './session-record';
 
 export interface ISessionStore {
-  create(user: CurrentUser, ttlSeconds: number): Promise<string>;
-  get(sessionId: string): Promise<CurrentUser | null>;
+  create(record: SessionRecord, ttlSeconds: number): Promise<string>;
+  get(sessionId: string): Promise<SessionRecord | null>;
   delete(sessionId: string): Promise<void>;
 }

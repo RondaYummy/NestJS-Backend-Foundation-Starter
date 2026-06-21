@@ -6,6 +6,7 @@ type UserProps = {
   email: Email;
   passwordHash: string;
   roles: string[];
+  authVersion: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -21,6 +22,7 @@ export class User {
       email: Email.create(input.email),
       passwordHash: input.passwordHash,
       roles: input.roles ?? ['user'],
+      authVersion: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -44,6 +46,18 @@ export class User {
 
   get roles(): string[] {
     return this.props.roles;
+  }
+
+  get authVersion(): number {
+    return this.props.authVersion;
+  }
+
+  incrementAuthVersion(): User {
+    return User.restore({
+      ...this.props,
+      authVersion: this.props.authVersion + 1,
+      updatedAt: new Date(),
+    });
   }
 
   get createdAt(): Date {
