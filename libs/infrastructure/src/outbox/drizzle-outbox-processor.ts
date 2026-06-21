@@ -207,26 +207,37 @@ export class DrizzleOutboxProcessor implements IOutboxProcessor {
   }
 
   private async publishEventWithTimeout(event: OutboxRow): Promise<void> {
+    const publishPromise = this.publishEvent(event);
+
     if (this.options.handlerTimeoutMs <= 0) {
-      await this.publishEvent(event);
+      await publishPromise;
       return;
     }
 
+    let handlerTimedOut = false;
     let timeoutId: NodeJS.Timeout | undefined;
 
+    const timeoutPromise = new Promise<void>((resolve) => {
+      timeoutId = setTimeout(() => {
+        handlerTimedOut = true;
+
+        this.logger.warn('Outbox handler exceeded timeout threshold', {
+          eventId: event.id,
+          handlerTimeoutMs: this.options.handlerTimeoutMs,
+        });
+
+        resolve();
+      }, this.options.handlerTimeoutMs);
+    });
+
     try {
-      await Promise.race([
-        this.publishEvent(event),
-        new Promise<never>((_, reject) => {
-          timeoutId = setTimeout(
-            () =>
-              reject(
-                new Error(`Outbox handler timeout after ${this.options.handlerTimeoutMs}ms`),
-              ),
-            this.options.handlerTimeoutMs,
-          );
-        }),
-      ]);
+      await Promise.race([publishPromise, timeoutPromise]);
+
+      if (handlerTimedOut) {
+        await publishPromise.catch(() => undefined);
+
+        throw new Error(`Outbox handler timeout after ${this.options.handlerTimeoutMs}ms`);
+      }
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);

@@ -56,6 +56,7 @@ function createProcessor(
   db: DrizzleDb,
   routeDelayMs: number,
   routeCount: { value: number },
+  processorOptions: OutboxProcessorOptions = TEST_OPTIONS,
 ): DrizzleOutboxProcessor {
   const domainEventRouter: IDomainEventRouter = {
     route: jest.fn(() => {
@@ -76,13 +77,7 @@ function createProcessor(
     error: jest.fn(),
   } as unknown as AppLogger;
 
-  return new DrizzleOutboxProcessor(
-    auditLogger,
-    db,
-    logger,
-    domainEventRouter,
-    TEST_OPTIONS,
-  );
+  return new DrizzleOutboxProcessor(auditLogger, db, logger, domainEventRouter, processorOptions);
 }
 
 describe('DrizzleOutboxProcessor integration', () => {
@@ -165,6 +160,66 @@ describe('DrizzleOutboxProcessor integration', () => {
     const [row] = await db.select().from(outboxEvents).where(eq(outboxEvents.id, eventId));
 
     expect(row?.status).toBe('processed');
+
+    await db.delete(outboxEvents).where(eq(outboxEvents.id, eventId));
+  }, 20_000);
+
+  it('prevents reclaim while timed-out handler is still running (V-09 / P2-04)', async () => {
+    if (!postgresAvailable) {
+      return;
+    }
+
+    const timeoutOptions: OutboxProcessorOptions = {
+      ...TEST_OPTIONS,
+      lockTtlMs: 3_000,
+      heartbeatIntervalMs: 500,
+      handlerTimeoutMs: 2_000,
+      retryDelaySeconds: () => 0,
+    };
+
+    const eventId = randomUUID();
+    const routeCount = { value: 0 };
+
+    await db.insert(outboxEvents).values({
+      id: eventId,
+      eventName: 'integration.test',
+      payload: { source: 'v-09' },
+      status: 'pending',
+      attempts: 0,
+      availableAt: new Date(),
+      occurredAt: new Date(),
+    });
+
+    const processorA = createProcessor(db, 5_000, routeCount, timeoutOptions);
+    const processorB = createProcessor(db, 0, { value: 0 }, timeoutOptions);
+
+    const claimPendingBatch = (
+      processorB as unknown as {
+        claimPendingBatch: () => Promise<Array<{ id: string }>>;
+      }
+    ).claimPendingBatch.bind(processorB);
+
+    const processPromise = processorA.processPending();
+
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+
+    const reclaimed = await claimPendingBatch();
+    const reclaimedIds = reclaimed.map((row) => row.id);
+
+    expect(reclaimedIds).not.toContain(eventId);
+    expect(routeCount.value).toBe(1);
+
+    const result = await processPromise;
+
+    expect(result.processed).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(routeCount.value).toBe(1);
+
+    const [row] = await db.select().from(outboxEvents).where(eq(outboxEvents.id, eventId));
+
+    expect(row?.status).not.toBe('processed');
+    expect(row?.lockedAt).toBeNull();
+    expect(row?.lockedBy).toBeNull();
 
     await db.delete(outboxEvents).where(eq(outboxEvents.id, eventId));
   }, 20_000);

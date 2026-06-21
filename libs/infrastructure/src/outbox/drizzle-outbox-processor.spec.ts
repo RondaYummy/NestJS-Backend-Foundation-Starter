@@ -62,8 +62,212 @@ describe('DrizzleOutboxProcessor', () => {
     jest.useRealTimers();
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
+  function mockClaimedEventProcessing(
+    claimedEvent: Record<string, unknown>,
+    onUpdate?: (values: Record<string, unknown>) => void,
+  ): void {
+    const forUpdate = jest.fn().mockResolvedValue([claimedEvent]);
+    const limit = jest.fn().mockReturnValue({ for: forUpdate });
+    const orderBy = jest.fn().mockReturnValue({ limit });
+    const where = jest.fn().mockReturnValue({ orderBy });
+    const from = jest.fn().mockReturnValue({ where });
+    const select = jest.fn().mockReturnValue({ from });
+    const trxUpdate = jest.fn().mockReturnValue({
+      set: jest.fn().mockReturnValue({
+        where: jest.fn().mockResolvedValue(undefined),
+      }),
+    });
+    const trx = { select, update: trxUpdate };
+
+    db.transaction.mockImplementation(
+      async (callback: (innerTrx: typeof trx) => Promise<unknown>) => callback(trx),
+    );
+
+    db.update.mockImplementation(() => ({
+      set: jest.fn().mockImplementation((values: Record<string, unknown>) => {
+        onUpdate?.(values);
+
+        if ('status' in values && values.status === 'processed') {
+          return {
+            where: jest.fn().mockReturnValue({
+              returning: jest.fn().mockResolvedValue([{ id: claimedEvent.id }]),
+            }),
+          };
+        }
+
+        if ('status' in values && (values.status === 'pending' || values.status === 'failed')) {
+          return {
+            where: jest.fn().mockReturnValue({
+              returning: jest.fn().mockResolvedValue([{ id: claimedEvent.id }]),
+            }),
+          };
+        }
+
+        if ('lockedAt' in values && !('status' in values)) {
+          return {
+            where: jest.fn().mockReturnValue({
+              returning: jest.fn().mockResolvedValue([{ id: claimedEvent.id }]),
+            }),
+          };
+        }
+
+        return {
+          where: jest.fn().mockReturnValue({
+            returning: jest.fn().mockResolvedValue([]),
+          }),
+        };
+      }),
+    }));
+  }
+
+  const baseClaimedEvent = {
+    id: 'event-1',
+    eventName: 'user.created',
+    payload: { userId: 'u-1' },
+    status: 'processing',
+    attempts: 0,
+    availableAt: new Date(),
+    lockedAt: new Date(),
+    lockedBy: 'worker-1',
+    occurredAt: new Date(),
+    processedAt: null,
+    error: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    claimWorkerId: 'worker-1',
+  };
+
+  it('defers markFailed until slow handler settles after timeout (P2-04)', async () => {
+    const processorWithTimeout = new DrizzleOutboxProcessor(
+      auditLogger,
+      db as unknown as DrizzleDb,
+      logger as unknown as AppLogger,
+      domainEventRouter,
+      {
+        ...options,
+        handlerTimeoutMs: 1000,
+        heartbeatIntervalMs: 500,
+      },
+    );
+
+    let markFailedAtMs: number | undefined;
+
+    mockClaimedEventProcessing(baseClaimedEvent, (values) => {
+      if ('status' in values && (values.status === 'pending' || values.status === 'failed')) {
+        markFailedAtMs = Date.now();
+      }
+    });
+
+    domainEventRouter.route.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 3000);
+        }),
+    );
+
+    const processPromise = processorWithTimeout.processPending();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    expect(markFailedAtMs).toBeUndefined();
+    expect(domainEventRouter.route).toHaveBeenCalledTimes(1);
+
+    await jest.advanceTimersByTimeAsync(2000);
+    await processPromise;
+
+    expect(markFailedAtMs).toBeDefined();
+    expect(domainEventRouter.route).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks processed when handler completes within timeout (P2-04)', async () => {
+    const processorWithTimeout = new DrizzleOutboxProcessor(
+      auditLogger,
+      db as unknown as DrizzleDb,
+      logger as unknown as AppLogger,
+      domainEventRouter,
+      {
+        ...options,
+        handlerTimeoutMs: 1000,
+        heartbeatIntervalMs: 500,
+      },
+    );
+
+    mockClaimedEventProcessing(baseClaimedEvent);
+
+    domainEventRouter.route.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 500);
+        }),
+    );
+
+    const processPromise = processorWithTimeout.processPending();
+
+    await jest.advanceTimersByTimeAsync(500);
+    const result = await processPromise;
+
+    expect(result.processed).toBe(1);
+    expect(result.failed).toBe(0);
+    expect(domainEventRouter.route).toHaveBeenCalledTimes(1);
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      'Outbox handler exceeded timeout threshold',
+      expect.anything(),
+    );
+  });
+
+  it('does not mark processed when handler resolves after timeout (P2-04)', async () => {
+    const processorWithTimeout = new DrizzleOutboxProcessor(
+      auditLogger,
+      db as unknown as DrizzleDb,
+      logger as unknown as AppLogger,
+      domainEventRouter,
+      {
+        ...options,
+        handlerTimeoutMs: 1000,
+        heartbeatIntervalMs: 500,
+      },
+    );
+
+    mockClaimedEventProcessing(baseClaimedEvent);
+
+    domainEventRouter.route.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 3000);
+        }),
+    );
+
+    const processPromise = processorWithTimeout.processPending();
+
+    await jest.advanceTimersByTimeAsync(3000);
+    const result = await processPromise;
+
+    expect(result.processed).toBe(0);
+    expect(result.failed).toBe(1);
+    expect(domainEventRouter.route).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Outbox handler exceeded timeout threshold',
+      expect.objectContaining({ eventId: 'event-1' }),
+    );
+  });
+
+  it('with handlerTimeoutMs disabled, slow route still holds ownership via heartbeat (P2-04 regression)', async () => {
+    mockClaimedEventProcessing(baseClaimedEvent);
+
+    domainEventRouter.route.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 2500);
+        }),
+    );
+
+    const processPromise = processor.processPending();
+
+    await jest.advanceTimersByTimeAsync(1000);
+    await jest.advanceTimersByTimeAsync(1500);
+    const result = await processPromise;
+
+    expect(result.processed).toBe(1);
+    expect(domainEventRouter.route).toHaveBeenCalledTimes(1);
   });
 
   it('uses configured batch size and max attempts when claiming pending events', async () => {

@@ -1137,14 +1137,14 @@ Tuning relationships:
 - `concurrency` — BullMQ worker parallelism for the outbox queue. Values above `1` allow multiple batches to run at the same time; keep `lockTtlMs` and heartbeat settings aligned with worst-case handler duration.
 - `lockTtlMs` — base lease duration for `processing` rows. Stale `processing` rows become reclaimable when `lockedAt` is older than this value.
 - `heartbeatIntervalMs` — while an event is being published, the worker renews `lockedAt` on this interval via a conditional update (`status = processing` and matching `lockedBy`). Must be at least `1000` ms and at most half of `lockTtlMs`. Default `100000` ms keeps the lease alive during long handlers without operator changes.
-- `handlerTimeoutMs` — optional cap on `publishEvent()` duration. Default `0` disables the timeout; when set to a positive value it must be at least `lockTtlMs`. On timeout the event is marked failed and retried according to the existing retry policy.
+- `handlerTimeoutMs` — optional cap on `publishEvent()` duration. Default `0` disables the timeout; when set to a positive value it must be at least `lockTtlMs`. When the threshold is exceeded the handler is **not** treated as successful, but ownership is **not** released until the in-flight handler promise settles — heartbeat continues during that wait so another worker cannot reclaim the row while side effects are still running. After settlement the event is marked failed and retried according to the existing retry policy (even if the handler later resolves successfully).
 - `pollIntervalMs` — how often Cron enqueues an outbox processing job.
 - `cronLockTtlMs` — distributed lock TTL for the cron tick. Must stay below `pollIntervalMs` so only one cron leader enqueues per interval.
 - `maxAttempts` and retry delay env vars — control permanent failure threshold and exponential backoff between retries.
 
 Delivery semantics:
 
-- Heartbeat prevents duplicate reclaim while a worker is actively publishing, but the Outbox pattern remains **at-least-once**. A crash after a successful external route but before `markProcessed()` can still produce a retry. Downstream consumers and queue handlers must stay idempotent.
+- Heartbeat prevents duplicate reclaim while a worker is actively publishing. When `handlerTimeoutMs > 0`, timeout marks failure only after handler settlement — concurrent reclaim during a timed-out but still-running handler is prevented. The Outbox pattern remains **at-least-once** (not exactly-once): a crash after a successful external route but before `markProcessed()` can still produce a retry, and a sequential retry after timeout may run the handler again. Downstream consumers and queue handlers must stay idempotent.
 
 BullMQ job timeout is not configured for outbox jobs in this starter kit. If handlers routinely exceed `lockTtlMs` even with heartbeat, increase `lockTtlMs`, reduce `batchSize` / `concurrency`, or enable `handlerTimeoutMs` before adding a queue timeout.
 
