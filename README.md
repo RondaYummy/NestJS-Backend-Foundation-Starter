@@ -2582,6 +2582,28 @@ docker compose up -d --build
 docker compose logs -f api
 ```
 
+## Release archive (maintainers)
+
+Створюйте distributable ZIP **лише** через Git-tracked allowlist, а не стисканням робочої директорії (Explorer, `Compress-Archive`, `zip -r .`). Інакше в архів потрапляють локальний `.env`, `.git/`, `node_modules/` та інші dev-only файли.
+
+```bash
+npm run release:check
+```
+
+Окремі кроки:
+
+```bash
+npm run release:check-dockerignore
+npm run release:archive
+npm run release:verify -- dist/release/nestjs-backend-foundation-starter-<version>.zip
+```
+
+`release:archive` використовує `git archive` і `.gitattributes export-ignore`. Для tagged release можна передати ref:
+
+```bash
+RELEASE_GIT_REF=v1.0.0 npm run release:archive
+```
+
 ---
 
 # 26. Головна ідея

@@ -1,0 +1,3 @@
+.husky/ export-ignore
+docs/agent-plans/ export-ignore
+docs/agent-reports/ export-ignore

@@ -1,0 +1,15 @@
+title = "NestJS Starter Kit gitleaks config"
+
+[allowlist]
+description = "Documented dev placeholders in tracked env template"
+paths = [
+  '''(?i)\.env\.example$''',
+]
+
+[allowlist.regexes]
+description = "Known non-production placeholder assignments"
+regexTarget = "match"
+regexes = [
+  '''(?i)^JWT_(?:REFRESH_)?SECRET=dev-(?:refresh-)?secret$''',
+  '''(?i)^CHANGE_ME_''',
+]

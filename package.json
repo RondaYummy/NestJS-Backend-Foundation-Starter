@@ -36,6 +36,10 @@
     "start:prod:migrations": "node dist/apps/migrations/main.js",
     "build:migrations": "nest build migrations",
     "db:migrate:prod": "npm run start:prod:migrations",
+    "release:archive": "ts-node --project scripts/release/tsconfig.json --transpile-only scripts/release/build-archive.ts",
+    "release:verify": "ts-node --project scripts/release/tsconfig.json --transpile-only scripts/release/verify-archive.ts",
+    "release:check-dockerignore": "ts-node --project scripts/release/tsconfig.json --transpile-only scripts/release/dockerignore-policy.ts",
+    "release:check": "npm run release:check-dockerignore && npm run release:archive && npm run release:verify",
     "prepare": "husky"
   },
   "dependencies": {
