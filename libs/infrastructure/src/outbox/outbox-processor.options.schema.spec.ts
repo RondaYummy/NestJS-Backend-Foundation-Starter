@@ -4,91 +4,61 @@ import {
   computeHandlerTimeoutMs,
   computeLockHeartbeatIntervalMs,
   mapOutboxEnvToOptions,
-  outboxProcessorEnvSchema,
+  type OutboxEnvMappingInput,
 } from './outbox-processor.options.schema';
 
-describe('outboxProcessorEnvSchema', () => {
-  it('accepts default-compatible values', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({});
+const DEFAULT_MAPPING_INPUT: OutboxEnvMappingInput = {
+  OUTBOX_BATCH_SIZE: 50,
+  OUTBOX_MAX_ATTEMPTS: 10,
+  OUTBOX_LOCK_TTL_MS: 300_000,
+  OUTBOX_HEARTBEAT_INTERVAL_MS: 100_000,
+  OUTBOX_HANDLER_TIMEOUT_MS: 0,
+  OUTBOX_POLL_INTERVAL_MS: 60_000,
+  OUTBOX_CRON_LOCK_TTL_MS: 55_000,
+  OUTBOX_CONCURRENCY: 1,
+  OUTBOX_RETRY_BASE_DELAY_SECONDS: 30,
+  OUTBOX_RETRY_MAX_DELAY_SECONDS: 3600,
+};
 
-    expect(parsed.success).toBe(true);
+describe('mapOutboxEnvToOptions', () => {
+  it('maps validated env fields to outbox processor options', () => {
+    const options = mapOutboxEnvToOptions(DEFAULT_MAPPING_INPUT);
 
-    if (parsed.success) {
-      expect(parsed.data).toEqual({
-        OUTBOX_BATCH_SIZE: 50,
-        OUTBOX_MAX_ATTEMPTS: 10,
-        OUTBOX_LOCK_TTL_MS: 300_000,
-        OUTBOX_HEARTBEAT_INTERVAL_MS: 100_000,
-        OUTBOX_HANDLER_TIMEOUT_MS: 0,
-        OUTBOX_POLL_INTERVAL_MS: 60_000,
-        OUTBOX_CRON_LOCK_TTL_MS: 55_000,
-        OUTBOX_CONCURRENCY: 1,
-        OUTBOX_RETRY_BASE_DELAY_SECONDS: 30,
-        OUTBOX_RETRY_MAX_DELAY_SECONDS: 3600,
-      });
-    }
+    expect(options).toEqual({
+      batchSize: 50,
+      maxAttempts: 10,
+      lockTtlMs: 300_000,
+      heartbeatIntervalMs: 100_000,
+      handlerTimeoutMs: 0,
+      pollIntervalMs: 60_000,
+      cronLockTtlMs: 55_000,
+      concurrency: 1,
+      retryDelaySeconds: expect.any(Function),
+    });
   });
 
-  it('maps computed heartbeat and handler timeout defaults from lock ttl', () => {
-    const options = mapOutboxEnvToOptions(
-      outboxProcessorEnvSchema.parse({
-        OUTBOX_LOCK_TTL_MS: 300_000,
-      }),
-    );
-
-    expect(options.heartbeatIntervalMs).toBe(computeLockHeartbeatIntervalMs(300_000));
-    expect(options.handlerTimeoutMs).toBe(computeHandlerTimeoutMs(300_000));
-  });
-
-  it('rejects cron lock ttl greater than or equal to poll interval', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_POLL_INTERVAL_MS: 60_000,
-      OUTBOX_CRON_LOCK_TTL_MS: 60_000,
+  it('computes retry delay from base and max delay seconds', () => {
+    const options = mapOutboxEnvToOptions({
+      ...DEFAULT_MAPPING_INPUT,
+      OUTBOX_RETRY_BASE_DELAY_SECONDS: 10,
+      OUTBOX_RETRY_MAX_DELAY_SECONDS: 100,
     });
 
-    expect(parsed.success).toBe(false);
+    expect(options.retryDelaySeconds(0)).toBe(10);
+    expect(options.retryDelaySeconds(1)).toBe(20);
+    expect(options.retryDelaySeconds(10)).toBe(100);
   });
+});
 
-  it('rejects batch size below 1', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_BATCH_SIZE: 0,
-    });
-
-    expect(parsed.success).toBe(false);
+describe('computeLockHeartbeatIntervalMs', () => {
+  it('uses one third of lock ttl with a 1 second floor', () => {
+    expect(computeLockHeartbeatIntervalMs(300_000)).toBe(100_000);
+    expect(computeLockHeartbeatIntervalMs(2000)).toBe(1000);
   });
+});
 
-  it('rejects retry max delay below base delay', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_RETRY_BASE_DELAY_SECONDS: 120,
-      OUTBOX_RETRY_MAX_DELAY_SECONDS: 60,
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it('rejects heartbeat interval greater than half of lock ttl', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_LOCK_TTL_MS: 2000,
-      OUTBOX_HEARTBEAT_INTERVAL_MS: 1500,
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it('rejects handler timeout below lock ttl when enabled', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_LOCK_TTL_MS: 300_000,
-      OUTBOX_HANDLER_TIMEOUT_MS: 60_000,
-    });
-
-    expect(parsed.success).toBe(false);
-  });
-
-  it('accepts handler timeout of zero (disabled)', () => {
-    const parsed = outboxProcessorEnvSchema.safeParse({
-      OUTBOX_HANDLER_TIMEOUT_MS: 0,
-    });
-
-    expect(parsed.success).toBe(true);
+describe('computeHandlerTimeoutMs', () => {
+  it('matches the lock ttl', () => {
+    expect(computeHandlerTimeoutMs(300_000)).toBe(300_000);
   });
 });

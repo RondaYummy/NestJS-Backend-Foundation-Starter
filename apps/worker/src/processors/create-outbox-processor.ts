@@ -1,0 +1,25 @@
+import { Inject } from '@nestjs/common';
+import { Processor, WorkerHost } from '@nestjs/bullmq';
+import type { Job } from 'bullmq';
+
+import type { IOutboxProcessor, ProcessOutboxResult } from '@contracts/outbox/outbox-processor';
+import { QUEUES } from '@contracts/queues/queue-names';
+import { TOKENS } from '@contracts/tokens';
+
+export function createOutboxProcessorClass(concurrency: number) {
+  @Processor(QUEUES.OUTBOX, { concurrency })
+  class OutboxProcessorHost extends WorkerHost {
+    constructor(
+      @Inject(TOKENS.OutboxProcessor)
+      private readonly outbox: IOutboxProcessor,
+    ) {
+      super();
+    }
+
+    async process(_job: Job): Promise<ProcessOutboxResult> {
+      return this.outbox.processPending();
+    }
+  }
+
+  return OutboxProcessorHost;
+}

@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { EmailProcessor } from './processors/email.processor';
-import { OutboxProcessor } from './processors/outbox.processor';
+import { outboxProcessorProvider } from './processors/outbox-processor.provider';
 import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { MailModule } from '@infrastructure/mail/mail.module';
 import { OutboxProcessorModule } from '@infrastructure/outbox/outbox-processor.module';
@@ -61,6 +61,6 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(
       useFactory: (config: AppConfigService) => config.outbox(),
     }),
   ],
-  providers: [EmailProcessor, OutboxProcessor],
+  providers: [EmailProcessor, outboxProcessorProvider],
 })
 export class WorkerModule {}

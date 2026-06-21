@@ -172,3 +172,89 @@ describe('envSchema development and test JWT permissiveness', () => {
     expect(parsed.success).toBe(true);
   });
 });
+
+describe('envSchema outbox cross-field validation', () => {
+  const baseEnv = {
+    NODE_ENV: 'development',
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/app',
+    JWT_SECRET: 'dev-secret',
+    JWT_REFRESH_SECRET: 'dev-refresh-secret',
+  };
+
+  it('accepts default-compatible outbox values', () => {
+    const parsed = envSchema.safeParse(baseEnv);
+
+    expect(parsed.success).toBe(true);
+
+    if (parsed.success) {
+      expect(parsed.data.OUTBOX_BATCH_SIZE).toBe(50);
+      expect(parsed.data.OUTBOX_MAX_ATTEMPTS).toBe(10);
+      expect(parsed.data.OUTBOX_LOCK_TTL_MS).toBe(300_000);
+      expect(parsed.data.OUTBOX_HEARTBEAT_INTERVAL_MS).toBe(100_000);
+      expect(parsed.data.OUTBOX_HANDLER_TIMEOUT_MS).toBe(0);
+      expect(parsed.data.OUTBOX_POLL_INTERVAL_MS).toBe(60_000);
+      expect(parsed.data.OUTBOX_CRON_LOCK_TTL_MS).toBe(55_000);
+      expect(parsed.data.OUTBOX_CONCURRENCY).toBe(1);
+      expect(parsed.data.OUTBOX_RETRY_BASE_DELAY_SECONDS).toBe(30);
+      expect(parsed.data.OUTBOX_RETRY_MAX_DELAY_SECONDS).toBe(3600);
+    }
+  });
+
+  it('rejects cron lock ttl greater than or equal to poll interval', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_POLL_INTERVAL_MS: '60000',
+      OUTBOX_CRON_LOCK_TTL_MS: '60000',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects batch size below 1', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_BATCH_SIZE: '0',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects retry max delay below base delay', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_RETRY_BASE_DELAY_SECONDS: '120',
+      OUTBOX_RETRY_MAX_DELAY_SECONDS: '60',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects heartbeat interval greater than half of lock ttl', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_LOCK_TTL_MS: '2000',
+      OUTBOX_HEARTBEAT_INTERVAL_MS: '1500',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('rejects handler timeout below lock ttl when enabled', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_LOCK_TTL_MS: '300000',
+      OUTBOX_HANDLER_TIMEOUT_MS: '60000',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it('accepts handler timeout of zero (disabled)', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      OUTBOX_HANDLER_TIMEOUT_MS: '0',
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+});
