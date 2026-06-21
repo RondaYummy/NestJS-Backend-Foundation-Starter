@@ -2290,15 +2290,17 @@ path=/
 
 ### Максимальна затримка відкликання
 
-| Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion`             |
-| ----------- | ------------------------------ | ----------------------------------------------------------------------- |
-| JWT access  | Role change / authVersion bump | `JWT_EXPIRES_IN` (за замовчуванням **15m**) — access verify не читає DB |
-| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`                         |
-| Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie                      |
+| Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion`                                                           |
+| ----------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| JWT access  | Role change / authVersion bump | **Негайно** при наступному запиті, коли composition root підключив `resolveAccessUser` (starter kit за замовчуванням) |
+| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`                                                                       |
+| Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie                                                                    |
 
 **Refresh path:** `RefreshAuthSessionUseCase` завантажує користувача з `IUserRepository`, відхиляє запит при `authVersion` mismatch і видає нові токени з актуальними `email` та `roles`.
 
-**Session path:** `verifyAccessToken` завантажує користувача через resolver у composition root і порівнює `authVersion` з session record.
+**JWT access path:** коли `resolveAccessUser` підключений у composition root (starter kit API), `verifyAccessToken` завантажує користувача з БД і відхиляє токен при `authVersion` mismatch — ролі в `request.user` завжди актуальні на захищених маршрутах.
+
+**Session path:** `verifyAccessToken` завантажує користувача через `resolveSessionUser` у composition root і порівнює `authVersion` з session record.
 
 **Legacy JWT:** токени без claim `authVersion` трактуються як версія `0`.
 

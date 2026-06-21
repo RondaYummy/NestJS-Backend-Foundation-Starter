@@ -12,6 +12,7 @@ export type AuthModuleOptions =
       driver: 'jwt';
       passwordSaltRounds: number;
       jwt: AuthJwtOptions;
+      resolveAccessUser?: (userId: string) => Promise<CurrentUser | null>;
     }
   | {
       driver: 'session';

@@ -62,7 +62,7 @@ export class LocalStorageAdapter implements IStorageGateway {
     const candidate = resolve(this.storageRoot, normalizedKey);
     const rel = relative(this.storageRoot, candidate);
 
-    if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+    if (rel === '' || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
       throw new Error('Storage key escapes configured root');
     }
 

@@ -101,7 +101,19 @@ export class JwtAuthTokenService implements IAuthTokenService {
         return null;
       }
 
-      return this.toCurrentUser(payload);
+      const user = this.toCurrentUser(payload);
+
+      if (isJwtAuthOptions(this.options) && this.options.resolveAccessUser) {
+        const freshUser = await this.options.resolveAccessUser(user.id);
+
+        if (!freshUser || freshUser.authVersion !== user.authVersion) {
+          return null;
+        }
+
+        return freshUser;
+      }
+
+      return user;
     } catch {
       return null;
     }
@@ -118,10 +130,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
     };
   }
 
-  async rotateAuthSession(
-    parsed: ParsedRefreshToken,
-    freshUser: CurrentUser,
-  ): Promise<AuthTokens> {
+  async rotateAuthSession(parsed: ParsedRefreshToken, freshUser: CurrentUser): Promise<AuthTokens> {
     const nextPair = await this.issueTokenPair(freshUser, parsed.familyId);
 
     const rotated = await this.tokenStore.rotateRefreshToken({

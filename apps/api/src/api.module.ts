@@ -64,7 +64,7 @@ const healthModule = HealthModule.registerAsync({
     bullMqQueuesModule,
     IdempotencyModule.register({ imports: [redisModule] }),
     healthModule,
-    AuthApplicationCompositionModule,
+    AuthApplicationCompositionModule.register({ redisModule, drizzleModule }),
     RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
   ],
   controllers: [AuthController],

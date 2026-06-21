@@ -47,7 +47,9 @@ describe('JwtAuthTokenService', () => {
   });
 
   it('embeds authVersion in access and refresh JWT payloads at issuance (V-11 / AC-3)', async () => {
-    jwtService.signAsync.mockResolvedValueOnce('access-token').mockResolvedValueOnce('refresh-token');
+    jwtService.signAsync
+      .mockResolvedValueOnce('access-token')
+      .mockResolvedValueOnce('refresh-token');
 
     await service.createAuthSession(freshUser);
 
@@ -139,6 +141,67 @@ describe('JwtAuthTokenService', () => {
       email: 'user@example.com',
       roles: ['user'],
       authVersion: 0,
+    });
+  });
+
+  it('verifyAccessToken returns null when resolveAccessUser reports stale authVersion (V-11)', async () => {
+    const optionsWithResolver: AuthModuleOptions = {
+      ...jwtOptions,
+      resolveAccessUser: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        roles: ['user'],
+        authVersion: 2,
+      }),
+    };
+    const serviceWithResolver = new JwtAuthTokenService(
+      jwtService as unknown as JwtService,
+      optionsWithResolver,
+      tokenStore,
+    );
+
+    jwtService.verifyAsync.mockResolvedValue({
+      id: 'user-1',
+      email: 'user@example.com',
+      roles: ['admin'],
+      authVersion: 1,
+      type: 'access',
+      jti: 'access-jti',
+    });
+
+    await expect(serviceWithResolver.verifyAccessToken('access-token')).resolves.toBeNull();
+  });
+
+  it('verifyAccessToken returns fresh roles when resolveAccessUser succeeds (V-11)', async () => {
+    const optionsWithResolver: AuthModuleOptions = {
+      ...jwtOptions,
+      resolveAccessUser: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        email: 'user@example.com',
+        roles: ['user'],
+        authVersion: 2,
+      }),
+    };
+    const serviceWithResolver = new JwtAuthTokenService(
+      jwtService as unknown as JwtService,
+      optionsWithResolver,
+      tokenStore,
+    );
+
+    jwtService.verifyAsync.mockResolvedValue({
+      id: 'user-1',
+      email: 'user@example.com',
+      roles: ['admin'],
+      authVersion: 2,
+      type: 'access',
+      jti: 'access-jti',
+    });
+
+    await expect(serviceWithResolver.verifyAccessToken('access-token')).resolves.toEqual({
+      id: 'user-1',
+      email: 'user@example.com',
+      roles: ['user'],
+      authVersion: 2,
     });
   });
 });

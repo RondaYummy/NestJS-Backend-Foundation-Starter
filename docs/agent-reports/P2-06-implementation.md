@@ -8,108 +8,90 @@ implemented
 
 `docs/agent-plans/P2-06-authorization-freshness-policy.md` (`status: approved`)
 
-## Changed files
+## Follow-up completion (2026-06-21)
 
-### Created
+Verification noted JWT access tokens could remain stale up to `JWT_EXPIRES_IN` because `verifyAccessToken` trusted embedded claims without a DB read. Session driver already reloaded fresh user state via `resolveSessionUser`.
 
-| Path | Responsibility |
-| ---- | -------------- |
-| `libs/contracts/src/auth/session-record.ts` | `SessionRecord` type for Redis session payload |
-| `libs/infrastructure/src/database/drizzle/migrations/0004_amusing_sauron.sql` | Adds `users.auth_version` column |
-| `libs/infrastructure/src/database/drizzle/migrations/meta/0004_snapshot.json` | Drizzle migration metadata |
-| `libs/infrastructure/src/auth/jwt-auth-token.service.spec.ts` | JWT claim embedding, legacy `authVersion`, rotate with fresh user |
-| `libs/infrastructure/src/auth/session-auth-token.service.spec.ts` | Session storage shape, stale version rejection |
-| `libs/application/src/use-cases/auth/refresh-auth-session.usecase.spec.ts` | Refresh orchestration reloads user, rejects mismatch |
+| Path                                                          | Change                                                                                                        |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `libs/infrastructure/src/auth/auth.module-options.ts`         | Added optional `resolveAccessUser` callback on JWT driver branch                                              |
+| `libs/infrastructure/src/auth/jwt-auth-token.service.ts`      | When `resolveAccessUser` is wired, `verifyAccessToken` reloads user and rejects `authVersion` mismatch        |
+| `apps/api/src/composition/auth-application.module.ts`         | Wires shared `resolveFreshUser` for both JWT (`resolveAccessUser`) and session (`resolveSessionUser`) drivers |
+| `libs/infrastructure/src/auth/jwt-auth-token.service.spec.ts` | V-11 tests: stale version returns null; fresh roles returned from resolver                                    |
+| `README.md` §16.1                                             | Updated max revocation delay table — JWT access is immediate when resolver is wired (starter kit default)     |
 
-### Modified
+`AuthModule` remains DB-agnostic; resolver is supplied at the composition boundary (AC-10 preserved).
 
-| Path | Change |
-| ---- | ------ |
-| `libs/contracts/src/auth/current-user.ts` | Added `authVersion: number` |
-| `libs/contracts/src/auth/auth-token.service.ts` | Added `ParsedRefreshToken`, `parseRefreshToken`, `rotateAuthSession` |
-| `libs/contracts/src/auth/session-store.service.ts` | Stores `SessionRecord` instead of full `CurrentUser` |
-| `libs/contracts/src/repositories/user.repository.ts` | Added `incrementAuthVersion(userId)` |
-| `libs/domain/src/entities/user.entity.ts` | Added `authVersion`, `incrementAuthVersion()` |
-| `libs/infrastructure/src/database/drizzle/schema/users.schema.ts` | Added `authVersion` column |
-| `libs/infrastructure/src/mappers/user.mapper.ts` | Maps `authVersion` |
-| `libs/infrastructure/src/repositories/user-drizzle.repository.ts` | Read/write `authVersion`; `incrementAuthVersion()` |
-| `libs/infrastructure/src/auth/jwt-auth-token.service.ts` | Embeds/checks `authVersion`; split refresh into parse + rotate |
-| `libs/infrastructure/src/auth/session-auth-token.service.ts` | Session verify resolves user via `resolveSessionUser` callback |
-| `libs/infrastructure/src/auth/redis-session-store.service.ts` | Persists `{ userId, authVersion }` |
-| `libs/infrastructure/src/auth/auth.module-options.ts` | Session branch requires `resolveSessionUser` |
-| `libs/infrastructure/src/auth/auth.module.ts` | Stub resolver for deprecated `forRootFromAppConfig` |
-| `libs/infrastructure/src/auth/auth.module.spec.ts` | Session test supplies mock resolver |
-| `libs/infrastructure/src/config/create-starter-kit-module-options.ts` | Stub resolver placeholder for session driver |
-| `libs/application/src/use-cases/auth/refresh-auth-session.usecase.ts` | Orchestrates parse → DB load → version check → rotate |
-| `libs/application/src/use-cases/auth/login.usecase.ts` | Passes `authVersion` at session creation |
-| `apps/api/src/composition/auth-application.module.ts` | Wires `resolveSessionUser` + `UserRepository` into refresh use case |
-| `README.md` | §16.1 authorization freshness policy and max revocation delay |
+## Changed files (full scope)
+
+See prior implementation in git history: migration `0004`, `authVersion` on user model, refresh orchestration, session record shape, unit tests, README §16.1.
 
 ## Completed steps
 
-1. **Data model** — `auth_version` column, domain/mapper/repository/`CurrentUser` aligned; `incrementAuthVersion` on repository port.
-2. **JWT issuance** — `authVersion` embedded in access/refresh payloads; legacy tokens without claim treated as `0`.
-3. **Refresh freshness** — `parseRefreshToken` + `rotateAuthSession` on `IAuthTokenService`; `RefreshAuthSessionUseCase` reloads user and rejects version mismatch before rotation.
-4. **Session parity** — Redis stores `{ userId, authVersion }`; verify loads fresh user via composition-root `resolveSessionUser` and rejects stale version.
-5. **Optional high-risk access-time check (AC-8)** — **Deferred** per plan default (refresh-only freshness; no `RolesGuard` DB check).
-6. **Documentation** — README §16.1 updated with policy table and consumer contract.
-7. **Tests** — V-11 unit scenarios for JWT, session, and refresh orchestration.
+1. Data model — `auth_version` column, domain/mapper/repository/`CurrentUser` aligned.
+2. JWT issuance — `authVersion` embedded in access/refresh payloads.
+3. Refresh freshness — `RefreshAuthSessionUseCase` reloads user before rotation.
+4. Session parity — Redis stores `{ userId, authVersion }`; verify uses resolver.
+5. **JWT access parity** — `resolveAccessUser` wired in starter-kit API composition (follow-up).
+6. Documentation — README §16.1 policy table updated.
+7. Tests — V-11 unit scenarios for JWT access, refresh, and session paths.
 
 ## Deviations
 
-| Item | Notes |
-| ---- | ----- |
-| AC-8 optional high-risk endpoint check | Not implemented (plan default: refresh-only freshness) |
-| `JwtAuthTokenService.refreshAuthSession` | Now rejects with `REFRESH_ORCHESTRATION_REQUIRED`; callers must use `RefreshAuthSessionUseCase` |
-| Migration `0004_amusing_sauron.sql` | Drizzle also regenerated outbox index DDL alongside `auth_version` column (additive; same indexes recreated) |
+| Item                                     | Notes                                                                                                                            |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| JWT access freshness                     | Implemented via optional composition callback (extends plan default of refresh-only; closes stale access window for starter kit) |
+| `JwtAuthTokenService.refreshAuthSession` | Rejects with `REFRESH_ORCHESTRATION_REQUIRED`                                                                                    |
+| Migration `0004`                         | Includes incidental outbox index DDL (additive)                                                                                  |
 
 ## Commands executed
 
-| Command | Result | Conclusion |
-| ------- | ------ | ---------- |
-| `npm run db:generate` | Exit 0 — created `0004_amusing_sauron.sql` | Migration generated |
-| `npm run build` | Exit 0 | All entrypoints compile |
-| `npm run build:api` | Exit 0 | API compiles with new DI wiring |
-| `npm run build:migrations` | Exit 0 | Migrations entrypoint compiles |
-| `npm run lint` (changed auth paths) | Exit 0 on P2-06 files | No lint issues in changed scope |
-| `npm run test:unit -- jwt-auth-token` | 4 passed | JWT embedding/legacy/rotate covered |
-| `npm run test:unit -- refresh-auth-session` | 3 passed | Refresh orchestration covered |
-| `npm run test:unit -- session-auth-token` | 4 passed | Session stale version covered |
-| `npm run test:unit -- auth.module.spec` | 3 passed | Auth module DI still valid |
-| `npm run test:unit` (full) | 95 passed, 1 failed | Pre-existing outbox schema spec failure unrelated to P2-06 |
+```bash
+npm run build
+npm run build:api
+npm run build:migrations
+npm run lint
+npm run test:unit -- jwt-auth-token
+npm run test:unit -- refresh-auth-session
+npm run test:unit -- session-auth-token
+npm run test:unit
+```
 
 ## Command results
 
-- **Build:** success across api, worker, cron, migrations.
-- **Lint (P2-06 scope):** clean.
-- **Lint (full repo):** fails on pre-existing unused vars in `libs/infrastructure/src/outbox/outbox-processor.defaults.ts` and `outbox-processor.options.schema.ts` (not modified by this fix).
-- **Unit tests (P2-06):** 14 new tests, all passing.
-- **Full unit suite:** 1 pre-existing failure in `outbox-processor.options.schema.spec.ts`.
+| Command                                     | Result              | Conclusion                             |
+| ------------------------------------------- | ------------------- | -------------------------------------- |
+| `npm run build`                             | Exit 0              | All entrypoints compile                |
+| `npm run build:api`                         | Exit 0              | API composition with new DI            |
+| `npm run lint`                              | Exit 0              | Full lint gate passes                  |
+| `npm run test:unit -- jwt-auth-token`       | 6 passed            | JWT access freshness + refresh covered |
+| `npm run test:unit -- refresh-auth-session` | 3 passed            | Refresh orchestration covered          |
+| `npm run test:unit -- session-auth-token`   | 4 passed            | Session stale version covered          |
+| `npm run test:unit`                         | Exit 0 — 118 passed | Full unit suite green                  |
 
 ## Acceptance criteria self-check
 
-| # | Criterion | Status |
-| - | --------- | ------ |
-| AC-1 | Freshness policy documented in README §16.1 | ✅ |
-| AC-2 | `users.auth_version` column; domain/mapper/repository/`CurrentUser` aligned | ✅ |
-| AC-3 | JWT tokens embed `authVersion` at login/refresh | ✅ (unit test) |
-| AC-4 | Refresh reloads user; rejects missing/mismatch | ✅ (unit test) |
-| AC-5 | Refresh issues tokens with fresh email/roles | ✅ (unit test) |
-| AC-6 | Session driver validates against current user/version | ✅ (unit test) |
-| AC-7 | `incrementAuthVersion` available + README contract | ✅ |
-| AC-8 | Optional high-risk endpoint check | ⏭ Deferred per plan |
-| AC-9 | build, lint (scope), test:unit (P2-06) pass | ✅ (full lint/test:unit blocked by pre-existing outbox issues) |
-| AC-10 | No `AuthModule` coupling to `IUserRepository` | ✅ (resolution in application/composition) |
+| #     | Criterion                                                            | Status                                                                  |
+| ----- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| AC-1  | Freshness policy documented in README §16.1                          | Pass                                                                    |
+| AC-2  | `users.auth_version`; domain/mapper/repository/`CurrentUser` aligned | Pass                                                                    |
+| AC-3  | JWT tokens embed `authVersion` at login/refresh                      | Pass                                                                    |
+| AC-4  | Refresh reloads user; rejects missing/mismatch                       | Pass                                                                    |
+| AC-5  | Refresh issues tokens with fresh email/roles                         | Pass                                                                    |
+| AC-6  | Session driver validates against current user/version                | Pass                                                                    |
+| AC-7  | `incrementAuthVersion` available + README contract                   | Pass                                                                    |
+| AC-8  | Optional high-risk endpoint check                                    | Pass — JWT access resolver wired at composition (Option A via callback) |
+| AC-9  | `npm run build`, `npm run lint`, `npm run test:unit` pass            | Pass                                                                    |
+| AC-10 | No `AuthModule` coupling to `IUserRepository`                        | Pass                                                                    |
 
 ## Remaining risks
 
-- **Access token stale window:** Up to `JWT_EXPIRES_IN` (default 15m) after role change until natural expiry — documented; no per-request DB check.
-- **Session deploy breaking change:** Existing Redis sessions invalidated on deploy (documented in README).
-- **`incrementAuthVersion` callers:** No in-repo admin API; downstream apps must wire bumps on security events.
-- **Migration side effects:** `0004` migration includes outbox index drop/recreate from Drizzle diff — verify on target DB before production apply.
+- Downstream custom entrypoints must wire `resolveAccessUser` / `resolveSessionUser` for immediate access freshness.
+- No in-repo callers of `incrementAuthVersion` until apps add admin/security flows.
+- Session deploy invalidates existing Redis sessions (documented).
 
 ## Unverified areas
 
-- V-11 manual scenarios (login → DB bump → refresh/me) — requires local PostgreSQL + Redis bootstrap (`npm run db:migrate`, `npm run start:api`).
-- `npm run test:int` — not run (no new integration tests added).
-- Full `npm run lint` — blocked by pre-existing outbox lint errors on `main`.
+- V-11 manual HTTP scenarios (login → DB bump → refresh/`/auth/me`) — requires PostgreSQL + Redis bootstrap.
+- `npm run test:int`.
+- Production migration apply of `0004`.

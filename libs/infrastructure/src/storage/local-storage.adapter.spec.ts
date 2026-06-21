@@ -58,6 +58,7 @@ describe('LocalStorageAdapter', () => {
       'users/../../outside.txt',
       'users/../..',
       '',
+      '.',
       'key\0suffix',
     ];
 
