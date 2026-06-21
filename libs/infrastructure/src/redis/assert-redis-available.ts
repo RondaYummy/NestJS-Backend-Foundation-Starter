@@ -71,7 +71,7 @@ export async function assertRedisAvailable(options: RedisStartupCheckOptions): P
       // З'єднання probe більше не потрібне.
       await client.quit();
 
-      console.info(`[worker-startup] Redis is available at ${options.host}:${options.port}`);
+      console.info(`[redis-startup] Redis is available at ${options.host}:${options.port}`);
 
       return;
     } catch (error: unknown) {
@@ -82,7 +82,7 @@ export async function assertRedisAvailable(options: RedisStartupCheckOptions): P
       client.disconnect();
 
       console.error(
-        `[worker-startup] Redis connection attempt ${attempt}/${maxAttempts} failed: ${toErrorMessage(
+        `[redis-startup] Redis connection attempt ${attempt}/${maxAttempts} failed: ${toErrorMessage(
           error,
         )}`,
       );
