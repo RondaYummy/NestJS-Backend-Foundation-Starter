@@ -1,11 +1,9 @@
-import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
-import { IUserRepository } from '@contracts/repositories/user.repository';
+import type { IPasswordHasher } from '@contracts/auth/password-hasher.service';
+import type { IUserRepository } from '@contracts/repositories/user.repository';
 import type { ITransactionManager } from '@contracts/transactions/transaction-manager';
-import { TOKENS } from '@contracts/tokens';
 import { User } from '@domain/entities/user.entity';
 import { ConflictError } from '@domain/errors/domain-errors';
-import { Inject, Injectable } from '@nestjs/common';
-import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
+import type { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import { UserRegisteredEvent } from '@domain/events/user-registered.event';
 import { Email } from '@domain/value-objects/email.vo';
 import { DuplicateRecordError } from '@contracts/repositories/repository-errors';
@@ -15,19 +13,11 @@ type RegisterInput = {
   password: string;
 };
 
-@Injectable()
 export class RegisterUseCase {
   constructor(
-    @Inject(TOKENS.UserRepository)
     private readonly userRepository: IUserRepository,
-
-    @Inject(TOKENS.PasswordHasher)
     private readonly passwordHasher: IPasswordHasher,
-
-    @Inject(TOKENS.TransactionManager)
     private readonly transactionManager: ITransactionManager,
-
-    @Inject(TOKENS.OutboxWriter)
     private readonly outboxWriter: IOutboxWriter,
   ) {}
 

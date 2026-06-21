@@ -68,7 +68,7 @@ Domain must not import NestJS, Drizzle, PostgreSQL, Redis, BullMQ, HTTP or provi
 Application use cases and application DTOs.
 
 Application may depend on Domain and Contracts. It must not import concrete infrastructure implementations.
-The current code uses NestJS DI decorators in Application; do not expand this coupling outside an approved architecture task.
+Application use cases are plain TypeScript classes with port-typed constructors; Nest DI wiring belongs in composition roots only.
 
 ### Contracts — `libs/contracts/src`
 

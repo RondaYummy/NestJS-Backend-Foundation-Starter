@@ -1,8 +1,6 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { IUserRepository } from '@contracts/repositories/user.repository';
-import { TOKENS } from '@contracts/tokens';
-import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
-import { IAuthTokenService } from '@contracts/auth/auth-token.service';
+import type { IUserRepository } from '@contracts/repositories/user.repository';
+import type { IPasswordHasher } from '@contracts/auth/password-hasher.service';
+import type { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { ValidationError } from '@domain/errors/domain-errors';
 import { Email } from '@domain/value-objects/email.vo';
 
@@ -11,16 +9,10 @@ type LoginInput = {
   password: string;
 };
 
-@Injectable()
 export class LoginUseCase {
   constructor(
-    @Inject(TOKENS.UserRepository)
     private readonly userRepository: IUserRepository,
-
-    @Inject(TOKENS.PasswordHasher)
     private readonly passwordHasher: IPasswordHasher,
-
-    @Inject(TOKENS.AuthTokenService)
     private readonly authTokenService: IAuthTokenService,
   ) {}
 

@@ -175,6 +175,7 @@ export default [
         'error',
         {
           patterns: [
+            '@nestjs/*',
             'drizzle-orm',
             'drizzle-orm/*',
             'ioredis',

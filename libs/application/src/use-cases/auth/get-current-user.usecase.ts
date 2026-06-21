@@ -1,14 +1,8 @@
-import { IUserRepository } from '@contracts/repositories/user.repository';
-import { TOKENS } from '@contracts/tokens';
-import { Inject, Injectable } from '@nestjs/common';
+import type { IUserRepository } from '@contracts/repositories/user.repository';
 import { NotFoundError } from '@domain/errors/domain-errors';
 
-@Injectable()
 export class GetCurrentUserUseCase {
-  constructor(
-    @Inject(TOKENS.UserRepository)
-    private readonly userRepository: IUserRepository,
-  ) {}
+  constructor(private readonly userRepository: IUserRepository) {}
 
   async execute(userId: string) {
     const user = await this.userRepository.findById(userId);
