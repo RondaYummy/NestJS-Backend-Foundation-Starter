@@ -1411,6 +1411,7 @@ job-execution:<idempotency-key>
 
 ```txt
 відсутній -> in-flight (UUID ownership token) -> completed
+                                           \-> sent-ambiguous
 ```
 
 Контракт:
@@ -1425,6 +1426,7 @@ IJobExecutionStore;
 acquire(key, executionTtlSeconds): Promise<string | null>;
 complete(key, ownershipToken, completedRetentionTtlSeconds): Promise<boolean>;
 release(key, ownershipToken): Promise<void>;
+markAmbiguousSent(key, completedRetentionTtlSeconds): Promise<void>;
 ```
 
 Потік у `EmailProcessor`:
@@ -1432,9 +1434,10 @@ release(key, ownershipToken): Promise<void>;
 ```txt
 acquire(idempotencyKey)
   -> якщо null: job вже виконується або завершена, вихід без send
-  -> mail.send()
+  -> mail.send() (опційний Message-ID з idempotencyKey для provider hint)
     -> complete(idempotencyKey, token) при успіху
-    -> release(idempotencyKey, token) при помилці (дозволяє BullMQ retry)
+    -> release(idempotencyKey, token) при помилці до send (дозволяє BullMQ retry)
+    -> markAmbiguousSent + UnrecoverableError при втраті ownership після send
 ```
 
 Семантика:
@@ -1442,13 +1445,15 @@ acquire(idempotencyKey)
 - `acquire` використовує `SET ... NX EX` — лише один worker отримує ownership token;
 - другий паралельний worker отримує `null` і не виконує SMTP side effect;
 - `complete` атомарно встановлює значення `completed` з довгим retention TTL (за замовчуванням 30 днів), якщо поточне значення збігається з ownership token;
-- `release` видаляє ключ лише для поточного власника — після помилки наступний retry може знову `acquire`;
-- існуючі ключі зі значенням `completed` блокують `acquire` (NX не проходить) — повторне виконання під час retention періоду неможливе.
+- `release` видаляє ключ лише для поточного власника — після помилки до send наступний retry може знову `acquire`;
+- існуючі ключі зі значенням `completed` або `sent-ambiguous` блокують `acquire` (NX не проходить) — повторне виконання під час retention періоду неможливе;
+- коли `idempotencyKey` присутній, worker передає детермінований `Message-ID` у SMTP як best-effort provider hint (не гарантія dedup).
 
-Failure model (at-least-once):
+Failure model (at-least-once, **не** exactly-once):
 
-- crash після успішного `mail.send()`, але до `complete()` — execution TTL (за замовчуванням 300 с) дозволить retry; можливе дублювання email, якщо SMTP вже прийняв лист;
-- `complete()` повертає `false` після успішного send — side effect уже відбувся; ключ може прострочитися і дозволити повтор;
+- crash після успішного `mail.send()`, але до `complete()` або `markAmbiguousSent()` — residual crash window; можливе дублювання email, якщо SMTP вже прийняв лист;
+- `complete()` повертає `false` або ownership втрачено після send — worker записує best-effort `sent-ambiguous` marker і кидає `UnrecoverableError` (без BullMQ retry); job відображається як failed, але duplicate send блокується retention marker;
+- pre-send ownership loss — `release()` + recoverable error, BullMQ retry дозволений;
 - для фінансово критичних notification side effects розглядайте durable dedup або outbox-level гарантії.
 
 ---
@@ -2168,11 +2173,11 @@ path=/
 
 ### Максимальна затримка відкликання
 
-| Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion` |
-| ----------- | ------------------------------ | ------------------------------------------------------------- |
+| Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion`             |
+| ----------- | ------------------------------ | ----------------------------------------------------------------------- |
 | JWT access  | Role change / authVersion bump | `JWT_EXPIRES_IN` (за замовчуванням **15m**) — access verify не читає DB |
-| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`             |
-| Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie          |
+| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`                         |
+| Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie                      |
 
 **Refresh path:** `RefreshAuthSessionUseCase` завантажує користувача з `IUserRepository`, відхиляє запит при `authVersion` mismatch і видає нові токени з актуальними `email` та `roles`.
 

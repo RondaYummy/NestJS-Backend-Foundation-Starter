@@ -5,7 +5,7 @@ import type { RedisService } from '@infrastructure/redis/redis.service';
 
 describe('RedisJobExecutionStore', () => {
   let redis: jest.Mocked<
-    Pick<RedisService, 'setIfNotExists' | 'compareAndExpire' | 'compareAndDelete' | 'eval'>
+    Pick<RedisService, 'setIfNotExists' | 'compareAndExpire' | 'compareAndDelete' | 'eval' | 'set'>
   >;
   let store: RedisJobExecutionStore;
 
@@ -15,6 +15,7 @@ describe('RedisJobExecutionStore', () => {
       compareAndExpire: jest.fn(),
       compareAndDelete: jest.fn(),
       eval: jest.fn(),
+      set: jest.fn(),
     };
 
     store = new RedisJobExecutionStore(redis as unknown as RedisService);
@@ -97,5 +98,15 @@ describe('RedisJobExecutionStore', () => {
 
     expect(firstToken).toEqual(expect.any(String));
     expect(secondToken).toBeNull();
+  });
+
+  it('markAmbiguousSent sets sent-ambiguous value with retention TTL', async () => {
+    await store.markAmbiguousSent('welcome:user-1', 2_592_000);
+
+    expect(redis.set).toHaveBeenCalledWith(
+      'job-execution:welcome:user-1',
+      'sent-ambiguous',
+      2_592_000,
+    );
   });
 });

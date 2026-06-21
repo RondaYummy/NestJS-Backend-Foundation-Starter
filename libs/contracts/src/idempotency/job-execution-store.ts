@@ -6,4 +6,6 @@ export interface IJobExecutionStore {
   complete(key: string, ownershipToken: string, ttlSeconds: number): Promise<boolean>;
 
   release(key: string, ownershipToken: string): Promise<void>;
+
+  markAmbiguousSent(key: string, ttlSeconds: number): Promise<void>;
 }

@@ -12,6 +12,7 @@ export class NullMailAdapter implements IEmailGateway {
     html?: string;
     text?: string;
     from?: string;
+    messageId?: string;
   }): Promise<void> {
     this.logger.info('Email skipped by null mail driver', {
       to: input.to,

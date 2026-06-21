@@ -37,6 +37,10 @@ export class RedisJobExecutionStore implements IJobExecutionStore {
     await this.redis.compareAndDelete(this.buildKey(key), ownershipToken);
   }
 
+  async markAmbiguousSent(key: string, ttlSeconds: number): Promise<void> {
+    await this.redis.set(this.buildKey(key), 'sent-ambiguous', ttlSeconds);
+  }
+
   private buildKey(key: string): string {
     return `job-execution:${key}`;
   }

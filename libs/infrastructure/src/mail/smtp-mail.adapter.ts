@@ -35,6 +35,7 @@ export class SmtpMailAdapter implements IEmailGateway {
     html?: string;
     text?: string;
     from?: string;
+    messageId?: string;
   }): Promise<void> {
     await this.transporter.sendMail({
       from: input.from ?? this.defaultFrom,
@@ -42,6 +43,7 @@ export class SmtpMailAdapter implements IEmailGateway {
       subject: input.subject,
       html: input.html,
       text: input.text,
+      messageId: input.messageId,
     });
   }
 }

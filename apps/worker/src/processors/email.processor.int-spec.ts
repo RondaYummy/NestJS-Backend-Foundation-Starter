@@ -162,4 +162,49 @@ describe('EmailProcessor integration (V-03)', () => {
     expect(sendCount).toBe(1);
     expect(mailGateway.send).toHaveBeenCalledTimes(1);
   }, 20_000);
+
+  it('blocks duplicate send after post-send complete failure writes sent-ambiguous marker', async () => {
+    if (!redisAvailable) {
+      return;
+    }
+
+    const idempotencyKey = `post-send-complete-failure-${randomUUID()}`;
+    const payload: EmailJobPayload = {
+      to: 'recipient@example.com',
+      subject: 'Post-send complete failure',
+      html: '<p>test</p>',
+      idempotencyKey,
+    };
+
+    mailGateway = {
+      send: jest.fn(async () => {
+        sendCount += 1;
+        await redisClient.set(`job-execution:${idempotencyKey}`, 'stale-token', 'EX', 60);
+      }),
+    };
+
+    const mailTemplates = {
+      render: jest.fn(),
+    } as MailTemplateService;
+
+    processor = new EmailProcessor(
+      mailGateway,
+      executionStore,
+      mailTemplates,
+      config as AppConfigService,
+      {
+        warn: jest.fn(),
+      } as unknown as AppLogger,
+    );
+
+    await expect(processor.process(buildJob(payload))).rejects.toThrow();
+
+    const marker = await redisClient.get(`job-execution:${idempotencyKey}`);
+    expect(marker).toBe('sent-ambiguous');
+
+    await processor.process(buildJob(payload));
+
+    expect(sendCount).toBe(1);
+    expect(mailGateway.send).toHaveBeenCalledTimes(1);
+  });
 });

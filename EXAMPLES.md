@@ -481,24 +481,26 @@ idempotencyKey: `user-registered:${event.id}:welcome`;
 
 ```txt
 acquire(idempotencyKey, executionTtl=300s)
-  -> null: вже completed або in-flight — вихід без send
-  -> token: render template -> mail.send()
+  -> null: вже completed, sent-ambiguous або in-flight — вихід без send
+  -> token: render template -> mail.send() (Message-ID з idempotencyKey)
     -> complete(idempotencyKey, token, retentionTtl=30d) при успіху
-    -> release(idempotencyKey, token) при помилці
+    -> release(idempotencyKey, token) при помилці до send
+    -> markAmbiguousSent + UnrecoverableError після send, якщо ownership втрачено
 ```
 
 Redis-ключ: `job-execution:<idempotencyKey>`.
 
-| Стан ключа       | Поведінка                                                   |
-| ---------------- | ----------------------------------------------------------- |
-| відсутній        | `acquire` повертає token, worker виконує send               |
-| in-flight (UUID) | паралельний `acquire` повертає `null`, duplicate send немає |
-| `completed`      | `acquire` повертає `null` до закінчення retention TTL       |
-| помилка send     | `release` видаляє claim, BullMQ retry може знову `acquire`  |
+| Стан ключа       | Поведінка                                                        |
+| ---------------- | ---------------------------------------------------------------- |
+| відсутній        | `acquire` повертає token, worker виконує send                    |
+| in-flight (UUID) | паралельний `acquire` повертає `null`, duplicate send немає      |
+| `completed`      | `acquire` повертає `null` до закінчення retention TTL            |
+| `sent-ambiguous` | `acquire` повертає `null` — email вже надіслано, outcome unclear |
+| помилка send     | `release` видаляє claim, BullMQ retry може знову `acquire`       |
 
 `RawEmailJob` не має `idempotencyKey` — send виконується без claim (як раніше).
 
-At-least-once застереження: якщо worker впав після успішного SMTP, але до `complete()`, execution TTL дозволить retry — можливе дублювання листа. Для критичних notification flows документуйте це обмеження або додайте durable dedup.
+At-least-once семантика (не exactly-once): якщо worker впав після успішного SMTP, але до `complete()` або `markAmbiguousSent()`, можливе дублювання листа (residual crash window). Після send worker перевіряє `complete()`; при failure записує `sent-ambiguous` і завершує job через `UnrecoverableError` без retry — наступний job з тим самим ключем не відправить лист повторно. Для критичних notification flows документуйте це обмеження або додайте durable dedup.
 
 Запуск: Redis + `npm run start:dev:worker` + `MAIL_DRIVER=smtp` (або `null` для dev).
 

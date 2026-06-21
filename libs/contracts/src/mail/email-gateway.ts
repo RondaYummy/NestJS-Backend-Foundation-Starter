@@ -7,6 +7,7 @@ export interface IEmailGateway {
     html?: string;
     text?: string;
     from?: string;
+    messageId?: string;
     template?: EmailTemplateId;
     data?: Record<string, unknown>;
   }): Promise<void>;
