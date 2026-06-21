@@ -23,6 +23,27 @@ export class RedisService {
     await this.redis.del(key);
   }
 
+  async *scanKeys(match: string, count = 100): AsyncGenerator<string[]> {
+    let cursor = '0';
+
+    do {
+      const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', match, 'COUNT', count);
+      cursor = nextCursor;
+
+      if (keys.length > 0) {
+        yield keys;
+      }
+    } while (cursor !== '0');
+  }
+
+  async unlink(...keys: string[]): Promise<number> {
+    if (keys.length === 0) {
+      return 0;
+    }
+
+    return this.redis.unlink(...keys);
+  }
+
   async exists(key: string): Promise<boolean> {
     return (await this.redis.exists(key)) === 1;
   }

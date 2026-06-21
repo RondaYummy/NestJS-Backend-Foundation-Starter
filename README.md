@@ -727,7 +727,12 @@ get<T>(key: string): Promise<T | null>
 set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>
 del(key: string): Promise<void>
 remember<T>(key: string, ttlSeconds: number, resolver: () => Promise<T>): Promise<T>
+forgetByPattern(pattern: string): Promise<void>
 ```
+
+`forgetByPattern` приймає **логічний** glob-патерн без префікса `app:` (наприклад, `users:*`).
+Метод видаляє всі ключі Redis, що відповідають `app:<pattern>`, через cursor-based `SCAN`
+і batched `UNLINK`. Інвалідація best-effort: ключі, створені під час сканування, можуть залишитися.
 
 Приклад:
 
@@ -735,6 +740,8 @@ remember<T>(key: string, ttlSeconds: number, resolver: () => Promise<T>): Promis
 const user = await cache.remember(`users:${id}`, 60, async () => {
   return this.userRepository.findById(id);
 });
+
+await cache.forgetByPattern('users:*');
 ```
 
 Для чого потрібен cache module:

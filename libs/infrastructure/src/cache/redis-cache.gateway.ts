@@ -24,6 +24,10 @@ export class RedisCacheGateway implements ICacheGateway {
     return value;
   }
   async forgetByPattern(pattern: string): Promise<void> {
-    await this.redis.del(this.prefix + pattern);
+    const match = this.prefix + pattern;
+
+    for await (const batch of this.redis.scanKeys(match)) {
+      await this.redis.unlink(...batch);
+    }
   }
 }
