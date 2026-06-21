@@ -4,10 +4,6 @@ export function computeLockHeartbeatIntervalMs(lockTtlMs: number): number {
   return Math.max(Math.floor(lockTtlMs / 3), 1000);
 }
 
-export function computeHandlerTimeoutMs(lockTtlMs: number): number {
-  return lockTtlMs;
-}
-
 export interface OutboxEnvMappingInput {
   OUTBOX_BATCH_SIZE: number;
   OUTBOX_MAX_ATTEMPTS: number;

@@ -1,7 +1,6 @@
 /// <reference types="jest" />
 
 import {
-  computeHandlerTimeoutMs,
   computeLockHeartbeatIntervalMs,
   mapOutboxEnvToOptions,
   type OutboxEnvMappingInput,
@@ -48,17 +47,18 @@ describe('mapOutboxEnvToOptions', () => {
     expect(options.retryDelaySeconds(1)).toBe(20);
     expect(options.retryDelaySeconds(10)).toBe(100);
   });
+
+  it('maps env defaults with heartbeat derived from lock ttl', () => {
+    const options = mapOutboxEnvToOptions(DEFAULT_MAPPING_INPUT);
+
+    expect(options.heartbeatIntervalMs).toBe(computeLockHeartbeatIntervalMs(300_000));
+    expect(options.handlerTimeoutMs).toBe(0);
+  });
 });
 
 describe('computeLockHeartbeatIntervalMs', () => {
   it('uses one third of lock ttl with a 1 second floor', () => {
     expect(computeLockHeartbeatIntervalMs(300_000)).toBe(100_000);
     expect(computeLockHeartbeatIntervalMs(2000)).toBe(1000);
-  });
-});
-
-describe('computeHandlerTimeoutMs', () => {
-  it('matches the lock ttl', () => {
-    expect(computeHandlerTimeoutMs(300_000)).toBe(300_000);
   });
 });
