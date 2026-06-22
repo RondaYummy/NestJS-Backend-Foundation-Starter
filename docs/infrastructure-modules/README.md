@@ -15,11 +15,14 @@ RedisModule.forRootAsync({
     port: 6379,
     db: 0,
     connectTimeoutMs: 5000,
+    keyPrefix: 'app',
   }),
 });
 ```
 
-Inject `REDIS_CLIENT` or `RedisService` after importing a configured module.
+Inject `REDIS_CLIENT`, `RedisService`, or `RedisKeyBuilder` after importing a configured module.
+
+When multiple projects or environments share one Redis DB, set a distinct `keyPrefix` per deployment (for example `tenant-a`, `staging-api`). Feature adapters pass logical keys only; `RedisService` applies the namespace. Changing `keyPrefix` invalidates existing Redis keys — plan a flush or migration on rollout.
 
 ## DrizzleModule
 
@@ -74,6 +77,7 @@ const redisModule = RedisModule.forRootAsync({
     port: 6379,
     db: 0,
     connectTimeoutMs: 5000,
+    keyPrefix: 'app',
   }),
 });
 
@@ -160,6 +164,6 @@ Each connection/adapter module has a `*.module.spec.ts` that boots without `Infr
 
 ```typescript
 await Test.createTestingModule({
-  imports: [RedisModule.forRoot({ host: '127.0.0.1', port: 6379, db: 0, connectTimeoutMs: 1000 })],
+  imports: [RedisModule.forRoot({ host: '127.0.0.1', port: 6379, db: 0, connectTimeoutMs: 1000, keyPrefix: 'app' })],
 }).compile();
 ```

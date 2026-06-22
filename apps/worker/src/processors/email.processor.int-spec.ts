@@ -11,6 +11,7 @@ import type { JobExecutionOptions } from '@contracts/idempotency/job-execution.o
 import { EmailProcessor } from './email.processor';
 import { RedisJobExecutionStore } from '@infrastructure/idempotency/redis-job-execution.store';
 import { RedisService } from '@infrastructure/redis/redis.service';
+import { RedisKeyBuilder } from '@infrastructure/redis/redis-key-builder';
 import type { MailTemplateService } from '@infrastructure/mail/mail-template.service';
 import type { AppConfigService } from '@infrastructure/config/app-config.service';
 import type { AppLogger } from '@infrastructure/logger/app-logger.service';
@@ -90,7 +91,9 @@ describe('EmailProcessor integration (V-03)', () => {
       maxRetriesPerRequest: null,
     });
 
-    executionStore = new RedisJobExecutionStore(new RedisService(redisClient));
+    executionStore = new RedisJobExecutionStore(
+      new RedisService(redisClient, new RedisKeyBuilder()),
+    );
     sendDelayMs = 5_000;
     sendCount = 0;
 

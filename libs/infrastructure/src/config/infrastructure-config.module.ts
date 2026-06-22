@@ -22,6 +22,7 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
             password: e.REDIS_PASSWORD,
             db: e.REDIS_DB,
             connectTimeoutMs: e.REDIS_CONNECT_TIMEOUT_MS,
+            keyPrefix: e.REDIS_KEY_PREFIX,
           },
           bullmq: {
             defaultAttempts: e.BULLMQ_DEFAULT_ATTEMPTS,

@@ -1,37 +1,50 @@
 import { Inject, Injectable } from '@nestjs/common';
 import Redis from 'ioredis';
+import { RedisKeyBuilder } from './redis-key-builder';
 import { REDIS_CLIENT } from './redis.tokens';
 
 @Injectable()
 export class RedisService {
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+  constructor(
+    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly keyBuilder: RedisKeyBuilder,
+  ) {}
 
   get(key: string): Promise<string | null> {
-    return this.redis.get(key);
+    return this.redis.get(this.toPhysicalKey(key));
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    const physicalKey = this.toPhysicalKey(key);
+
     if (ttlSeconds !== undefined) {
-      await this.redis.set(key, value, 'EX', ttlSeconds);
+      await this.redis.set(physicalKey, value, 'EX', ttlSeconds);
       return;
     }
 
-    await this.redis.set(key, value);
+    await this.redis.set(physicalKey, value);
   }
 
   async del(key: string): Promise<void> {
-    await this.redis.del(key);
+    await this.redis.del(this.toPhysicalKey(key));
   }
 
   async *scanKeys(match: string, count = 100): AsyncGenerator<string[]> {
     let cursor = '0';
+    const physicalMatch = this.toPhysicalPattern(match);
 
     do {
-      const [nextCursor, keys] = await this.redis.scan(cursor, 'MATCH', match, 'COUNT', count);
+      const [nextCursor, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        physicalMatch,
+        'COUNT',
+        count,
+      );
       cursor = nextCursor;
 
       if (keys.length > 0) {
-        yield keys;
+        yield keys.map((key) => this.toLogicalKey(key));
       }
     } while (cursor !== '0');
   }
@@ -41,27 +54,33 @@ export class RedisService {
       return 0;
     }
 
-    return this.redis.unlink(...keys);
+    return this.redis.unlink(...keys.map((key) => this.toPhysicalKey(key)));
   }
 
   async exists(key: string): Promise<boolean> {
-    return (await this.redis.exists(key)) === 1;
+    return (await this.redis.exists(this.toPhysicalKey(key))) === 1;
   }
 
   ttl(key: string): Promise<number> {
-    return this.redis.ttl(key);
+    return this.redis.ttl(this.toPhysicalKey(key));
   }
 
   incr(key: string): Promise<number> {
-    return this.redis.incr(key);
+    return this.redis.incr(this.toPhysicalKey(key));
   }
 
   async expire(key: string, seconds: number): Promise<void> {
-    await this.redis.expire(key, seconds);
+    await this.redis.expire(this.toPhysicalKey(key), seconds);
   }
 
   async setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean> {
-    const result = await this.redis.set(key, value, 'EX', ttlSeconds, 'NX');
+    const result = await this.redis.set(this.toPhysicalKey(key), value, 'EX', ttlSeconds, 'NX');
+
+    return result === 'OK';
+  }
+
+  async setPxIfNotExists(key: string, value: string, ttlMs: number): Promise<boolean> {
+    const result = await this.redis.set(this.toPhysicalKey(key), value, 'PX', ttlMs, 'NX');
 
     return result === 'OK';
   }
@@ -75,13 +94,18 @@ export class RedisService {
       return 0
     `;
 
-    const result = await this.redis.eval(script, 1, key, expectedValue);
+    const result = await this.eval(script, 1, key, expectedValue);
 
     return result === 1;
   }
 
   eval(script: string, numberOfKeys: number, ...args: Array<string | number>): Promise<unknown> {
-    return this.redis.eval(script, numberOfKeys, ...args);
+    const physicalKeys = args
+      .slice(0, numberOfKeys)
+      .map((key) => this.toPhysicalKey(String(key)));
+    const remainingArgs = args.slice(numberOfKeys);
+
+    return this.redis.eval(script, numberOfKeys, ...physicalKeys, ...remainingArgs);
   }
 
   async incrementWithTtl(key: string, ttlSeconds: number): Promise<{ count: number; ttl: number }> {
@@ -97,7 +121,7 @@ export class RedisService {
       return { count, ttl }
     `;
 
-    const result = (await this.redis.eval(script, 1, key, ttlSeconds)) as [number, number];
+    const result = (await this.eval(script, 1, key, ttlSeconds)) as [number, number];
 
     return {
       count: Number(result[0]),
@@ -114,7 +138,7 @@ export class RedisService {
       return 0
     `;
 
-    const result = await this.redis.eval(script, 1, key, expectedValue, ttlSeconds);
+    const result = await this.eval(script, 1, key, expectedValue, ttlSeconds);
 
     return Number(result) === 1;
   }
@@ -144,7 +168,7 @@ export class RedisService {
       return 1
     `;
 
-    const result = await this.redis.eval(
+    const result = await this.eval(
       script,
       2,
       lockKey,
@@ -155,5 +179,17 @@ export class RedisService {
     );
 
     return Number(result) === 1;
+  }
+
+  private toPhysicalKey(logicalKey: string): string {
+    return this.keyBuilder.toPhysicalKey(logicalKey);
+  }
+
+  private toPhysicalPattern(logicalPattern: string): string {
+    return this.keyBuilder.toPhysicalPattern(logicalPattern);
+  }
+
+  private toLogicalKey(physicalKey: string): string {
+    return this.keyBuilder.toLogicalKey(physicalKey);
   }
 }

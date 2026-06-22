@@ -26,6 +26,7 @@ export const envSchema = z
     REDIS_STARTUP_RETRY_DELAY_MS: z.coerce.number().int().nonnegative().default(1000),
 
     REDIS_CONNECT_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
+    REDIS_KEY_PREFIX: z.string().default('app'),
     HEALTH_CHECK_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
     BULLMQ_DEFAULT_ATTEMPTS: z.coerce.number().default(3),
     BULLMQ_BACKOFF_DELAY: z.coerce.number().default(5000),

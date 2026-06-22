@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
-import { Inject, Injectable } from '@nestjs/common';
-import Redis from 'ioredis';
+import { Injectable } from '@nestjs/common';
 import type { IDistributedLock, LockHandle } from '@contracts/locks/distributed-lock';
-import { REDIS_CLIENT } from '../redis/redis.tokens';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class RedisDistributedLock implements IDistributedLock {
-  constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
+  constructor(private readonly redis: RedisService) {}
 
   async acquire(key: string, ttlMs: number): Promise<LockHandle | null> {
     const token = randomUUID();
-    const result = await this.redis.set(`lock:${key}`, token, 'PX', ttlMs, 'NX');
-    return result === 'OK' ? { key, token } : null;
+    const acquired = await this.redis.setPxIfNotExists(this.lockKey(key), token, ttlMs);
+
+    return acquired ? { key, token } : null;
   }
 
   private readonly releaseScript = `
@@ -23,7 +23,7 @@ export class RedisDistributedLock implements IDistributedLock {
 `;
 
   async release(handle: LockHandle): Promise<void> {
-    await this.redis.eval(this.releaseScript, 1, `lock:${handle.key}`, handle.token);
+    await this.redis.eval(this.releaseScript, 1, this.lockKey(handle.key), handle.token);
   }
 
   private readonly extendScript = `
@@ -38,7 +38,7 @@ export class RedisDistributedLock implements IDistributedLock {
     const result = await this.redis.eval(
       this.extendScript,
       1,
-      `lock:${handle.key}`,
+      this.lockKey(handle.key),
       handle.token,
       ttlMs,
     );
@@ -93,5 +93,9 @@ export class RedisDistributedLock implements IDistributedLock {
       clearInterval(heartbeat);
       await this.release(lock);
     }
+  }
+
+  private lockKey(key: string): string {
+    return `lock:${key}`;
   }
 }

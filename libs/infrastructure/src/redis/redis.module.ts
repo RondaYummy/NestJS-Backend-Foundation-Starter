@@ -11,6 +11,7 @@ import { AppConfigService } from '../config/app-config.service';
 import { LoggerModule } from '../logger/logger.module';
 import { AppLogger } from '../logger/app-logger.service';
 import { RedisService } from './redis.service';
+import { RedisKeyBuilder } from './redis-key-builder';
 import { REDIS_CLIENT } from './redis.tokens';
 import type { RedisModuleOptions } from './redis.module-options';
 
@@ -42,6 +43,11 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
         return client;
       },
     },
+    {
+      provide: RedisKeyBuilder,
+      inject: [MODULE_OPTIONS_TOKEN],
+      useFactory: (options: RedisModuleOptions) => new RedisKeyBuilder(options.keyPrefix),
+    },
     RedisService,
     {
       provide: 'REDIS_SHUTDOWN',
@@ -49,7 +55,7 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
       useFactory: (client: Redis) => new RedisShutdown(client),
     },
   ],
-  exports: [REDIS_CLIENT, RedisService],
+  exports: [REDIS_CLIENT, RedisService, RedisKeyBuilder],
 })
 export class RedisModule extends ConfigurableModuleClass {
   static forRoot(options: typeof OPTIONS_TYPE): DynamicModule {

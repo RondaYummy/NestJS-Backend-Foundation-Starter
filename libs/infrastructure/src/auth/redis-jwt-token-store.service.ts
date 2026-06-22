@@ -120,26 +120,13 @@ export class RedisJwtTokenStore implements IJwtTokenStore {
 
   async revokeRefreshTokenFamily(familyId: string): Promise<void> {
     const familyKey = this.getRefreshFamilyKey(familyId);
+    const currentTokenId = await this.redis.get(familyKey);
 
-    const refreshTokenPrefix = this.getRefreshTokenPrefix();
+    if (currentTokenId) {
+      await this.redis.del(this.getRefreshTokenKey(currentTokenId));
+    }
 
-    const script = `
-      local currentTokenId =
-        redis.call("GET", KEYS[1])
-
-      if currentTokenId then
-        redis.call(
-          "DEL",
-          ARGV[1] .. currentTokenId
-        )
-      end
-
-      redis.call("DEL", KEYS[1])
-
-      return 1
-    `;
-
-    await this.redis.eval(script, 1, familyKey, refreshTokenPrefix);
+    await this.redis.del(familyKey);
   }
 
   async revokeAccessToken(tokenId: string, ttlSeconds: number): Promise<void> {

@@ -630,9 +630,16 @@ libs/infrastructure/src/redis
 
 - створення Redis client через `ioredis`;
 - централізована робота з Redis;
+- configurable namespace (`REDIS_KEY_PREFIX` / `RedisModuleOptions.keyPrefix`);
 - graceful shutdown;
 - логування connection errors;
 - окремі clients для cache/queue, якщо потрібно.
+
+`RedisKeyBuilder` — єдиний builder для physical keys. Feature adapters передають **логічні** ключі з feature-сегментами (`lock:…`, `auth:…`, `sessions:…`); `RedisService` додає глобальний prefix (`app:lock:…`, `app:auth:…`).
+
+Змінити namespace можна в composition root (`RedisModule.forRootAsync({ keyPrefix: 'tenant-a', … })`) без редагування adapters.
+
+**Breaking change:** після зміни `REDIS_KEY_PREFIX` або першого впровадження prefix існуючі unprefixed ключі в Redis стають недоступними. Для rollout — flush Redis або міграція даних.
 
 RedisService має методи:
 
@@ -646,11 +653,12 @@ incr(key: string): Promise<number>
 expire(key: string, seconds: number): Promise<void>
 ```
 
-Приклад:
+Приклад (логічні ключі):
 
 ```ts
 await redisService.set('users:1', JSON.stringify(user), 60);
 const value = await redisService.get('users:1');
+// physical key in Redis: app:users:1 (when REDIS_KEY_PREFIX=app)
 ```
 
 Application не повинна використовувати Redis напряму. Для application є cache contract.
@@ -753,7 +761,7 @@ libs/infrastructure/src/cache
 - application-level cache;
 - JSON serialization/deserialization;
 - TTL;
-- key prefix;
+- key prefix (centralized via `REDIS_KEY_PREFIX`, not per-adapter);
 
 Cache module використовує Redis.
 Помилки Redis передаються виклику і повинні бути оброблені
@@ -775,8 +783,8 @@ remember<T>(key: string, ttlSeconds: number, resolver: () => Promise<T>): Promis
 forgetByPattern(pattern: string): Promise<void>
 ```
 
-`forgetByPattern` приймає **логічний** glob-патерн без префікса `app:` (наприклад, `users:*`).
-Метод видаляє всі ключі Redis, що відповідають `app:<pattern>`, через cursor-based `SCAN`
+`forgetByPattern` приймає **логічний** glob-патерн (наприклад, `users:*`).
+Метод видаляє всі ключі Redis, що відповідають `{REDIS_KEY_PREFIX}:<pattern>` (за замовчуванням `app:users:*`), через cursor-based `SCAN`
 і batched `UNLINK`. Інвалідація best-effort: ключі, створені під час сканування, можуть залишитися.
 
 Приклад:
@@ -2234,13 +2242,15 @@ Redis використовується для:
 - атомарної rotation;
 - blacklist відкликаних access token-ів.
 
-Основні ключі:
+Основні ключі (логічні сегменти; physical keys мають prefix `{REDIS_KEY_PREFIX}:`):
 
 ```txt
-auth:refresh-token:<refresh-jti>
-auth:refresh-family:<family-id>
-auth:revoked-access-token:<access-jti>
+{prefix}auth:refresh-token:<refresh-jti>
+{prefix}auth:refresh-family:<family-id>
+{prefix}auth:revoked-access-token:<access-jti>
 ```
+
+За замовчуванням `REDIS_KEY_PREFIX=app`, тобто `app:auth:refresh-token:…`.
 
 Усі ключі мають TTL.
 
@@ -2524,6 +2534,7 @@ REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_PASSWORD=
 REDIS_DB=0
+REDIS_KEY_PREFIX=app
 
 BULLMQ_DEFAULT_ATTEMPTS=3
 BULLMQ_BACKOFF_DELAY=5000

@@ -5,6 +5,7 @@ import { Test } from '@nestjs/testing';
 import { LoggerModule } from '../logger/logger.module';
 import { AppLogger } from '../logger/app-logger.service';
 import { REDIS_CLIENT } from './redis.tokens';
+import { RedisKeyBuilder } from './redis-key-builder';
 import { RedisModule } from './redis.module';
 
 jest.mock('ioredis', () =>
@@ -24,6 +25,7 @@ describe('RedisModule', () => {
           port: 6379,
           db: 0,
           connectTimeoutMs: 1000,
+          keyPrefix: 'tenant-a',
         }),
       ],
     })
@@ -32,8 +34,11 @@ describe('RedisModule', () => {
       .compile();
 
     const client = moduleRef.get(REDIS_CLIENT);
+    const keyBuilder = moduleRef.get(RedisKeyBuilder);
+
     expect(client).toBeDefined();
     expect(typeof client.quit).toBe('function');
+    expect(keyBuilder.toPhysicalKey('lock:outbox-cron')).toBe('tenant-a:lock:outbox-cron');
 
     await moduleRef.close();
   });

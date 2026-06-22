@@ -3,6 +3,7 @@
 import Redis from 'ioredis';
 
 import { RedisCacheGateway } from './redis-cache.gateway';
+import { RedisKeyBuilder } from '../redis/redis-key-builder';
 import { RedisService } from '../redis/redis.service';
 
 const REDIS_HOST = process.env.REDIS_HOST ?? 'localhost';
@@ -69,7 +70,7 @@ describe('RedisCacheGateway integration (V-08)', () => {
       maxRetriesPerRequest: null,
     });
 
-    redisService = new RedisService(redisClient);
+    redisService = new RedisService(redisClient, new RedisKeyBuilder('app'));
     gateway = new RedisCacheGateway(redisService);
   });
 

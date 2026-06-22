@@ -7,7 +7,14 @@ import type { JobExecutionOptions } from '@contracts/idempotency/job-execution.o
 type ConfigShape = {
   app: { env: string; port: number; allowedOrigins: string };
   database: { url: string };
-  redis: { host: string; port: number; password?: string; db: number; connectTimeoutMs: number };
+  redis: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+    connectTimeoutMs: number;
+    keyPrefix: string;
+  };
   bullmq: { defaultAttempts: number; backoffDelay: number };
   mail: {
     driver: 'smtp' | 'null';

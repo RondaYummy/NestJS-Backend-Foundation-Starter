@@ -28,17 +28,15 @@ describe('RedisCacheGateway', () => {
     }
   }
 
-  it('forgetByPattern scans app-prefixed match and unlinks discovered keys in batches', async () => {
-    redis.scanKeys.mockReturnValue(
-      scanBatches(['app:user:1', 'app:user:2'], ['app:user:3']),
-    );
+  it('forgetByPattern scans logical match and unlinks discovered keys in batches', async () => {
+    redis.scanKeys.mockReturnValue(scanBatches(['user:1', 'user:2'], ['user:3']));
 
     await gateway.forgetByPattern('user:*');
 
-    expect(redis.scanKeys).toHaveBeenCalledWith('app:user:*');
+    expect(redis.scanKeys).toHaveBeenCalledWith('user:*');
     expect(redis.unlink).toHaveBeenCalledTimes(2);
-    expect(redis.unlink).toHaveBeenNthCalledWith(1, 'app:user:1', 'app:user:2');
-    expect(redis.unlink).toHaveBeenNthCalledWith(2, 'app:user:3');
+    expect(redis.unlink).toHaveBeenNthCalledWith(1, 'user:1', 'user:2');
+    expect(redis.unlink).toHaveBeenNthCalledWith(2, 'user:3');
     expect(redis.del).not.toHaveBeenCalled();
   });
 
@@ -47,7 +45,7 @@ describe('RedisCacheGateway', () => {
 
     await gateway.forgetByPattern('user:*');
 
-    expect(redis.scanKeys).toHaveBeenCalledWith('app:user:*');
+    expect(redis.scanKeys).toHaveBeenCalledWith('user:*');
     expect(redis.unlink).not.toHaveBeenCalled();
     expect(redis.del).not.toHaveBeenCalled();
   });
