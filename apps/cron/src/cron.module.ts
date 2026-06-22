@@ -5,14 +5,12 @@ import { InfrastructureConfigModule } from '@infrastructure/config/infrastructur
 import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { LocksModule } from '@infrastructure/locks/locks.module';
 import { InfrastructureBullMqModule } from '@infrastructure/bullmq/bullmq.module';
-import { OutboxProcessorModule } from '@infrastructure/outbox/outbox-processor.module';
+import { OutboxProcessorOptionsModule } from '@infrastructure/outbox/outbox-processor-options.module';
 import { AppConfigService } from '@infrastructure/config/app-config.service';
 import {
   mapAppConfigToBullMqOptions,
-  mapAppConfigToDrizzleOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
-import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 import { QUEUES } from '@infrastructure/bullmq/queues';
 
@@ -20,12 +18,6 @@ const redisModule = RedisModule.forRootAsync({
   imports: [InfrastructureConfigModule],
   inject: [AppConfigService],
   useFactory: (config: AppConfigService) => mapAppConfigToRedisOptions(config),
-});
-
-const drizzleModule = DrizzleModule.forRootAsync({
-  imports: [InfrastructureConfigModule],
-  inject: [AppConfigService],
-  useFactory: (config: AppConfigService) => mapAppConfigToDrizzleOptions(config),
 });
 
 const bullMqConnectionModule = InfrastructureBullMqModule.forRootAsync({
@@ -44,12 +36,11 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues([QUEUES.OUT
     InfrastructureConfigModule,
     LoggerModule,
     redisModule,
-    drizzleModule,
     bullMqConnectionModule,
     bullMqQueuesModule,
     LocksModule.register({ imports: [redisModule] }),
-    OutboxProcessorModule.forRootAsync({
-      imports: [InfrastructureConfigModule, drizzleModule, bullMqQueuesModule],
+    OutboxProcessorOptionsModule.forRootAsync({
+      imports: [InfrastructureConfigModule],
       inject: [AppConfigService],
       useFactory: (config: AppConfigService) => config.outbox(),
     }),

@@ -1,6 +1,5 @@
-import { ConfigurableModuleBuilder, Module, type ModuleMetadata } from '@nestjs/common';
+import { DynamicModule, Module, type ModuleMetadata } from '@nestjs/common';
 
-import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.options';
 import { TOKENS } from '@contracts/tokens';
 
 import { AuditModule } from '../audit/audit.module';
@@ -8,14 +7,11 @@ import { EventsModule } from '../events/events.module';
 import { LoggerModule } from '../logger/logger.module';
 import { OUTBOX_PROCESSOR_DEFAULT_OPTIONS } from './outbox-processor.defaults';
 import { DrizzleOutboxProcessor } from './drizzle-outbox-processor';
-
-export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYNC_OPTIONS_TYPE } =
-  new ConfigurableModuleBuilder<OutboxProcessorOptions>({
-    optionsInjectionToken: TOKENS.OutboxProcessorOptions,
-  })
-    .setClassMethodName('forRoot')
-    .setFactoryMethodName('forRootAsync')
-    .build();
+import {
+  ASYNC_OPTIONS_TYPE,
+  OPTIONS_TYPE,
+  OutboxProcessorOptionsModule,
+} from './outbox-processor-options.module';
 
 @Module({
   providers: [
@@ -27,10 +23,10 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
   ],
   exports: [TOKENS.OutboxProcessor, TOKENS.OutboxProcessorOptions],
 })
-export class OutboxProcessorModule extends ConfigurableModuleClass {
+export class OutboxProcessorModule {
   private static buildFeatureImports(
-    connectionImports: ModuleMetadata['imports'] = [],
-  ): ModuleMetadata['imports'] {
+    connectionImports: NonNullable<ModuleMetadata['imports']> = [],
+  ): NonNullable<ModuleMetadata['imports']> {
     return [
       ...connectionImports,
       AuditModule.register({ imports: connectionImports }),
@@ -39,23 +35,29 @@ export class OutboxProcessorModule extends ConfigurableModuleClass {
     ];
   }
 
-  static forRoot(options: typeof OPTIONS_TYPE = OUTBOX_PROCESSOR_DEFAULT_OPTIONS) {
+  static forRoot(options: typeof OPTIONS_TYPE = OUTBOX_PROCESSOR_DEFAULT_OPTIONS): DynamicModule {
     return {
-      ...super.forRoot(options),
+      module: OutboxProcessorModule,
       global: false,
-      imports: OutboxProcessorModule.buildFeatureImports(),
+      imports: [
+        OutboxProcessorOptionsModule.forRoot(options),
+        ...OutboxProcessorModule.buildFeatureImports(),
+      ],
     };
   }
 
-  static forRootAsync(options: typeof ASYNC_OPTIONS_TYPE) {
+  static forRootAsync(options: typeof ASYNC_OPTIONS_TYPE): DynamicModule {
     const connectionImports = options.imports ?? [];
 
     return {
-      ...super.forRootAsync(options),
+      module: OutboxProcessorModule,
       global: false,
-      imports: OutboxProcessorModule.buildFeatureImports(connectionImports),
+      imports: [
+        OutboxProcessorOptionsModule.forRootAsync(options),
+        ...OutboxProcessorModule.buildFeatureImports(connectionImports),
+      ],
     };
   }
 }
 
-export { MODULE_OPTIONS_TOKEN as OUTBOX_PROCESSOR_MODULE_OPTIONS_TOKEN };
+export { OUTBOX_PROCESSOR_OPTIONS_MODULE_OPTIONS_TOKEN as OUTBOX_PROCESSOR_MODULE_OPTIONS_TOKEN } from './outbox-processor-options.module';

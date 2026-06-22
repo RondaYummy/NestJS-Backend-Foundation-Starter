@@ -249,7 +249,7 @@ Dev-запуск:
 npm run start:dev:cron
 ```
 
-Cron не повинен піднімати HTTP API або BullMQ processors, якщо вони не потрібні конкретному schedule.
+Cron не повинен піднімати HTTP API, BullMQ processors або DB/outbox processor stack, якщо вони не потрібні конкретному schedule. Поточний `OutboxSchedule` — thin scheduler: лише distributed lock + enqueue job у `QUEUES.OUTBOX`; Worker виконує фактичну обробку outbox rows.
 
 ---
 
@@ -1194,7 +1194,10 @@ failed
 
 ### Runtime configuration
 
-Outbox processing policy is configured at the Worker and Cron composition roots through `OutboxProcessorModule.forRootAsync()` backed by `AppConfigService.outbox()`.
+Outbox processing policy is configured at the composition roots through `AppConfigService.outbox()`:
+
+- **Cron** — `OutboxProcessorOptionsModule.forRootAsync()` (scheduler options only: `pollIntervalMs`, `cronLockTtlMs`);
+- **Worker** — `OutboxProcessorModule.forRootAsync()` (full processor stack including `TOKENS.OutboxProcessor`).
 
 Environment variables (all optional; defaults match the previous hardcoded behavior):
 
