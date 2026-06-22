@@ -138,6 +138,12 @@ export function validateDockerignorePolicy(dockerignoreContent: string): {
   return { ok: missing.length === 0, missing: [...missing] };
 }
 
+export function shouldScanEntryForSecrets(entryPath: string): boolean {
+  const normalized = normalizeArchivePath(entryPath);
+  const fileName = normalized.split('/').pop() ?? normalized;
+  return !/\.(spec|int-spec|test)\.ts$/i.test(fileName);
+}
+
 export function isLikelyPlaceholderSecret(value: string): boolean {
   const trimmed = value.trim();
   if (PLACEHOLDER_SECRET_VALUES.has(trimmed)) {

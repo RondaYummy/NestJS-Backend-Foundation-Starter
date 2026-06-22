@@ -8,6 +8,7 @@ import {
   isForbiddenArchivePath,
   normalizeArchivePath,
   scanTextForSecrets,
+  shouldScanEntryForSecrets,
 } from './release-policy';
 
 const repositoryRoot = join(__dirname, '..', '..');
@@ -141,6 +142,10 @@ async function verifyArchive(zipPath: string): Promise<number> {
         normalizedPath,
       )
     ) {
+      continue;
+    }
+
+    if (!shouldScanEntryForSecrets(normalizedPath)) {
       continue;
     }
 

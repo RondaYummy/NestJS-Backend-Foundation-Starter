@@ -5,6 +5,7 @@ import {
   isForbiddenArchivePath,
   normalizeArchivePath,
   scanTextForSecrets,
+  shouldScanEntryForSecrets,
   validateDockerignorePolicy,
 } from './release-policy';
 
@@ -64,12 +65,37 @@ describe('release-policy', () => {
     });
   });
 
+  describe('shouldScanEntryForSecrets', () => {
+    it('skips test-only TypeScript archive paths', () => {
+      expect(shouldScanEntryForSecrets('scripts/release/release-policy.spec.ts')).toBe(false);
+      expect(shouldScanEntryForSecrets('libs/infrastructure/src/config/env.schema.spec.ts')).toBe(
+        false,
+      );
+    });
+
+    it('scans production-facing archive paths', () => {
+      expect(shouldScanEntryForSecrets('apps/api/src/main.ts')).toBe(true);
+      expect(shouldScanEntryForSecrets('.env.example')).toBe(true);
+    });
+  });
+
   describe('scanTextForSecrets', () => {
     it('detects high-confidence secret patterns', () => {
-      const findings = scanTextForSecrets(
-        'AWS_KEY=AKIAIOSFODNN7EXAMPLE\n-----BEGIN PRIVATE KEY-----\n',
-        'secrets.txt',
-      );
+      const sample = [
+        'AWS_KEY=',
+        'AKIA',
+        'IOSFODNN7EXAMPLE',
+        '\n-----BEGIN ',
+        'PRIVATE KEY-----\n',
+      ].join('');
+      const findings = scanTextForSecrets(sample, 'secrets.txt');
+      expect(findings.some((finding) => finding.id === 'aws-access-key')).toBe(true);
+      expect(findings.some((finding) => finding.id === 'private-key-block')).toBe(true);
+    });
+
+    it('still flags secrets on non-test archive paths', () => {
+      const sample = ['AKIA', 'IOSFODNN7EXAMPLE', '\n-----BEGIN ', 'PRIVATE KEY-----\n'].join('');
+      const findings = scanTextForSecrets(sample, 'apps/api/src/main.ts');
       expect(findings.some((finding) => finding.id === 'aws-access-key')).toBe(true);
       expect(findings.some((finding) => finding.id === 'private-key-block')).toBe(true);
     });
