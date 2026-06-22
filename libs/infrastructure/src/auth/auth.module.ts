@@ -22,14 +22,24 @@ import {
   type AuthModuleOptions,
 } from './auth.module-options';
 
+export type AuthModuleRegistrationOptions = {
+  imports?: ModuleMetadata['imports'];
+  providers?: Provider[];
+};
+
 type AuthModuleAsyncOptions = Pick<FactoryProvider<AuthModuleOptions>, 'useFactory' | 'inject'> & {
   imports?: ModuleMetadata['imports'];
 };
 
 @Module({})
 export class AuthModule {
-  static forRoot(options: AuthModuleOptions): DynamicModule {
-    const imports: ModuleMetadata['imports'] = [];
+  static forRoot(
+    options: AuthModuleOptions,
+    registration: AuthModuleRegistrationOptions = {},
+  ): DynamicModule {
+    AuthModule.assertSyncRegistration(options, registration);
+
+    const imports: ModuleMetadata['imports'] = [...(registration.imports ?? [])];
 
     if (isJwtAuthOptions(options)) {
       imports.push(JwtModule.register({ secret: options.jwt.secret }));
@@ -42,13 +52,16 @@ export class AuthModule {
       providers: [
         { provide: AUTH_MODULE_OPTIONS, useValue: options },
         ...AuthModule.buildSharedProviders(),
-        ...AuthModule.buildSyncDriverProviders(options),
+        ...(registration.providers ?? []),
+        ...AuthModule.buildSyncDriverProviders(options, registration),
       ],
       exports: AuthModule.buildExports(options),
     };
   }
 
   static forRootAsync(asyncOptions: AuthModuleAsyncOptions): DynamicModule {
+    AuthModule.assertAsyncRegistration(asyncOptions);
+
     const optionsProvider: Provider = {
       provide: AUTH_MODULE_OPTIONS,
       useFactory: asyncOptions.useFactory,
@@ -123,13 +136,97 @@ export class AuthModule {
     ];
   }
 
-  private static buildSyncDriverProviders(options: AuthModuleOptions): Provider[] {
+  private static assertSyncRegistration(
+    options: AuthModuleOptions,
+    registration: AuthModuleRegistrationOptions,
+  ): void {
+    const hasImports = (registration.imports?.length ?? 0) > 0;
+
     if (isJwtAuthOptions(options)) {
+      const hasCustomStore = AuthModule.hasCustomStoreProvider(
+        registration.providers,
+        TOKENS.JwtTokenStore,
+      );
+
+      if (!hasImports && !hasCustomStore) {
+        throw new Error(
+          'AuthModule.forRoot() requires RedisModule in registration.imports when using the default Redis-backed JWT token store. Pass { imports: [redisModule] } or supply a custom TOKENS.JwtTokenStore provider.',
+        );
+      }
+
+      return;
+    }
+
+    const hasCustomStore = AuthModule.hasCustomStoreProvider(
+      registration.providers,
+      TOKENS.SessionStore,
+    );
+
+    if (!hasImports && !hasCustomStore) {
+      throw new Error(
+        'AuthModule.forRoot() requires RedisModule in registration.imports when using the default Redis-backed session store. Pass { imports: [redisModule] } or supply a custom TOKENS.SessionStore provider.',
+      );
+    }
+  }
+
+  private static assertAsyncRegistration(asyncOptions: AuthModuleAsyncOptions): void {
+    if ((asyncOptions.imports?.length ?? 0) > 0) {
+      return;
+    }
+
+    throw new Error(
+      'AuthModule.forRootAsync() requires RedisModule in imports when using the default Redis-backed auth stores. Pass { imports: [redisModule] } alongside other required infrastructure modules.',
+    );
+  }
+
+  private static hasCustomStoreProvider(providers: Provider[] | undefined, token: symbol): boolean {
+    if (!providers?.length) {
+      return false;
+    }
+
+    return providers.some(
+      (provider) =>
+        typeof provider === 'object' &&
+        provider !== null &&
+        'provide' in provider &&
+        provider.provide === token,
+    );
+  }
+
+  private static buildSyncDriverProviders(
+    options: AuthModuleOptions,
+    registration: AuthModuleRegistrationOptions,
+  ): Provider[] {
+    if (isJwtAuthOptions(options)) {
+      const hasCustomStore = AuthModule.hasCustomStoreProvider(
+        registration.providers,
+        TOKENS.JwtTokenStore,
+      );
+
+      if (hasCustomStore) {
+        return [
+          JwtAuthTokenService,
+          { provide: TOKENS.AuthTokenService, useExisting: JwtAuthTokenService },
+        ];
+      }
+
       return [
         RedisJwtTokenStore,
         JwtAuthTokenService,
         { provide: TOKENS.JwtTokenStore, useExisting: RedisJwtTokenStore },
         { provide: TOKENS.AuthTokenService, useExisting: JwtAuthTokenService },
+      ];
+    }
+
+    const hasCustomStore = AuthModule.hasCustomStoreProvider(
+      registration.providers,
+      TOKENS.SessionStore,
+    );
+
+    if (hasCustomStore) {
+      return [
+        SessionAuthTokenService,
+        { provide: TOKENS.AuthTokenService, useExisting: SessionAuthTokenService },
       ];
     }
 

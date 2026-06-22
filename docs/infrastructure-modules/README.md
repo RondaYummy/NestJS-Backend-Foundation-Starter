@@ -66,8 +66,33 @@ Starter-kit queue sets:
 
 ```typescript
 import { AuthModule } from '@infrastructure/auth/auth.module';
+import { RedisModule } from '@infrastructure/redis/redis.module';
+
+const redisModule = RedisModule.forRootAsync({
+  useFactory: () => ({
+    host: '127.0.0.1',
+    port: 6379,
+    db: 0,
+    connectTimeoutMs: 5000,
+  }),
+});
+
+AuthModule.forRoot(
+  {
+    driver: 'jwt',
+    passwordSaltRounds: 10,
+    jwt: {
+      secret: 'access-secret',
+      expiresIn: '15m',
+      refreshSecret: 'refresh-secret',
+      refreshExpiresIn: '7d',
+    },
+  },
+  { imports: [redisModule] },
+);
 
 AuthModule.forRootAsync({
+  imports: [redisModule],
   useFactory: () => ({
     driver: 'jwt',
     passwordSaltRounds: 10,
@@ -81,7 +106,7 @@ AuthModule.forRootAsync({
 });
 ```
 
-Only the selected driver branch is instantiated. Requires a configured `RedisModule` in the same application context.
+Only the selected driver branch is instantiated. Pass `RedisModule` in `imports` for both `forRoot` and `forRootAsync` when using the default Redis-backed token stores. To override stores, supply `TOKENS.JwtTokenStore` or `TOKENS.SessionStore` via `registration.providers` on `forRoot`.
 
 When `AuthModule.forRootAsync` `inject` includes `TOKENS.UserRepository` (for example, fresh-user resolution at the composition root), pass `RepositoriesModule.register(...)` in the `imports` array so the token is visible inside the nested Auth/JWT module graph.
 

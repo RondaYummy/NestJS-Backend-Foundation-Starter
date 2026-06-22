@@ -631,20 +631,34 @@ npm run start:dev:cron
 
 ```ts
 import { RedisModule } from '@infrastructure/redis/redis.module';
+import { AuthModule } from '@infrastructure/auth/auth.module';
 import { mapAppConfigToRedisOptions } from '@infrastructure/config/create-starter-kit-module-options';
+
+const redisModule = RedisModule.forRootAsync({
+  imports: [InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config) => mapAppConfigToRedisOptions(config),
+});
 
 @Module({
   imports: [
     InfrastructureConfigModule,
-    RedisModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
+    redisModule,
+    AuthModule.forRootAsync({
+      imports: [redisModule],
       inject: [AppConfigService],
-      useFactory: (config) => mapAppConfigToRedisOptions(config),
+      useFactory: (config) => ({
+        driver: 'jwt',
+        passwordSaltRounds: config.auth().passwordSaltRounds,
+        jwt: config.jwt(),
+      }),
     }),
   ],
 })
 export class ApiModule {}
 ```
+
+У production composition root зазвичай створюють один екземпляр `redisModule` і передають його в `AuthModule.forRoot` / `forRootAsync` через `{ imports: [redisModule] }`. Детальніше: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md#authmodule).
 
 `AppConfigService` залишається на межі composition root; всередині adapter-модулів не використовується.
 
