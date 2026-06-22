@@ -52,8 +52,12 @@ export class AuthApplicationCompositionModule {
   static register(options: AuthApplicationCompositionModuleRegisterOptions): DynamicModule {
     const { redisModule, drizzleModule } = options;
 
+    const repositoriesModule = RepositoriesModule.register({
+      imports: [drizzleModule],
+    });
+
     const authModule = AuthModule.forRootAsync({
-      imports: [InfrastructureConfigModule, redisModule],
+      imports: [InfrastructureConfigModule, redisModule, repositoriesModule],
       inject: [AppConfigService, TOKENS.UserRepository],
       useFactory: (config: AppConfigService, users: IUserRepository) => {
         const base = mapAppConfigToAuthOptions(config);
@@ -81,7 +85,7 @@ export class AuthApplicationCompositionModule {
         redisModule,
         drizzleModule,
         authModule,
-        RepositoriesModule.register({ imports: [drizzleModule] }),
+        repositoriesModule,
         TransactionsModule.register({ imports: [drizzleModule] }),
         OutboxWriterModule.register({ imports: [drizzleModule] }),
       ],

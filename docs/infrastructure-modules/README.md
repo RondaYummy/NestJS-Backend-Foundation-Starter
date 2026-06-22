@@ -83,6 +83,8 @@ AuthModule.forRootAsync({
 
 Only the selected driver branch is instantiated. Requires a configured `RedisModule` in the same application context.
 
+When `AuthModule.forRootAsync` `inject` includes `TOKENS.UserRepository` (for example, fresh-user resolution at the composition root), pass `RepositoriesModule.register(...)` in the `imports` array so the token is visible inside the nested Auth/JWT module graph.
+
 ## MailModule
 
 ```typescript
