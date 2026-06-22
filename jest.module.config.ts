@@ -4,9 +4,8 @@ import baseConfig from './jest.config.base.ts';
 
 const config: Config = {
   ...baseConfig,
-  testMatch: ['**/*.spec.ts'],
-  testPathIgnorePatterns: ['\\.module\\.spec\\.ts$', '<rootDir>/scripts/release/'],
-  testTimeout: 10_000,
+  testMatch: ['**/*.module.spec.ts'],
+  testTimeout: 30_000,
 };
 
 export default config;

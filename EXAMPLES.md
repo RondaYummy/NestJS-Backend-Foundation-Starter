@@ -671,6 +671,9 @@ npm run start:dev:cron
 | Збірка всіх apps | `npm run build`                              |
 | Lint             | `npm run lint`                               |
 | Unit-тести       | `npm run test:unit`                          |
+| Module bootstrap | `npm run test:module`                        |
+| Release policy   | `npm run test:release`                       |
+| Повний test gate | `npm run test:all`                           |
 | Міграції         | `npm run db:generate` → `npm run db:migrate` |
 | Docker           | `docker compose up -d --build`               |
 | Health           | `GET http://localhost:3000/health`           |

@@ -5,6 +5,14 @@ import { Test } from '@nestjs/testing';
 import { DRIZZLE_DB, PG_POOL } from './drizzle.tokens';
 import { DrizzleModule } from './drizzle.module';
 
+jest.mock('pg', () => ({
+  Pool: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    end: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn(),
+  })),
+}));
+
 describe('DrizzleModule', () => {
   it('boots with typed options without InfrastructureConfigModule', async () => {
     const moduleRef = await Test.createTestingModule({

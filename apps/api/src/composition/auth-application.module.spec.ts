@@ -18,6 +18,14 @@ jest.mock('ioredis', () =>
   })),
 );
 
+jest.mock('pg', () => ({
+  Pool: jest.fn().mockImplementation(() => ({
+    on: jest.fn(),
+    end: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn(),
+  })),
+}));
+
 const TEST_ENV: Record<string, string> = {
   NODE_ENV: 'test',
   DATABASE_URL: 'postgresql://postgres:postgres@localhost:5432/test',

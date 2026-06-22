@@ -1901,7 +1901,10 @@ npm run start:dev:cron
   "lint": "eslint .",
   "format": "prettier --write .",
   "test": "jest",
-  "test:unit": "jest --config jest.unit.config.ts",
+  "test:unit": "node node_modules/jest/bin/jest.js --config jest.unit.config.ts",
+  "test:module": "node node_modules/jest/bin/jest.js --config jest.module.config.ts --runInBand",
+  "test:release": "node node_modules/jest/bin/jest.js --config jest.release.config.ts",
+  "test:all": "npm run test:unit && npm run test:module && npm run test:release",
   "test:int": "jest --config jest.integration.config.ts"
 }
 ```
@@ -2779,9 +2782,17 @@ RELEASE_GIT_REF=v1.0.0 npm run release:archive
 
 ```bash
 npm run test:unit
+npm run test:module
+npm run test:release
+npm run test:all
 npm run test:int
 npm run lint
 ```
+
+- `test:unit` — швидкий gate: pure unit specs без Nest module bootstrap і release-policy scripts.
+- `test:module` — `*.module.spec.ts` (Nest DI wiring); для audit lifecycle: `npm run test:module -- --detectOpenHandles`.
+- `test:release` — release-policy scripts (`scripts/release/**/*.spec.ts`).
+- `test:all` — unit + module + release (без `test:int`; для integration потрібні PostgreSQL/Redis).
 
 # 27. Cursor Agent Architecture
 

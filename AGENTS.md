@@ -140,8 +140,21 @@ npm run build:cron
 npm run build:migrations
 npm run lint
 npm run test:unit
+npm run test:module
+npm run test:release
+npm run test:all
 npm run test:int
 ```
+
+**Test suite split (V-14):**
+
+- **Fast agent gate:** `npm run test:unit` — pure unit specs only (no Nest module bootstrap, no release-policy scripts).
+- **Before merge / full check:** `npm run test:all` (chains `test:unit`, `test:module`, `test:release`).
+- **Module/bootstrap DI wiring:** `npm run test:module` — `*.module.spec.ts`; use `--detectOpenHandles` when auditing lifecycle.
+- **Release policy tooling:** `npm run test:release` — `scripts/release/**/*.spec.ts`.
+- **Infra integration:** `npm run test:int` — `*.int-spec.ts`; requires PostgreSQL and Redis when run.
+
+Jest npm scripts invoke `node node_modules/jest/bin/jest.js` to avoid intermittent Windows npm wrapper crashes (see P2-08, P2-11).
 
 Local entrypoint commands:
 
