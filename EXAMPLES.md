@@ -178,35 +178,91 @@ npm run db:migrate
 Кілька операцій з БД в одній транзакції (приклад — реєстрація):
 
 ```ts
-import type { ITransactionManager } from '@contracts/transactions/transaction-manager';
-
-constructor(
-  @Inject(TOKENS.UserRepository) private readonly userRepository: IUserRepository,
-  @Inject(TOKENS.TransactionManager) private readonly transactionManager: ITransactionManager,
-) {}
-
 async execute(input: RegisterInput) {
   const passwordHash = await this.passwordHasher.hash(input.password);
+  const email = Email.create(input.email);
 
   const user = await this.transactionManager.run(async (trx) => {
-    const existing = await this.userRepository.findByEmail(input.email, trx);
-    if (existing) throw new ConflictError('USER_ALREADY_EXISTS', 'User already exists');
+    const newUser = User.create({
+      email: email.toString(),
+      passwordHash,
+      roles: ['user'],
+    });
 
-    const newUser = User.create({ email: input.email, passwordHash });
-    await this.userRepository.insert(
-      newUser,
+    await this.userRepository.insert(newUser, trx);
+
+    await this.outboxWriter.append(
+      new UserRegisteredEvent({
+        userId: newUser.id,
+        email: newUser.email.toString(),
+      }),
       trx,
     );
+
     return newUser;
   });
 
-  // Redis / email / queue — після commit, не всередині run()
-  const auth = await this.authTokenService.createAuthSession({ /* ... */ });
-  return { user, auth };
+  // Повертає лише user — auth/session створюється окремим POST /auth/login
+  return {
+    user: {
+      id: user.id,
+      email: user.email.toString(),
+      roles: user.roles,
+    },
+  };
 }
 ```
 
-Зовнішні сервіси (сесія, пошта, S3) **не** тримайте всередині `transactionManager.run()`.
+Зовнішні сервіси (Redis auth state, email, queue) **не** тримайте всередині `transactionManager.run()`. Welcome email enqueue-иться асинхронно через Outbox → Worker, а не в цьому use case.
+
+### 4.1. Register then login
+
+`POST /auth/register` створює обліковий запис і повертає лише `user`. Для отримання auth tokens або session cookie викличте `POST /auth/login` окремим запитом (однаковий контракт для JWT і session driver).
+
+**Register:**
+
+```bash
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "new@example.com",
+    "password": "StrongPassword123!"
+  }'
+```
+
+Приклад відповіді:
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "<user-id>",
+      "email": "new@example.com",
+      "roles": ["user"]
+    }
+  }
+}
+```
+
+Поле `data.auth` **відсутнє** — це очікувана поведінка.
+
+**Login (JWT driver, `AUTH_DRIVER=jwt`):**
+
+```bash
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "new@example.com",
+    "password": "StrongPassword123!"
+  }'
+```
+
+Приклад відповіді — див. [§5.1 Login](#51-jwt-login-refresh-і-logout) (`data.user` + `data.auth.accessToken` / `data.auth.refreshToken`).
+
+**Login (session driver, `AUTH_DRIVER=session`):**
+
+Той самий `POST /auth/login`; сервер встановлює cookie `sid` (див. `README.md` §16). У тілі відповіді також є `data.auth` з session metadata; клієнт використовує cookie для наступних запитів.
 
 ---
 

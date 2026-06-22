@@ -1674,6 +1674,7 @@ async register(@Body() dto: RegisterDto) {
 10. UserRegisteredEventHandler.handle() enqueue welcome email у BullMQ (QUEUES.EMAIL)
 11. Outbox row позначено processed
 12. EmailProcessor відправляє welcome email
+13. Client obtains auth via separate `POST /auth/login` (JWT tokens or session cookie depending on `AUTH_DRIVER`)
 ```
 
 ---
@@ -2201,12 +2202,14 @@ old refreshToken → new refreshToken
 
 ## Token family
 
-При login або register створюється окрема refresh-token family.
+При login створюється окрема refresh-token family (також при rotation через refresh).
+
+`POST /auth/register` **не** створює token family — після успішної реєстрації клієнт має викликати `POST /auth/login`, щоб отримати access/refresh tokens або session cookie.
 
 У межах однієї family активним є тільки останній refresh token.
 
 ```txt
-login
+login                    (register не входить у цей ланцюг)
   ↓
 refresh token A
   ↓ refresh
