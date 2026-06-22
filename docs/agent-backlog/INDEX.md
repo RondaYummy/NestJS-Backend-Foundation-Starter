@@ -1,8 +1,8 @@
 # Agent backlog index
 
-> **Synchronized:** 20 June 2026  
+> **Synchronized:** 22 June 2026  
 > **Source of truth:** `docs/agent-backlog/NESTJS_STARTER_KIT_REQUIRED_FIXES.md`  
-> **Baseline:** `NestJS-Backend-Foundation-Starter(45).zip`
+> **Baseline:** `NestJS-Backend-Foundation-Starter(51).zip`
 
 Agents must work on exactly one ID and read the complete matching section before planning.
 
@@ -15,6 +15,8 @@ Agents must work on exactly one ID and read the complete matching section before
 | `P1-03` | `P1-03. Посилити production policy для JWT secrets`                                              |
 | `P1-04` | `P1-04. Зробити infrastructure modules незалежно конфігурованими й явно скомпонованими`          |
 | `P1-05` | `P1-05. Прибрати NestJS DI decorators з Application або офіційно змінити архітектурний контракт` |
+| `P1-06` | `P1-06. Виправити DI visibility для TOKENS.UserRepository в API Auth composition`                |
+| `P1-07` | `P1-07. Зробити AuthModule.forRoot() явним щодо Redis dependency та незалежного reuse`           |
 
 ## P2 — Medium
 
@@ -31,6 +33,10 @@ Agents must work on exactly one ID and read the complete matching section before
 | `P2-09` | `P2-09. Усунути high advisories у production dependency graph`                        |
 | `P2-10` | `P2-10. Не включати .env і .git у release archive`                                    |
 | `P2-11` | `P2-11. Відновити non-formatting lint gate`                                           |
+| `P2-12` | `P2-12. Узгодити register flow з auth token/session документацією`                    |
+| `P2-13` | `P2-13. Винести Outbox scheduler options із OutboxProcessorModule для Cron`           |
+| `P2-14` | `P2-14. Додати централізований Redis namespace/key prefix`                            |
+| `P2-15` | `P2-15. Виправити release:check false-positive secret scan`                           |
 
 ## P3 — Low
 
@@ -39,6 +45,7 @@ Agents must work on exactly one ID and read the complete matching section before
 | `P3-01` | `P3-01. Узгодити Node engine range з dependency requirements`                          |
 | `P3-02` | `P3-02. Синхронізувати README з фактичними entrypoint, features та EventBus semantics` |
 | `P3-03` | `P3-03. Виправити .env.example і component-specific startup logging`                   |
+| `P3-04` | `P3-04. Ізолювати unit suite timeout та open handles`                                  |
 
 ## Verification
 
@@ -59,6 +66,12 @@ Agents must work on exactly one ID and read the complete matching section before
 | `V-13` | Docker/release artifact                  |
 | `V-14` | Unit suite timeout                       |
 | `V-15` | BullMQ graceful shutdown                 |
+| `V-16` | API Auth composition DI                  |
+| `V-17` | AuthModule explicit Redis dependency     |
+| `V-18` | Register auth/session behavior           |
+| `V-19` | Cron minimal composition                 |
+| `V-20` | Redis namespace/key prefix               |
+| `V-21` | release:check secret scan                |
 
 ## Resolution lifecycle
 
