@@ -21,7 +21,7 @@ import {
       useExisting: DrizzleOutboxProcessor,
     },
   ],
-  exports: [TOKENS.OutboxProcessor, TOKENS.OutboxProcessorOptions],
+  exports: [TOKENS.OutboxProcessor],
 })
 export class OutboxProcessorModule {
   private static buildFeatureImports(
@@ -36,26 +36,25 @@ export class OutboxProcessorModule {
   }
 
   static forRoot(options: typeof OPTIONS_TYPE = OUTBOX_PROCESSOR_DEFAULT_OPTIONS): DynamicModule {
+    const optionsModule = OutboxProcessorOptionsModule.forRoot(options);
+
     return {
       module: OutboxProcessorModule,
       global: false,
-      imports: [
-        OutboxProcessorOptionsModule.forRoot(options),
-        ...OutboxProcessorModule.buildFeatureImports(),
-      ],
+      imports: [optionsModule, ...OutboxProcessorModule.buildFeatureImports()],
+      exports: [optionsModule],
     };
   }
 
   static forRootAsync(options: typeof ASYNC_OPTIONS_TYPE): DynamicModule {
     const connectionImports = options.imports ?? [];
+    const optionsModule = OutboxProcessorOptionsModule.forRootAsync(options);
 
     return {
       module: OutboxProcessorModule,
       global: false,
-      imports: [
-        OutboxProcessorOptionsModule.forRootAsync(options),
-        ...OutboxProcessorModule.buildFeatureImports(connectionImports),
-      ],
+      imports: [optionsModule, ...OutboxProcessorModule.buildFeatureImports(connectionImports)],
+      exports: [optionsModule],
     };
   }
 }
