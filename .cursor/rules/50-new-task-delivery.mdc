@@ -12,5 +12,6 @@ alwaysApply: true
 - The approved implementation plan is the source of truth for implementation scope.
 - An implementer must not approve its own specification, plan, or implementation.
 - Verification must inspect the actual diff and execute relevant commands.
+- Any task that adds or changes an HTTP endpoint must define API-contract requirements and acceptance criteria, plan exact OpenAPI schema/decorator updates, implement them with the endpoint, and independently verify the generated OpenAPI document against runtime behavior.
 - Do not silently add requirements, remove acceptance criteria, or expand scope.
 - When requirements are ambiguous, document assumptions and open decisions instead of inventing behavior.

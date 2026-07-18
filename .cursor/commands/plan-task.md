@@ -14,5 +14,6 @@ status: approved
 ```
 
 Inspect the current codebase.
+For HTTP endpoint changes, plan exact OpenAPI schema/decorator updates, canonical documentation changes and drift-test verification.
 Do not edit production code.
 Create one proposed plan under `docs/agent-plans/`.

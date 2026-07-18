@@ -73,6 +73,7 @@ Identify:
 - non-functional requirements;
 - architecture boundaries;
 - API, event, queue or CLI contracts;
+- for every added or changed HTTP endpoint, OpenAPI requirements and acceptance criteria covering inputs, outputs, statuses, errors, auth, headers and cookies;
 - data model and migration needs;
 - security and authorization requirements;
 - entrypoints affected;
@@ -109,25 +110,45 @@ Use this structure:
 # <Task ID> — <Title>
 
 ## Original request
+
 ## Problem or opportunity
+
 ## Goal
+
 ## Users and actors
+
 ## Current system context
+
 ## Functional requirements
+
 ## Non-functional requirements
+
 ## Public API and interface impact
+
 ## Data model and migration impact
+
 ## Events, queues and background processing
+
 ## Security and authorization
+
 ## Entrypoints and deployment impact
+
 ## Observability and operations
+
 ## Compatibility requirements
+
 ## Dependencies
+
 ## Assumptions
+
 ## Out of scope
+
 ## Acceptance criteria
+
 ## Verification strategy
+
 ## Rollout and rollback
+
 ## Open questions requiring human decision
 ```
 

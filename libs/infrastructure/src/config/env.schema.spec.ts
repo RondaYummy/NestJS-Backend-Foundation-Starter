@@ -173,6 +173,53 @@ describe('envSchema development and test JWT permissiveness', () => {
   });
 });
 
+describe('envSchema API_DOCS_ENABLED', () => {
+  const baseEnv = {
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/app',
+    JWT_SECRET: 'dev-secret',
+    JWT_REFRESH_SECRET: 'dev-refresh-secret',
+  };
+
+  it.each(['development', 'test'] as const)(
+    'enables API documentation by default in %s',
+    (NODE_ENV) => {
+      const parsed = envSchema.parse({ ...baseEnv, NODE_ENV });
+
+      expect(parsed.API_DOCS_ENABLED).toBe(true);
+    },
+  );
+
+  it('disables API documentation by default in production', () => {
+    const parsed = envSchema.parse(minimalProductionEnv());
+
+    expect(parsed.API_DOCS_ENABLED).toBe(false);
+  });
+
+  it.each([
+    ['true', true],
+    ['1', true],
+    ['false', false],
+    ['0', false],
+  ])('parses explicit override %s', (API_DOCS_ENABLED, expected) => {
+    const parsed = envSchema.parse({
+      ...baseEnv,
+      NODE_ENV: 'development',
+      API_DOCS_ENABLED,
+    });
+
+    expect(parsed.API_DOCS_ENABLED).toBe(expected);
+  });
+
+  it('rejects unsupported boolean values', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      API_DOCS_ENABLED: 'yes',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
 describe('envSchema outbox cross-field validation', () => {
   const baseEnv = {
     NODE_ENV: 'development',

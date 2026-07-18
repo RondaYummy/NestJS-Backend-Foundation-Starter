@@ -190,6 +190,17 @@ npm run start:dev:api
 
 API не повинен запускати worker processors або cron jobs.
 
+### 3.1.1. Canonical OpenAPI contract
+
+When API documentation is enabled, the API exposes:
+
+- Swagger UI: `http://localhost:3000/docs`;
+- OpenAPI JSON: `http://localhost:3000/docs-json`.
+
+`API_DOCS_ENABLED` controls both routes. The default is `true` in `development` and `test`, and `false` in `production`; production requires an explicit `API_DOCS_ENABLED=true` opt-in. Startup logs state whether documentation is enabled and show only the route paths, never credentials.
+
+The generated OpenAPI document is the canonical HTTP contract for request bodies, validation, responses, errors, authentication, headers and cookies. Manual examples should link to it instead of duplicating a conflicting contract. Every task that adds or changes an HTTP endpoint must update its typed OpenAPI schemas/decorators and the drift test in the same change.
+
 ---
 
 ## 3.2. Worker

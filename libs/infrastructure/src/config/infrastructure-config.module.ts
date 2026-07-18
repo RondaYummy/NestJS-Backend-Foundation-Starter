@@ -14,7 +14,12 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
         if (!parsed.success) throw new Error(`Invalid env: ${parsed.error.message}`);
         const e = parsed.data;
         return {
-          app: { env: e.NODE_ENV, port: e.APP_PORT, allowedOrigins: e.CORS_ORIGINS },
+          app: {
+            env: e.NODE_ENV,
+            port: e.APP_PORT,
+            allowedOrigins: e.CORS_ORIGINS,
+            apiDocsEnabled: e.API_DOCS_ENABLED,
+          },
           database: { url: e.DATABASE_URL },
           redis: {
             host: e.REDIS_HOST,

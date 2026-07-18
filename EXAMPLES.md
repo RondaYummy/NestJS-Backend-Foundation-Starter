@@ -124,14 +124,22 @@ import { UsersController } from './controllers/users.controller';
 })
 ```
 
-### Крок 7. Перевірка
+### Крок 7. Оновити canonical OpenAPI contract
+
+У DTO додайте typed `@ApiProperty` / `@ApiPropertyOptional`, а в controller — operation, request, success/error responses, auth, headers і cookies. Згенерований контракт має точно відображати validation та фактичні response bodies.
+
+Перевірте endpoint у Swagger UI: `http://localhost:3000/docs`, а машинозчитуваний документ — у `http://localhost:3000/docs-json`. `API_DOCS_ENABLED` за замовчуванням увімкнений у development/test і вимкнений у production.
+
+Оновіть `apps/api/src/openapi/openapi-contract.spec.ts`, щоб drift check охоплював новий method/path і ключові request/response schemas.
+
+### Крок 8. Перевірка
 
 ```bash
 npm run start:dev:api
 # GET http://localhost:3000/users/<uuid>  + Authorization: Bearer <token>
 ```
 
-**Правило:** controller → use case → contract (repository). Controller **не** імпортує Drizzle, Redis, `@domain` напряму.
+**Правило:** controller → use case → contract (repository). Controller **не** імпортує Drizzle, Redis, `@domain` напряму. HTTP endpoint не завершений без синхронізованого OpenAPI contract.
 
 ---
 
@@ -731,6 +739,8 @@ export class ApiModule {}
 - [ ] Apps: реєстрація use case у composition-модулі потрібного entrypoint
 - [ ] Infrastructure: repository, mapper, міграція (за потреби)
 - [ ] API: DTO, controller і підключення feature composition-модуля
+- [ ] OpenAPI: inputs/requiredness, typed outputs, success/error statuses, auth, headers/cookies та приклади
+- [ ] OpenAPI drift test оновлено; `/docs` і `/docs-json` перевірено
 - [ ] Guards / rate limit / auth (за потреби)
 - [ ] `.env.example` оновлено
 - [ ] `npm run lint` і `npm run build:api`

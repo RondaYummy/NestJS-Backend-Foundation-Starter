@@ -53,3 +53,5 @@ TASK-001-short-slug.md
 ```
 
 Each specification must contain numbered requirements and acceptance criteria.
+
+Any task that adds or changes an HTTP endpoint must treat the generated OpenAPI document as the canonical contract and include requirements and acceptance criteria for its inputs, outputs, statuses, errors, auth, headers and cookies.

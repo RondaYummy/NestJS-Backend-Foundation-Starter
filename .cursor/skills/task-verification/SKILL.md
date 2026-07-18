@@ -54,6 +54,8 @@ Verify, where applicable:
 
 Check every functional and non-functional requirement.
 
+For every added or changed HTTP endpoint, compare generated OpenAPI with the controller method/path, validation DTO, actual success body, exception envelope, auth, headers and cookies, and run the repository OpenAPI drift test.
+
 Create an acceptance matrix:
 
 ```text
@@ -110,21 +112,35 @@ Use this structure:
 # <Task ID> — Independent verification
 
 ## Verdict
+
 approved | changes-required | not-confirmed
 
 ## Approved specification
+
 ## Approved plan
+
 ## Scope checked
+
 ## Actual changed files
+
 ## Requirements matrix
+
 ## Acceptance criteria matrix
+
 ## Architecture and DI verification
+
 ## Database and migration verification
+
 ## Security verification
+
 ## Commands executed
+
 ## Findings
+
 ## Documentation alignment
+
 ## Remaining risks
+
 ## Unverified areas
 ```
 

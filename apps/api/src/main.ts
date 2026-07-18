@@ -11,6 +11,12 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { assertRedisAvailable } from '@infrastructure/redis/assert-redis-available';
 import { getRedisStartupConfig } from '@infrastructure/redis/redis-startup-config';
+import { SwaggerModule } from '@nestjs/swagger';
+import {
+  API_DOCS_JSON_PATH,
+  API_DOCS_PATH,
+  createOpenApiDocument,
+} from './openapi/create-openapi-document';
 
 let application: NestExpressApplication | undefined;
 
@@ -37,6 +43,18 @@ async function bootstrap(): Promise<void> {
   );
 
   const config = application.get(AppConfigService);
+  const logger = application.get(AppLogger);
+
+  if (config.app().apiDocsEnabled) {
+    const document = createOpenApiDocument(application, config.auth().sessionCookieName);
+    SwaggerModule.setup(API_DOCS_PATH, application, document);
+    logger.info('API documentation enabled', {
+      swaggerUi: `/${API_DOCS_PATH}`,
+      openApiJson: `/${API_DOCS_JSON_PATH}`,
+    });
+  } else {
+    logger.info('API documentation disabled');
+  }
 
   const allowedOrigins = config
     .app()

@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+const optionalBoolean = z.preprocess((value) => {
+  if (value === undefined || typeof value === 'boolean') {
+    return value;
+  }
+
+  if (value === 1 || value === '1' || value === 'true') {
+    return true;
+  }
+
+  if (value === 0 || value === '0' || value === 'false') {
+    return false;
+  }
+
+  return value;
+}, z.boolean().optional());
+
 export const JWT_SECRET_MIN_LENGTH = 43;
 export const JWT_SECRET_FIELDS = ['JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
 export const JWT_PLACEHOLDER_VALUES = new Set([
@@ -16,6 +32,7 @@ export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     APP_PORT: z.coerce.number().default(3000),
+    API_DOCS_ENABLED: optionalBoolean,
     DATABASE_URL: z.string().url(),
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: z.coerce.number().default(6379),
@@ -198,6 +215,10 @@ export const envSchema = z
         });
       }
     }
-  });
+  })
+  .transform((env) => ({
+    ...env,
+    API_DOCS_ENABLED: env.API_DOCS_ENABLED ?? env.NODE_ENV !== 'production',
+  }));
 
 export type Env = z.infer<typeof envSchema>;

@@ -2,8 +2,9 @@
 
 This index contains new features and technical tasks.
 
-| Task ID | Title | Type | Status | Specification |
-|---|---|---|---|---|
+| Task ID  | Title                                                                    | Type      | Status   | Specification                                             |
+| -------- | ------------------------------------------------------------------------ | --------- | -------- | --------------------------------------------------------- |
+| TASK-001 | Повна документація HTTP API та обов’язковий стандарт для майбутніх задач | technical | proposed | [Specification](./TASK-001-api-contract-documentation.md) |
 
 ## Rules
 

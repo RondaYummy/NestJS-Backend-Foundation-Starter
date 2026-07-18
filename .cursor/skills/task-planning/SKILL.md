@@ -54,6 +54,7 @@ Determine:
 - exact symbols, tokens, providers and exports affected;
 - Domain, Application, Contracts, Infrastructure and Interface changes;
 - API, DTO, event, queue or CLI contract changes;
+- exact OpenAPI decorator/schema files, canonical documentation updates and drift-test checks for every HTTP endpoint addition or change;
 - database schema and migration sequence;
 - transaction and Outbox boundaries;
 - idempotency and retry behavior;
@@ -90,29 +91,53 @@ Use this structure:
 # <Task ID> — Implementation plan
 
 ## Approved specification
+
 ## Current implementation
+
 ## Architecture decision
+
 ## Scope
+
 ## Out of scope
+
 ## Files to create
+
 ## Files to modify
+
 ## Files to delete
+
 ## Domain changes
+
 ## Application changes
+
 ## Contract and DI changes
+
 ## Infrastructure changes
+
 ## Interface and entrypoint changes
+
 ## Database and migration changes
+
 ## Security and authorization changes
+
 ## Observability changes
+
 ## Implementation phases
+
 ## Dependency and compatibility impact
+
 ## Targeted verification
+
 ## Full verification
+
 ## Acceptance criteria mapping
+
 ## Rollout strategy
+
 ## Rollback strategy
+
 ## Risks
+
 ## Open questions requiring human decision
 ```
 
