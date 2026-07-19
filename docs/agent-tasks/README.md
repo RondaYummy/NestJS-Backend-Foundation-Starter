@@ -20,6 +20,11 @@ Supported task types:
 
 Confirmed defects from `docs/agent-backlog/` continue to use the bugfix workflow and P-level IDs.
 
+For the OLD_BACKEND → starter migration, see:
+
+- `docs/agent-tasks/MIGRATION_PROGRAM.md` — locked decisions and dependency order
+- `docs/agent-tasks/INDEX.md` — TASK-002…TASK-021 specifications
+
 ## Lifecycle
 
 ```text

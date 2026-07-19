@@ -46,7 +46,25 @@ If the specification is `proposed`, `rejected`, `superseded`, missing, or ambigu
 
 Do not silently change approved requirements.
 
-### 2. Design the implementation
+### 2. Collect human decisions for this task (mandatory gate)
+
+Before writing the implementation plan file:
+
+1. Extract every item from the specification section `Open questions requiring human decision`.
+2. Add any new decisions discovered while inspecting the codebase that affect **this task only** (do not expand into other TASK IDs).
+3. Present them to the human as a numbered decision list with:
+   - what must be chosen;
+   - concrete options (A/B/…);
+   - a recommended default when one is safe;
+   - what is blocked in the plan until answered.
+4. **Stop and wait** for the human answers.
+5. Only after answers are received, continue to design and write the plan. Record the decisions in the plan under `Open questions requiring human decision` as **Resolved** (decision + date/context), or leave truly still-open items explicit.
+
+Do not invent answers. Do not bury unresolved choices inside implementation phases.
+
+If the specification lists `None` under open questions, still ask only if codebase inspection surfaces a real in-scope decision; otherwise proceed.
+
+### 3. Design the implementation
 
 Determine:
 
@@ -66,7 +84,7 @@ Determine:
 - rollout and rollback;
 - targeted and full verification commands.
 
-### 3. Create the implementation plan
+### 4. Create the implementation plan
 
 Create:
 
@@ -139,6 +157,8 @@ Use this structure:
 ## Risks
 
 ## Open questions requiring human decision
+
+List resolved decisions from the planning gate, and any remaining blockers.
 ```
 
 Every implementation phase must:
@@ -148,7 +168,7 @@ Every implementation phase must:
 - map to one or more specification acceptance criteria;
 - define a verification step.
 
-### 4. Acceptance criteria mapping
+### 5. Acceptance criteria mapping
 
 Create a matrix:
 
@@ -181,4 +201,5 @@ status: approved
 - Do not add unrelated refactoring.
 - Do not invent APIs, tables or behavior that the specification does not require.
 - If the specification is insufficient, stop and request a specification revision.
+- Do not finalize a plan while in-scope human decisions for this task remain unanswered; ask first, then write the plan.
 - Do not create commits or switch branches unless explicitly requested.
