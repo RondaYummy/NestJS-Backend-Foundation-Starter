@@ -27,7 +27,7 @@ Program overview for migrating the legacy NestJS business backend (`OLD_BACKEND/
 - Legacy behavior: `OLD_BACKEND/` (controllers, services, entities).
 - Target patterns: `AGENTS.md`, `EXAMPLES.md`, existing Auth/Outbox/Mail/Storage.
 - Per-slice requirements: individual `TASK-xxx` specs below.
-- API parity checklist: produced by **TASK-002** and updated as slices land.
+- API parity checklist: the parity catalog under [`docs/migration/README.md`](../migration/README.md) (produced by **TASK-002**, updated as slices land); `docs/migration/HTTP_PARITY_MATRIX.md` is the HTTP contract source of truth.
 
 ## Task dependency order
 
@@ -96,7 +96,7 @@ Parallelism allowed after TASK-002: TASK-003…006; after campaigns base: commen
 ## Status tracking
 
 Use `docs/agent-tasks/INDEX.md`. Only a human may set specification or plan status to `approved`.
-All migration task specifications are currently `proposed`.
+Migration task specifications are approved in their frontmatter; per-task planning/implementation status is tracked in `docs/agent-tasks/INDEX.md`.
 
 ## Planning rule (human decisions)
 
