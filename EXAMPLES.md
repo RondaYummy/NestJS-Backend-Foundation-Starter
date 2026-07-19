@@ -439,6 +439,43 @@ curl -X POST http://localhost:3000/v1/auth/reset-password \
 
 Успіх — `200` з login-подібною відповіддю та свіжими auth-артефактами (як change-password). Токен одноразовий: повторне використання, протермінований або невідомий токен повертає `400 INVALID_RESET_TOKEN` без зміни пароля.
 
+## 5.3. Google SSO (опційний модуль)
+
+За замовчуванням вимкнено: `GET /v1/auth/google` і `GET /v1/auth/google/callback` зареєстровані, але повертають `503 GOOGLE_SSO_DISABLED` без звернень до Google.
+
+Увімкнення:
+
+```env
+GOOGLE_SSO_ENABLED=true
+GOOGLE_CLIENT_ID=<client-id з Google Cloud console>
+GOOGLE_CLIENT_SECRET=<client-secret>
+GOOGLE_REDIRECT_URI=http://localhost:3000/v1/auth/google/callback
+```
+
+У Google Cloud console зареєструйте той самий redirect URI (`{origin}/v1/auth/google/callback`; поза локальною розробкою — тільки HTTPS). Якщо будь-яка з обов'язкових змінних порожня при `GOOGLE_SSO_ENABLED=true`, конфігурація падає на старті (fail-fast, як SMTP/S3).
+
+Flow (authorization-code redirect):
+
+```bash
+# 1. Браузер відкриває start endpoint (опційно з returnUrl, origin якого є в CORS_ORIGINS):
+#    GET http://localhost:3000/v1/auth/google?returnUrl=http://localhost:3000/auth/complete
+#    → 302 на accounts.google.com + httpOnly cookie g_oauth_state (одноразовий CSRF state)
+
+# 2. Після згоди Google повертає браузер на callback:
+#    GET http://localhost:3000/v1/auth/google/callback?code=...&state=...
+```
+
+Результат callback — ті самі auth-артефакти, що й `POST /v1/auth/login`:
+
+- `AUTH_DRIVER=jwt` — `200` JSON `{ success, data: { user, auth: { accessToken, refreshToken } } }`. `returnUrl` для доставки успіху ігнорується: JWT ніколи не потрапляє в URL (для браузерних SPA використовуйте BFF, який споживає JSON callback, або session driver).
+- `AUTH_DRIVER=session` — встановлюється httpOnly cookie `sid`; якщо flow стартував з allowlisted `returnUrl`, відповідь — `302` на нього, інакше `200` JSON.
+
+Ідентичність: спершу пошук за Google `sub`; далі auto-link за email (тільки якщо Google підтверджує email як verified); інакше створюється новий користувач без локального пароля (`password_hash = NULL`) з подією `UserRegisteredEvent` через Outbox.
+
+Для Google-only акаунтів: `POST /v1/auth/login` повертає `400 INVALID_CREDENTIALS`, `change-password` — `400 PASSWORD_NOT_SET`; встановити перший локальний пароль можна через `forgot-password` → `reset-password`.
+
+Коди помилок: `GOOGLE_SSO_DISABLED` (503), `INVALID_RETURN_URL` (400), `GOOGLE_SSO_INVALID_STATE` (400), `GOOGLE_SSO_TOKEN_EXCHANGE_FAILED` (401), `GOOGLE_SSO_EMAIL_UNVERIFIED` (401), `GOOGLE_SSO_HOSTED_DOMAIN_MISMATCH` (401, лише з `GOOGLE_SSO_HOSTED_DOMAIN`).
+
 ## 6. Rate limit на endpoint
 
 ```ts

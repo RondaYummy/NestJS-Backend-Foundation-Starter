@@ -24,6 +24,12 @@ export class LoginUseCase {
       throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
+    // Google-only accounts have no local password; reject with the same code
+    // as a wrong password to avoid revealing account provenance (FR-09/AC-05).
+    if (user.passwordHash === null) {
+      throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');
+    }
+
     const passwordValid = await this.passwordHasher.compare(input.password, user.passwordHash);
 
     if (!passwordValid) {

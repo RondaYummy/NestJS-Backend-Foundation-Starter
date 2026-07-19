@@ -123,6 +123,36 @@ describe('ChangePasswordUseCase', () => {
     expect(userRepository.update).not.toHaveBeenCalled();
   });
 
+  it('rejects a Google-only account (null password hash) with PASSWORD_NOT_SET and no bcrypt compare (TASK-004)', async () => {
+    userRepository.findById.mockResolvedValue(
+      User.restore({
+        id: 'user-1',
+        email: Email.create('google-only@example.com'),
+        passwordHash: null,
+        googleSub: 'google-sub-1',
+        roles: ['user'],
+        authVersion: 0,
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+      }),
+    );
+
+    const error: unknown = await useCase
+      .execute({
+        userId: 'user-1',
+        currentPassword: 'anything',
+        newPassword: 'new-password',
+      })
+      .catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(ValidationError);
+    expect((error as ValidationError).code).toBe('PASSWORD_NOT_SET');
+
+    expect(passwordHasher.compare).not.toHaveBeenCalled();
+    expect(userRepository.update).not.toHaveBeenCalled();
+    expect(authTokenService.createAuthSession).not.toHaveBeenCalled();
+  });
+
   it('throws USER_NOT_FOUND when the authenticated user no longer exists', async () => {
     userRepository.findById.mockResolvedValue(null);
 

@@ -71,6 +71,15 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
             tokenTtlSeconds: e.PASSWORD_RESET_TOKEN_TTL_SECONDS,
             urlBase: e.PASSWORD_RESET_URL_BASE,
           },
+          googleSso: {
+            enabled: e.GOOGLE_SSO_ENABLED,
+            clientId: e.GOOGLE_CLIENT_ID,
+            clientSecret: e.GOOGLE_CLIENT_SECRET,
+            redirectUri: e.GOOGLE_REDIRECT_URI,
+            hostedDomain: e.GOOGLE_SSO_HOSTED_DOMAIN,
+            defaultReturnUrl: e.GOOGLE_SSO_DEFAULT_RETURN_URL,
+            stateTtlSeconds: e.GOOGLE_SSO_STATE_TTL_SECONDS,
+          },
           jwt: {
             secret: e.JWT_SECRET,
             expiresIn: e.JWT_EXPIRES_IN,

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const optionalBoolean = z.preprocess((value) => {
+const coerceBoolean = (value: unknown): unknown => {
   if (value === undefined || typeof value === 'boolean') {
     return value;
   }
@@ -14,7 +14,11 @@ const optionalBoolean = z.preprocess((value) => {
   }
 
   return value;
-}, z.boolean().optional());
+};
+
+const optionalBoolean = z.preprocess(coerceBoolean, z.boolean().optional());
+
+const booleanDefaultFalse = z.preprocess(coerceBoolean, z.boolean().default(false));
 
 export const JWT_SECRET_MIN_LENGTH = 43;
 export const JWT_SECRET_FIELDS = ['JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
@@ -74,6 +78,13 @@ export const envSchema = z
     PASSWORD_SALT_ROUNDS: z.coerce.number().default(10),
     PASSWORD_RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(1800),
     PASSWORD_RESET_URL_BASE: z.string().optional().default(''),
+    GOOGLE_SSO_ENABLED: booleanDefaultFalse,
+    GOOGLE_CLIENT_ID: z.string().optional().default(''),
+    GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
+    GOOGLE_REDIRECT_URI: z.string().optional().default(''),
+    GOOGLE_SSO_HOSTED_DOMAIN: z.string().optional().default(''),
+    GOOGLE_SSO_DEFAULT_RETURN_URL: z.string().optional().default(''),
+    GOOGLE_SSO_STATE_TTL_SECONDS: z.coerce.number().int().positive().default(600),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     AUTH_SESSION_COOKIE_NAME: z.string().min(1).default('sid'),
     AUTH_SESSION_COOKIE_PATH: z.string().min(1).default('/'),
@@ -130,6 +141,24 @@ export const envSchema = z
             code: 'custom',
             path: [field],
             message: `${field} is required when STORAGE_DRIVER=s3`,
+          });
+        }
+      }
+    }
+
+    if (env.GOOGLE_SSO_ENABLED) {
+      const required = [
+        ['GOOGLE_CLIENT_ID', env.GOOGLE_CLIENT_ID],
+        ['GOOGLE_CLIENT_SECRET', env.GOOGLE_CLIENT_SECRET],
+        ['GOOGLE_REDIRECT_URI', env.GOOGLE_REDIRECT_URI],
+      ] as const;
+
+      for (const [field, value] of required) {
+        if (!value.trim()) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [field],
+            message: `${field} is required when GOOGLE_SSO_ENABLED=true`,
           });
         }
       }

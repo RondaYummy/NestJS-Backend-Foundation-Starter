@@ -7,6 +7,7 @@ import {
   ConflictError,
   InvalidAuthRequestError,
   NotFoundError,
+  ServiceUnavailableError,
   ValidationError,
 } from '@domain/errors/domain-errors';
 import { AppLogger } from '../logger/app-logger.service';
@@ -46,6 +47,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     if (error instanceof BusinessError) {
       return HttpStatus.UNPROCESSABLE_ENTITY;
+    }
+
+    if (error instanceof ServiceUnavailableError) {
+      return HttpStatus.SERVICE_UNAVAILABLE;
     }
 
     if (error instanceof HttpException) {

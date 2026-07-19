@@ -1615,9 +1615,12 @@ libs/application/src/use-cases/auth/get-current-user.usecase.ts
 libs/application/src/use-cases/auth/change-password.usecase.ts
 libs/application/src/use-cases/auth/forgot-password.usecase.ts
 libs/application/src/use-cases/auth/reset-password.usecase.ts
+libs/application/src/use-cases/auth/complete-google-sign-in.usecase.ts
 ```
 
 HTTP-поверхня Auth (`/v1/auth/...`): `register`, `login`, `logout`, `refresh`, `me`, а також `change-password` (авторизована зміна пароля з re-issue auth), `forgot-password` і `reset-password` (email-відновлення з одноразовим токеном; TTL за `PASSWORD_RESET_TOKEN_TTL_SECONDS`, доставка листа — через Worker + `MAIL_DRIVER=smtp`, опційне посилання — `PASSWORD_RESET_URL_BASE`). Див. `EXAMPLES.md` §5.2.
+
+Опційний Google SSO (`GOOGLE_SSO_ENABLED`, за замовчуванням вимкнено): `GET /v1/auth/google` (302 на Google) і `GET /v1/auth/google/callback` (ті самі auth-артефакти, що й login, для активного `AUTH_DRIVER`). Вимкнений модуль повертає `503 GOOGLE_SSO_DISABLED` без звернень до Google; при увімкненні `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`/`GOOGLE_REDIRECT_URI` обов'язкові (fail-fast). Ідентичність: Google `sub` → auto-link за verified email → створення Google-only користувача з `password_hash = NULL`. Див. `EXAMPLES.md` §5.3.
 
 Приклад flow для `RegisterUseCase`:
 
@@ -2583,6 +2586,15 @@ PASSWORD_SALT_ROUNDS=10
 # Password reset (forgot-password): TTL одноразового токена та опційна база URL для листа
 PASSWORD_RESET_TOKEN_TTL_SECONDS=1800
 PASSWORD_RESET_URL_BASE=
+
+# Google SSO (опційно; при true обов'язкові GOOGLE_CLIENT_ID/SECRET/REDIRECT_URI)
+GOOGLE_SSO_ENABLED=false
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=
+GOOGLE_SSO_HOSTED_DOMAIN=
+GOOGLE_SSO_DEFAULT_RETURN_URL=
+GOOGLE_SSO_STATE_TTL_SECONDS=600
 
 RATE_LIMIT_TTL=60
 RATE_LIMIT_MAX=100

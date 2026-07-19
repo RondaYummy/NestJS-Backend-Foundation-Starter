@@ -6,6 +6,7 @@ import { LogoutUseCase } from '@application/use-cases/auth/logout.usecase';
 import { RefreshAuthSessionUseCase } from '@application/use-cases/auth/refresh-auth-session.usecase';
 import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-user.usecase';
 import { ChangePasswordUseCase } from '@application/use-cases/auth/change-password.usecase';
+import { CompleteGoogleSignInUseCase } from '@application/use-cases/auth/complete-google-sign-in.usecase';
 import { ForgotPasswordUseCase } from '@application/use-cases/auth/forgot-password.usecase';
 import { ResetPasswordUseCase } from '@application/use-cases/auth/reset-password.usecase';
 
@@ -20,16 +21,21 @@ import { TOKENS } from '@contracts/tokens';
 import type { ITransactionManager } from '@contracts/transactions/transaction-manager';
 
 import { AuthModule } from '@infrastructure/auth/auth.module';
+import { GoogleSsoModule } from '@infrastructure/auth/google-sso.module';
 import { RedisPasswordResetTokenStore } from '@infrastructure/auth/redis-password-reset-token-store.service';
 import { InfrastructureConfigModule } from '@infrastructure/config/infrastructure-config.module';
 import { AppConfigService } from '@infrastructure/config/app-config.service';
-import { mapAppConfigToAuthOptions } from '@infrastructure/config/create-starter-kit-module-options';
+import {
+  mapAppConfigToAuthOptions,
+  mapAppConfigToGoogleSsoOptions,
+} from '@infrastructure/config/create-starter-kit-module-options';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { OutboxWriterModule } from '@infrastructure/outbox/outbox-writer.module';
 import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
 import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
 
+import { GoogleSsoFlowService } from '../auth/google-sso-flow.service';
 import { SessionCookieService } from '../auth/session-cookie.service';
 
 type AuthApplicationCompositionModuleRegisterOptions = {
@@ -90,6 +96,14 @@ export class AuthApplicationCompositionModule {
       },
     });
 
+    // Optional Google SSO (TASK-004): disabled by default; the module then
+    // registers refusing stubs and the controller short-circuits with 503.
+    const googleSsoModule = GoogleSsoModule.forRootAsync({
+      imports: [InfrastructureConfigModule, redisModule],
+      inject: [AppConfigService],
+      useFactory: (config: AppConfigService) => mapAppConfigToGoogleSsoOptions(config),
+    });
+
     return {
       module: AuthApplicationCompositionModule,
       imports: [
@@ -100,12 +114,14 @@ export class AuthApplicationCompositionModule {
         drizzleModule,
         options.queuesModule,
         authModule,
+        googleSsoModule,
         repositoriesModule,
         TransactionsModule.register({ imports: [drizzleModule] }),
         OutboxWriterModule.register({ imports: [drizzleModule] }),
       ],
       providers: [
         SessionCookieService,
+        GoogleSsoFlowService,
         {
           provide: RegisterUseCase,
           inject: [
@@ -185,6 +201,22 @@ export class AuthApplicationCompositionModule {
             ),
         },
         {
+          provide: CompleteGoogleSignInUseCase,
+          inject: [
+            TOKENS.UserRepository,
+            TOKENS.AuthTokenService,
+            TOKENS.TransactionManager,
+            TOKENS.OutboxWriter,
+          ],
+          useFactory: (
+            users: IUserRepository,
+            authTokens: IAuthTokenService,
+            transactionManager: ITransactionManager,
+            outboxWriter: IOutboxWriter,
+          ) =>
+            new CompleteGoogleSignInUseCase(users, authTokens, transactionManager, outboxWriter),
+        },
+        {
           provide: ResetPasswordUseCase,
           inject: [
             TOKENS.PasswordResetTokenStore,
@@ -202,7 +234,9 @@ export class AuthApplicationCompositionModule {
       ],
       exports: [
         authModule,
+        googleSsoModule,
         SessionCookieService,
+        GoogleSsoFlowService,
         RegisterUseCase,
         LoginUseCase,
         LogoutUseCase,
@@ -211,6 +245,7 @@ export class AuthApplicationCompositionModule {
         ChangePasswordUseCase,
         ForgotPasswordUseCase,
         ResetPasswordUseCase,
+        CompleteGoogleSignInUseCase,
       ],
     };
   }

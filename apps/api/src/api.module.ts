@@ -23,6 +23,7 @@ import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 
 import { AuthController } from './controllers/auth.controller';
+import { GoogleAuthController } from './controllers/google-auth.controller';
 import { AuthApplicationCompositionModule } from './composition/auth-application.module';
 
 const redisModule = RedisModule.forRootAsync({
@@ -76,7 +77,7 @@ const healthModule = HealthModule.registerAsync({
     }),
     RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, GoogleAuthController],
   providers: [
     RateLimiterGuard,
     {

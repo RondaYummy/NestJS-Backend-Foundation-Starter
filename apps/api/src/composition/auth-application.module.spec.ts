@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 
 import { ChangePasswordUseCase } from '@application/use-cases/auth/change-password.usecase';
+import { CompleteGoogleSignInUseCase } from '@application/use-cases/auth/complete-google-sign-in.usecase';
 import { ForgotPasswordUseCase } from '@application/use-cases/auth/forgot-password.usecase';
 import { ResetPasswordUseCase } from '@application/use-cases/auth/reset-password.usecase';
 import { TOKENS } from '@contracts/tokens';
@@ -105,6 +106,12 @@ describe('AuthApplicationCompositionModule', () => {
       expect(moduleRef.get(ChangePasswordUseCase)).toBeDefined();
       expect(moduleRef.get(ForgotPasswordUseCase)).toBeDefined();
       expect(moduleRef.get(ResetPasswordUseCase)).toBeDefined();
+
+      // TASK-004 / AC-01: with Google SSO disabled (default env — no Google
+      // vars), the composition still boots and registers the Google ports.
+      expect(moduleRef.get(CompleteGoogleSignInUseCase)).toBeDefined();
+      expect(moduleRef.get(TOKENS.GoogleIdentityService)).toBeDefined();
+      expect(moduleRef.get(TOKENS.GoogleOAuthStateStore)).toBeDefined();
 
       await moduleRef.close();
     });

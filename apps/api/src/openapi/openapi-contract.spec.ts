@@ -6,12 +6,13 @@ import { SwaggerModule } from '@nestjs/swagger';
 import request from 'supertest';
 
 import { AuthController } from '../controllers/auth.controller';
+import { GoogleAuthController } from '../controllers/google-auth.controller';
 import { HealthController } from '@infrastructure/health/health.controller';
 import { API_DOCS_PATH, createOpenApiDocument } from './create-openapi-document';
 
 async function createTestApp(init = true): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
-    controllers: [AuthController, HealthController],
+    controllers: [AuthController, GoogleAuthController, HealthController],
   })
     .useMocker(() => ({}))
     .compile();
@@ -44,6 +45,8 @@ describe('OpenAPI contract', () => {
         ['post', '/v1/auth/change-password'],
         ['post', '/v1/auth/forgot-password'],
         ['post', '/v1/auth/reset-password'],
+        ['get', '/v1/auth/google'],
+        ['get', '/v1/auth/google/callback'],
         ['get', '/health'],
         ['get', '/health/live'],
         ['get', '/health/ready'],
@@ -55,9 +58,10 @@ describe('OpenAPI contract', () => {
         expect(operation).toBeDefined();
         expect(operation?.summary).toEqual(expect.any(String));
         expect(operation?.description).toEqual(expect.any(String));
+        // TASK-004: redirect-flow endpoints (Google SSO start) succeed with 3xx.
         expect(Object.keys(operation?.responses ?? {})).toEqual(
           expect.arrayContaining([
-            expect.stringMatching(/^2\d\d$/),
+            expect.stringMatching(/^[23]\d\d$/),
             expect.stringMatching(/^[45]\d\d$/),
           ]),
         );
@@ -82,6 +86,44 @@ describe('OpenAPI contract', () => {
       // TASK-003: forgot/reset are public.
       expect(document.paths['/v1/auth/forgot-password']?.post?.security).toBeUndefined();
       expect(document.paths['/v1/auth/reset-password']?.post?.security).toBeUndefined();
+
+      // TASK-004: Google SSO start/callback are public redirect-flow endpoints.
+      expect(document.paths['/v1/auth/google']?.get?.security).toBeUndefined();
+      expect(document.paths['/v1/auth/google/callback']?.get?.security).toBeUndefined();
+
+      // TASK-004: start documents the 302 to Google and the disabled 503.
+      const googleStart = document.paths['/v1/auth/google']?.get;
+      expect(googleStart?.responses?.['302']).toBeDefined();
+      expect(googleStart?.responses?.['503']).toBeDefined();
+
+      // TASK-004: callback succeeds with the login-equivalent JSON envelope
+      // and documents the session-driver 302 and the disabled 503.
+      const googleCallback = document.paths['/v1/auth/google/callback']?.get;
+      expect(googleCallback?.responses?.['200']).toEqual(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            'application/json': expect.objectContaining({
+              schema: { $ref: '#/components/schemas/LoginResponseDto' },
+            }),
+          }),
+        }),
+      );
+      expect(googleCallback?.responses?.['302']).toBeDefined();
+      expect(googleCallback?.responses?.['401']).toBeDefined();
+      expect(googleCallback?.responses?.['503']).toBeDefined();
+
+      // TASK-004: query parameters are documented for both Google routes.
+      expect(googleStart?.parameters).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'returnUrl', in: 'query', required: false }),
+        ]),
+      );
+      expect(googleCallback?.parameters).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ name: 'code', in: 'query' }),
+          expect.objectContaining({ name: 'state', in: 'query' }),
+        ]),
+      );
 
       expect(document.components?.schemas).toEqual(
         expect.objectContaining({

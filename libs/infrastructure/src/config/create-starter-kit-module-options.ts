@@ -1,5 +1,6 @@
 import type { AppConfigService } from './app-config.service';
 import type { AuthModuleOptions } from '../auth/auth.module-options';
+import type { GoogleSsoModuleOptions } from '../auth/google-sso.module-options';
 import type { BullMqModuleOptions } from '../bullmq/bullmq.module-options';
 import type { DrizzleModuleOptions } from '../database/drizzle/drizzle.module-options';
 import type { MailModuleOptions } from '../mail/mail.module-options';
@@ -57,6 +58,24 @@ export function mapAppConfigToAuthOptions(config: AppConfigService): AuthModuleO
     driver: 'jwt',
     passwordSaltRounds: auth.passwordSaltRounds,
     jwt: config.jwt(),
+  };
+}
+
+export function mapAppConfigToGoogleSsoOptions(config: AppConfigService): GoogleSsoModuleOptions {
+  const googleSso = config.googleSso();
+
+  if (!googleSso.enabled) {
+    return { enabled: false };
+  }
+
+  return {
+    enabled: true,
+    clientId: googleSso.clientId,
+    clientSecret: googleSso.clientSecret,
+    redirectUri: googleSso.redirectUri,
+    hostedDomain: googleSso.hostedDomain || undefined,
+    defaultReturnUrl: googleSso.defaultReturnUrl || undefined,
+    stateTtlSeconds: googleSso.stateTtlSeconds,
   };
 }
 

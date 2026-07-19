@@ -23,6 +23,12 @@ export class ChangePasswordUseCase {
       throw new NotFoundError('USER_NOT_FOUND', 'User not found', { userId: input.userId });
     }
 
+    // Google-only accounts have no current password to verify; reset-password
+    // is the supported path to set an initial local password (TASK-004).
+    if (user.passwordHash === null) {
+      throw new ValidationError('PASSWORD_NOT_SET', 'No local password is set for this account');
+    }
+
     const currentPasswordValid = await this.passwordHasher.compare(
       input.currentPassword,
       user.passwordHash,

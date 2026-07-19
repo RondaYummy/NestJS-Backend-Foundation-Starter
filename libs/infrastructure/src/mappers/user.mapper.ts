@@ -5,7 +5,8 @@ export class UserMapper {
   static toDomain(row: {
     id: string;
     email: string;
-    passwordHash: string;
+    passwordHash: string | null;
+    googleSub: string | null;
     roles: string[];
     authVersion: number;
     createdAt: Date;
@@ -15,6 +16,7 @@ export class UserMapper {
       id: row.id,
       email: Email.create(row.email),
       passwordHash: row.passwordHash,
+      googleSub: row.googleSub,
       roles: row.roles,
       authVersion: row.authVersion,
       createdAt: row.createdAt,
@@ -27,6 +29,7 @@ export class UserMapper {
       id: user.id,
       email: user.email.toString(),
       passwordHash: user.passwordHash,
+      googleSub: user.googleSub,
       roles: user.roles,
       authVersion: user.authVersion,
       createdAt: user.createdAt,

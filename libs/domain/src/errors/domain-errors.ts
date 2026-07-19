@@ -37,3 +37,8 @@ export class InvalidAuthRequestError extends AppError {
     super(code, message);
   }
 }
+export class ServiceUnavailableError extends AppError {
+  constructor(code: string, message: string, details?: Record<string, unknown>) {
+    super(code, message, details);
+  }
+}

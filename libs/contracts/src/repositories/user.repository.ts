@@ -6,6 +6,11 @@ export interface IUserRepository {
 
   findByEmail(email: string, trx?: TransactionContext): Promise<User | null>;
 
+  /**
+   * Resolves a user by the durable Google OIDC subject (`sub`) association.
+   */
+  findByGoogleSub(googleSub: string, trx?: TransactionContext): Promise<User | null>;
+
   insert(user: User, trx?: TransactionContext): Promise<void>;
 
   update(user: User, trx?: TransactionContext): Promise<void>;

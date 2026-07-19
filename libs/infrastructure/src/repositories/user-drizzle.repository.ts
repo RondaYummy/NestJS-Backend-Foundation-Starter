@@ -38,6 +38,14 @@ export class UserDrizzleRepository implements IUserRepository {
     return row ? UserMapper.toDomain(row) : null;
   }
 
+  async findByGoogleSub(googleSub: string, trx?: TransactionContext): Promise<User | null> {
+    const db = this.resolveDb(trx);
+
+    const [row] = await db.select().from(users).where(eq(users.googleSub, googleSub)).limit(1);
+
+    return row ? UserMapper.toDomain(row) : null;
+  }
+
   async insert(user: User, trx?: TransactionContext): Promise<void> {
     const db = this.resolveDb(trx);
     const data = UserMapper.toPersistence(user);
@@ -45,8 +53,8 @@ export class UserDrizzleRepository implements IUserRepository {
     try {
       await db.insert(users).values(data);
     } catch (error) {
-      if (isUniqueEmailViolation(error)) {
-        throw new DuplicateRecordError('users_email_unique');
+      if (isUniqueViolation(error)) {
+        throw new DuplicateRecordError(getViolatedConstraint(error) ?? 'users_email_unique');
       }
 
       throw error;
@@ -57,22 +65,32 @@ export class UserDrizzleRepository implements IUserRepository {
     const db = this.resolveDb(trx);
     const data = UserMapper.toPersistence(user);
 
-    const updated = await db
-      .update(users)
-      .set({
-        email: data.email,
-        passwordHash: data.passwordHash,
-        roles: data.roles,
-        authVersion: data.authVersion,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, data.id))
-      .returning({
-        id: users.id,
-      });
+    try {
+      const updated = await db
+        .update(users)
+        .set({
+          email: data.email,
+          passwordHash: data.passwordHash,
+          googleSub: data.googleSub,
+          roles: data.roles,
+          authVersion: data.authVersion,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, data.id))
+        .returning({
+          id: users.id,
+        });
 
-    if (updated.length === 0) {
-      throw new RepositoryRecordNotFoundError('users', data.id);
+      if (updated.length === 0) {
+        throw new RepositoryRecordNotFoundError('users', data.id);
+      }
+    } catch (error) {
+      // Concurrent Google-link race: another row already owns this google_sub.
+      if (isUniqueViolation(error)) {
+        throw new DuplicateRecordError(getViolatedConstraint(error));
+      }
+
+      throw error;
     }
   }
 
@@ -100,11 +118,21 @@ export class UserDrizzleRepository implements IUserRepository {
   }
 }
 
-function isUniqueEmailViolation(error: unknown): boolean {
+function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
     (error as { code: string }).code === '23505'
   );
+}
+
+function getViolatedConstraint(error: unknown): string | undefined {
+  if (typeof error === 'object' && error !== null && 'constraint' in error) {
+    const constraint = (error as { constraint?: unknown }).constraint;
+
+    return typeof constraint === 'string' ? constraint : undefined;
+  }
+
+  return undefined;
 }

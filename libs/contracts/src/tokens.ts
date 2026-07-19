@@ -4,6 +4,8 @@ export const TOKENS = {
   PasswordHasher: Symbol('IPasswordHasher'),
   SessionStore: Symbol('ISessionStore'),
   PasswordResetTokenStore: Symbol('IPasswordResetTokenStore'),
+  GoogleIdentityService: Symbol('IGoogleIdentityService'),
+  GoogleOAuthStateStore: Symbol('IGoogleOAuthStateStore'),
   JwtTokenStore: Symbol('IJwtTokenStore'),
   CacheGateway: Symbol('ICacheGateway'),
   QueueGateway: Symbol('IQueueGateway'),

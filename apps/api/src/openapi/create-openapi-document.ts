@@ -15,6 +15,10 @@ import {
 } from '../dto/auth/auth-response.dto';
 import { ChangePasswordDto } from '../dto/auth/change-password.dto';
 import { ForgotPasswordDto } from '../dto/auth/forgot-password.dto';
+import {
+  GoogleSsoCallbackQueryDto,
+  GoogleSsoStartQueryDto,
+} from '../dto/auth/google-sso-query.dto';
 import { ResetPasswordDto } from '../dto/auth/reset-password.dto';
 import { ErrorDto, ErrorEnvelopeDto } from '../dto/common/error-envelope.dto';
 import {
@@ -33,7 +37,7 @@ export function createOpenApiDocument(
   const config = new DocumentBuilder()
     .setTitle('NestJS Backend Foundation API')
     .setDescription(
-      'Canonical HTTP contract for the starter kit. Business routes are URI-versioned under /v1; health endpoints stay version-neutral. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER.',
+      'Canonical HTTP contract for the starter kit. Business routes are URI-versioned under /v1; health endpoints stay version-neutral. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER. Optional Google SSO (GOOGLE_SSO_ENABLED) adds GET /v1/auth/google and GET /v1/auth/google/callback; while disabled these routes stay documented and return 503 with code GOOGLE_SSO_DISABLED.',
     )
     .setVersion('1.0.0')
     .addBearerAuth(
@@ -73,6 +77,8 @@ export function createOpenApiDocument(
       ForgotPasswordDto,
       ResetPasswordDto,
       ForgotPasswordResponseDto,
+      GoogleSsoStartQueryDto,
+      GoogleSsoCallbackQueryDto,
       HealthServicesDto,
       HealthResponseDto,
       LivenessResponseDto,
