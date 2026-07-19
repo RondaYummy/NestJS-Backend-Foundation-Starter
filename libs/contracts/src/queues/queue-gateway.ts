@@ -35,6 +35,7 @@ export interface IQueueGateway {
 export interface QueueJobRegistry {
   email: {
     'send-welcome-email': EmailJobPayload;
+    'send-password-reset-email': EmailJobPayload;
   };
 
   outbox: {

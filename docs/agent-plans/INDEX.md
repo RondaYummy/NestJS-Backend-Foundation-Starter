@@ -5,6 +5,7 @@ This index lists implementation plans under `docs/agent-plans/`.
 | ID       | Title                                              | Status   | Plan                                              |
 | -------- | -------------------------------------------------- | -------- | ------------------------------------------------- |
 | TASK-002 | API URI versioning (`/v1`, health version-neutral) | proposed | `docs/agent-plans/TASK-002-api-uri-versioning.md` |
+| TASK-003 | Password change and email reset | proposed | `docs/agent-plans/TASK-003-change-password.md` |
 
 ## Rules
 

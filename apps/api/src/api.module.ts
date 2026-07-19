@@ -43,9 +43,14 @@ const bullMqConnectionModule = InfrastructureBullMqModule.forRootAsync({
   useFactory: (config: AppConfigService) => mapAppConfigToBullMqOptions(config),
 });
 
-const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues([QUEUES.OUTBOX], {
-  imports: [bullMqConnectionModule],
-});
+// OUTBOX for domain-event relay; EMAIL so the API can enqueue password-reset
+// emails processed by the Worker (TASK-003).
+const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(
+  [QUEUES.OUTBOX, QUEUES.EMAIL],
+  {
+    imports: [bullMqConnectionModule],
+  },
+);
 
 const healthModule = HealthModule.registerAsync({
   imports: [InfrastructureConfigModule, redisModule, drizzleModule, bullMqQueuesModule],
@@ -64,7 +69,11 @@ const healthModule = HealthModule.registerAsync({
     bullMqQueuesModule,
     IdempotencyModule.register({ imports: [redisModule] }),
     healthModule,
-    AuthApplicationCompositionModule.register({ redisModule, drizzleModule }),
+    AuthApplicationCompositionModule.register({
+      redisModule,
+      drizzleModule,
+      queuesModule: bullMqQueuesModule,
+    }),
     RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
   ],
   controllers: [AuthController],

@@ -72,6 +72,8 @@ export const envSchema = z
     JWT_REFRESH_SECRET: z.string().min(1),
     JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
     PASSWORD_SALT_ROUNDS: z.coerce.number().default(10),
+    PASSWORD_RESET_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(1800),
+    PASSWORD_RESET_URL_BASE: z.string().optional().default(''),
     CORS_ORIGINS: z.string().default('http://localhost:3000'),
     AUTH_SESSION_COOKIE_NAME: z.string().min(1).default('sid'),
     AUTH_SESSION_COOKIE_PATH: z.string().min(1).default('/'),

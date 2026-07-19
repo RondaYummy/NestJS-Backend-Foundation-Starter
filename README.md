@@ -1612,7 +1612,12 @@ libs/application/src/use-cases/auth/login.usecase.ts
 libs/application/src/use-cases/auth/logout.usecase.ts
 libs/application/src/use-cases/auth/refresh-auth-session.usecase.ts
 libs/application/src/use-cases/auth/get-current-user.usecase.ts
+libs/application/src/use-cases/auth/change-password.usecase.ts
+libs/application/src/use-cases/auth/forgot-password.usecase.ts
+libs/application/src/use-cases/auth/reset-password.usecase.ts
 ```
+
+HTTP-поверхня Auth (`/v1/auth/...`): `register`, `login`, `logout`, `refresh`, `me`, а також `change-password` (авторизована зміна пароля з re-issue auth), `forgot-password` і `reset-password` (email-відновлення з одноразовим токеном; TTL за `PASSWORD_RESET_TOKEN_TTL_SECONDS`, доставка листа — через Worker + `MAIL_DRIVER=smtp`, опційне посилання — `PASSWORD_RESET_URL_BASE`). Див. `EXAMPLES.md` §5.2.
 
 Приклад flow для `RegisterUseCase`:
 
@@ -2574,6 +2579,10 @@ JWT_REFRESH_SECRET=dev-refresh-secret-change-me
 JWT_REFRESH_EXPIRES_IN=7d
 
 PASSWORD_SALT_ROUNDS=10
+
+# Password reset (forgot-password): TTL одноразового токена та опційна база URL для листа
+PASSWORD_RESET_TOKEN_TTL_SECONDS=1800
+PASSWORD_RESET_URL_BASE=
 
 RATE_LIMIT_TTL=60
 RATE_LIMIT_MAX=100

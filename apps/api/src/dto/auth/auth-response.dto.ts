@@ -88,3 +88,12 @@ export class LogoutResponseDto {
   @ApiProperty({ example: true })
   success!: true;
 }
+
+export class ForgotPasswordResponseDto {
+  @ApiProperty({
+    example: true,
+    description:
+      'Always true. The response never reveals whether the email belongs to an account.',
+  })
+  success!: true;
+}

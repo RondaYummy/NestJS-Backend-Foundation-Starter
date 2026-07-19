@@ -1,8 +1,12 @@
 /// <reference types="jest" />
 
+import { Module, type DynamicModule } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
 
+import { ChangePasswordUseCase } from '@application/use-cases/auth/change-password.usecase';
+import { ForgotPasswordUseCase } from '@application/use-cases/auth/forgot-password.usecase';
+import { ResetPasswordUseCase } from '@application/use-cases/auth/reset-password.usecase';
 import { TOKENS } from '@contracts/tokens';
 
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
@@ -53,6 +57,22 @@ function withTestEnv<T>(run: () => Promise<T>): Promise<T> {
   });
 }
 
+@Module({})
+class FakeQueuesModule {}
+
+function createFakeQueuesModule(): DynamicModule {
+  return {
+    module: FakeQueuesModule,
+    providers: [
+      {
+        provide: TOKENS.QueueGateway,
+        useValue: { add: jest.fn().mockResolvedValue('job-1'), addBulk: jest.fn() },
+      },
+    ],
+    exports: [TOKENS.QueueGateway],
+  };
+}
+
 describe('AuthApplicationCompositionModule', () => {
   it('resolves Auth/JWT providers including TOKENS.UserRepository', async () => {
     await withTestEnv(async () => {
@@ -68,6 +88,7 @@ describe('AuthApplicationCompositionModule', () => {
       const compositionModule = AuthApplicationCompositionModule.register({
         redisModule,
         drizzleModule,
+        queuesModule: createFakeQueuesModule(),
       });
 
       const moduleRef = await Test.createTestingModule({
@@ -80,6 +101,10 @@ describe('AuthApplicationCompositionModule', () => {
       expect(moduleRef.get(JwtService)).toBeDefined();
       expect(moduleRef.get(TOKENS.UserRepository)).toBeDefined();
       expect(moduleRef.get(TOKENS.AuthTokenService)).toBeDefined();
+      expect(moduleRef.get(TOKENS.PasswordResetTokenStore)).toBeDefined();
+      expect(moduleRef.get(ChangePasswordUseCase)).toBeDefined();
+      expect(moduleRef.get(ForgotPasswordUseCase)).toBeDefined();
+      expect(moduleRef.get(ResetPasswordUseCase)).toBeDefined();
 
       await moduleRef.close();
     });

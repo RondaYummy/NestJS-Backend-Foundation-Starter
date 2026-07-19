@@ -41,6 +41,9 @@ describe('OpenAPI contract', () => {
         ['post', '/v1/auth/logout'],
         ['post', '/v1/auth/refresh'],
         ['get', '/v1/auth/me'],
+        ['post', '/v1/auth/change-password'],
+        ['post', '/v1/auth/forgot-password'],
+        ['post', '/v1/auth/reset-password'],
         ['get', '/health'],
         ['get', '/health/live'],
         ['get', '/health/ready'],
@@ -71,6 +74,15 @@ describe('OpenAPI contract', () => {
         expect.arrayContaining([{ bearerAuth: [] }, { sessionCookie: [] }]),
       );
 
+      // TASK-003: change-password requires Bearer or session-cookie auth.
+      expect(document.paths['/v1/auth/change-password']?.post?.security).toEqual(
+        expect.arrayContaining([{ bearerAuth: [] }, { sessionCookie: [] }]),
+      );
+
+      // TASK-003: forgot/reset are public.
+      expect(document.paths['/v1/auth/forgot-password']?.post?.security).toBeUndefined();
+      expect(document.paths['/v1/auth/reset-password']?.post?.security).toBeUndefined();
+
       expect(document.components?.schemas).toEqual(
         expect.objectContaining({
           ErrorEnvelopeDto: expect.any(Object),
@@ -83,6 +95,10 @@ describe('OpenAPI contract', () => {
           RefreshResponseDto: expect.any(Object),
           CurrentUserResponseDto: expect.any(Object),
           LogoutResponseDto: expect.any(Object),
+          ChangePasswordDto: expect.any(Object),
+          ForgotPasswordDto: expect.any(Object),
+          ResetPasswordDto: expect.any(Object),
+          ForgotPasswordResponseDto: expect.any(Object),
           HealthResponseDto: expect.any(Object),
           LivenessResponseDto: expect.any(Object),
         }),
@@ -102,6 +118,48 @@ describe('OpenAPI contract', () => {
           content: expect.objectContaining({
             'application/json': expect.objectContaining({
               schema: { $ref: '#/components/schemas/LoginResponseDto' },
+            }),
+          }),
+        }),
+      );
+
+      // TASK-003: request bodies reference the typed DTO schemas.
+      const passwordRouteBodies = [
+        ['/v1/auth/change-password', 'ChangePasswordDto'],
+        ['/v1/auth/forgot-password', 'ForgotPasswordDto'],
+        ['/v1/auth/reset-password', 'ResetPasswordDto'],
+      ] as const;
+
+      for (const [path, schemaName] of passwordRouteBodies) {
+        expect(document.paths[path]?.post?.requestBody).toEqual(
+          expect.objectContaining({
+            content: expect.objectContaining({
+              'application/json': expect.objectContaining({
+                schema: { $ref: `#/components/schemas/${schemaName}` },
+              }),
+            }),
+          }),
+        );
+      }
+
+      // TASK-003: change/reset succeed with 200 and the login-equivalent envelope.
+      for (const path of ['/v1/auth/change-password', '/v1/auth/reset-password'] as const) {
+        expect(document.paths[path]?.post?.responses?.['200']).toEqual(
+          expect.objectContaining({
+            content: expect.objectContaining({
+              'application/json': expect.objectContaining({
+                schema: { $ref: '#/components/schemas/LoginResponseDto' },
+              }),
+            }),
+          }),
+        );
+      }
+
+      expect(document.paths['/v1/auth/forgot-password']?.post?.responses?.['200']).toEqual(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            'application/json': expect.objectContaining({
+              schema: { $ref: '#/components/schemas/ForgotPasswordResponseDto' },
             }),
           }),
         }),

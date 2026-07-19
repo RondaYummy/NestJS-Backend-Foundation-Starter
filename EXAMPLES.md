@@ -390,6 +390,55 @@ curl -X POST http://localhost:3000/v1/auth/logout \
 
 Refresh-token family все одно буде відкликана.
 
+## 5.2. Зміна та відновлення пароля
+
+### Change password (авторизований користувач)
+
+```bash
+curl -X POST http://localhost:3000/v1/auth/change-password \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "currentPassword": "OldPassword123!",
+    "newPassword": "NewStrongPassword123!"
+  }'
+```
+
+Успіх — `200` з login-подібною відповіддю (`data.user` + `data.auth`): `authVersion` збільшується, усі попередні JWT/session креденшли стають недійсними, а клієнт одразу отримує свіжі. У режимі `AUTH_DRIVER=session` сервер також встановлює новий cookie `sid`.
+
+Помилки: `400 INVALID_CURRENT_PASSWORD` (невірний поточний пароль), `400 SAME_PASSWORD` (новий пароль збігається з поточним), `401` без авторизації.
+
+### Forgot password (запит на reset)
+
+```bash
+curl -X POST http://localhost:3000/v1/auth/forgot-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "user@example.com"
+  }'
+```
+
+Відповідь завжди `200 { "success": true }` — незалежно від того, чи існує акаунт (захист від enumeration). Якщо акаунт існує, у Redis зберігається **hash** одноразового токена (TTL за `PASSWORD_RESET_TOKEN_TTL_SECONDS`, за замовчуванням 30 хвилин), а лист із токеном ставиться в чергу `QUEUES.EMAIL`.
+
+Доставка листа вимагає:
+
+- запущеного **Worker** (він обробляє чергу email);
+- `MAIL_DRIVER=smtp` + `SMTP_*` для реальної відправки (`null` — лист не відправляється);
+- опційно `PASSWORD_RESET_URL_BASE` — тоді лист містить посилання `${PASSWORD_RESET_URL_BASE}?token=<token>` разом із самим токеном.
+
+### Reset password (підтвердження токеном)
+
+```bash
+curl -X POST http://localhost:3000/v1/auth/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{
+    "token": "<token-з-листа>",
+    "newPassword": "NewStrongPassword123!"
+  }'
+```
+
+Успіх — `200` з login-подібною відповіддю та свіжими auth-артефактами (як change-password). Токен одноразовий: повторне використання, протермінований або невідомий токен повертає `400 INVALID_RESET_TOKEN` без зміни пароля.
+
 ## 6. Rate limit на endpoint
 
 ```ts
@@ -506,19 +555,17 @@ await this.domainEventRouter.route({
 4. `libs/infrastructure/src/mail/mail-template.registry.tsx` — `case` у `switch`.
 5. Use case — `template` + `data` у job.
 
-Структура листа (як у ваших проєктах):
+Наявні шаблони: `welcome` (welcome email після реєстрації) та `password-reset` (лист відновлення пароля, див. §5.2). Живий приклад структури листа — `libs/infrastructure/src/mail/templates/password-reset.email.tsx`:
 
 ```tsx
-import { Block, Layout, Paragraph, Signoff, Title } from '../components';
+import { Block, Layout, OtpCode, Paragraph, Signoff, Title } from '../components';
 
-export const PasswordResetEmail = ({ resetUrl }: { resetUrl: string }) => (
+export const PasswordResetEmail = ({ email, token, resetUrl, expiresInMinutes }: PasswordResetEmailProps) => (
   <Layout>
     <Block>
-      <Title>Reset password</Title>
+      <Title>Password reset</Title>
     </Block>
-    <Block>
-      <Paragraph>Open this link: {resetUrl}</Paragraph>
-    </Block>
+    {/* ... resetUrl link (коли PASSWORD_RESET_URL_BASE задано), OtpCode з токеном ... */}
     <Block disableMargin>
       <Signoff from="Support Team" />
     </Block>

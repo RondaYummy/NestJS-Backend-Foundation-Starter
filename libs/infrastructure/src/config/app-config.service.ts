@@ -41,6 +41,7 @@ type ConfigShape = {
     sessionCookieDomain?: string;
     sessionCookieSameSite: 'lax' | 'strict' | 'none';
   };
+  passwordReset: { tokenTtlSeconds: number; urlBase: string };
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
   logger: { level: string };
@@ -70,6 +71,10 @@ export class AppConfigService {
 
   auth(): ConfigShape['auth'] {
     return this.config.get('auth', { infer: true });
+  }
+
+  passwordReset(): ConfigShape['passwordReset'] {
+    return this.config.get('passwordReset', { infer: true });
   }
 
   rateLimit(): ConfigShape['rateLimit'] {

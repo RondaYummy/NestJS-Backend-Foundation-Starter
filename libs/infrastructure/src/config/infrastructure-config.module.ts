@@ -67,6 +67,10 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
 
             sessionCookieSameSite: e.AUTH_SESSION_COOKIE_SAME_SITE,
           },
+          passwordReset: {
+            tokenTtlSeconds: e.PASSWORD_RESET_TOKEN_TTL_SECONDS,
+            urlBase: e.PASSWORD_RESET_URL_BASE,
+          },
           jwt: {
             secret: e.JWT_SECRET,
             expiresIn: e.JWT_EXPIRES_IN,

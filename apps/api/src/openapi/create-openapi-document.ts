@@ -5,6 +5,7 @@ import {
   AuthTokensDto,
   AuthUserDto,
   CurrentUserResponseDto,
+  ForgotPasswordResponseDto,
   LoginDataDto,
   LoginResponseDto,
   LogoutResponseDto,
@@ -12,6 +13,9 @@ import {
   RegisterDataDto,
   RegisterResponseDto,
 } from '../dto/auth/auth-response.dto';
+import { ChangePasswordDto } from '../dto/auth/change-password.dto';
+import { ForgotPasswordDto } from '../dto/auth/forgot-password.dto';
+import { ResetPasswordDto } from '../dto/auth/reset-password.dto';
 import { ErrorDto, ErrorEnvelopeDto } from '../dto/common/error-envelope.dto';
 import {
   HealthResponseDto,
@@ -65,6 +69,10 @@ export function createOpenApiDocument(
       RefreshResponseDto,
       CurrentUserResponseDto,
       LogoutResponseDto,
+      ChangePasswordDto,
+      ForgotPasswordDto,
+      ResetPasswordDto,
+      ForgotPasswordResponseDto,
       HealthServicesDto,
       HealthResponseDto,
       LivenessResponseDto,

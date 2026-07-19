@@ -60,6 +60,20 @@ export class User {
     });
   }
 
+  /**
+   * Replaces the password hash and bumps `authVersion` in one atomic domain
+   * transition so outstanding JWT/session credentials become stale together
+   * with the credential change.
+   */
+  changePassword(passwordHash: string): User {
+    return User.restore({
+      ...this.props,
+      passwordHash,
+      authVersion: this.props.authVersion + 1,
+      updatedAt: new Date(),
+    });
+  }
+
   get createdAt(): Date {
     return this.props.createdAt;
   }
