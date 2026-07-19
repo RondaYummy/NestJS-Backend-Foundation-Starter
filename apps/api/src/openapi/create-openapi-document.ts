@@ -19,7 +19,7 @@ import {
   LivenessResponseDto,
 } from '@infrastructure/health/health-response.dto';
 
-export const API_DOCS_PATH = 'docs';
+export const API_DOCS_PATH = '/v1/docs';
 export const API_DOCS_JSON_PATH = 'docs-json';
 
 export function createOpenApiDocument(
