@@ -58,7 +58,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Register a user account',
     description:
-      'Creates an account but does not authenticate it. Call POST /auth/login afterwards to receive JWT tokens or a session cookie.',
+      'Creates an account but does not authenticate it. Call POST /v1/auth/login afterwards to receive JWT tokens or a session cookie.',
   })
   @ApiCreatedResponse({
     description: 'Account created. No auth tokens or session cookie are issued.',

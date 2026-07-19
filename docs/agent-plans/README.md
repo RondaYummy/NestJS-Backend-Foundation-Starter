@@ -2,6 +2,8 @@
 
 This directory contains one implementation plan per bugfix issue or new task.
 
+See the plan index: [INDEX.md](./INDEX.md).
+
 Naming convention:
 
 ```text

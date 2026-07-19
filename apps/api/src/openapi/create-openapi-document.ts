@@ -19,8 +19,8 @@ import {
   LivenessResponseDto,
 } from '@infrastructure/health/health-response.dto';
 
-export const API_DOCS_PATH = '/v1/docs';
-export const API_DOCS_JSON_PATH = 'docs-json';
+export const API_DOCS_PATH = 'v1/docs';
+export const API_DOCS_JSON_PATH = 'v1/docs-json';
 
 export function createOpenApiDocument(
   app: INestApplication,
@@ -29,7 +29,7 @@ export function createOpenApiDocument(
   const config = new DocumentBuilder()
     .setTitle('NestJS Backend Foundation API')
     .setDescription(
-      'Canonical HTTP contract for the starter kit. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER.',
+      'Canonical HTTP contract for the starter kit. Business routes are URI-versioned under /v1; health endpoints stay version-neutral. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER.',
     )
     .setVersion('1.0.0')
     .addBearerAuth(

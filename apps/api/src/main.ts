@@ -42,12 +42,22 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
+  application.setGlobalPrefix('v1', {
+    exclude: ['health', 'health/live', 'health/ready'],
+  });
+
   const config = application.get(AppConfigService);
   const logger = application.get(AppLogger);
 
   if (config.app().apiDocsEnabled) {
     const document = createOpenApiDocument(application, config.auth().sessionCookieName);
-    SwaggerModule.setup(API_DOCS_PATH, application, document);
+    SwaggerModule.setup(API_DOCS_PATH, application, document, {
+      customSiteTitle: 'NestJS Backend Foundation API',
+      customJsStr: `document.documentElement.classList.add('dark-mode');`,
+      customCss: `
+        .swagger-ui .topbar a { opacity: 0 !important; }
+        .swagger-ui .topbar .topbar-wrapper { justify-content: space-between !important; }`,
+    });
     logger.info('API documentation enabled', {
       swaggerUi: `/${API_DOCS_PATH}`,
       openApiJson: `/${API_DOCS_JSON_PATH}`,

@@ -194,8 +194,8 @@ API не повинен запускати worker processors або cron jobs.
 
 When API documentation is enabled, the API exposes:
 
-- Swagger UI: `http://localhost:3000/docs`;
-- OpenAPI JSON: `http://localhost:3000/docs-json`.
+- Swagger UI: `http://localhost:3000/v1/docs`;
+- OpenAPI JSON: `http://localhost:3000/v1/docs-json`.
 
 `API_DOCS_ENABLED` controls both routes. The default is `true` in `development` and `test`, and `false` in `production`; production requires an explicit `API_DOCS_ENABLED=true` opt-in. Startup logs state whether documentation is enabled and show only the route paths, never credentials.
 
@@ -1130,9 +1130,7 @@ libs/infrastructure/src/events/handlers/                — IDomainEventHandler 
 
 ```ts
 EventsModule.register({
-  imports: [
-    /* QueueModule, ... */
-  ],
+  imports: [/* QueueModule, ... */],
 });
 ```
 
@@ -1679,7 +1677,7 @@ async register(@Body() dto: RegisterDto) {
 
 # 7. Auth registration flow
 
-`POST /auth/register`
+`POST /v1/auth/register`
 
 Повний flow:
 
@@ -1696,7 +1694,7 @@ async register(@Body() dto: RegisterDto) {
 10. UserRegisteredEventHandler.handle() enqueue welcome email у BullMQ (QUEUES.EMAIL)
 11. Outbox row позначено processed
 12. EmailProcessor відправляє welcome email
-13. Client obtains auth via separate `POST /auth/login` (JWT tokens or session cookie depending on `AUTH_DRIVER`)
+13. Client obtains auth via separate `POST /v1/auth/login` (JWT tokens or session cookie depending on `AUTH_DRIVER`)
 ```
 
 ---
@@ -2203,7 +2201,7 @@ Refresh token є одноразовим.
 Після кожного успішного:
 
 ```http
-POST /auth/refresh
+POST /v1/auth/refresh
 ```
 
 сервер:
@@ -2229,7 +2227,7 @@ old refreshToken → new refreshToken
 
 При login створюється окрема refresh-token family (також при rotation через refresh).
 
-`POST /auth/register` **не** створює token family — після успішної реєстрації клієнт має викликати `POST /auth/login`, щоб отримати access/refresh tokens або session cookie.
+`POST /v1/auth/register` **не** створює token family — після успішної реєстрації клієнт має викликати `POST /v1/auth/login`, щоб отримати access/refresh tokens або session cookie.
 
 У межах однієї family активним є тільки останній refresh token.
 
@@ -2273,7 +2271,7 @@ Redis використовується для:
 Для повного logout рекомендовано передати:
 
 ```http
-POST /auth/logout
+POST /v1/auth/logout
 Authorization: Bearer <access-token>
 Content-Type: application/json
 ```
@@ -2323,7 +2321,7 @@ path=/
 | Driver      | Подія                          | Максимальна затримка після зміни ролей / bump `authVersion`                                                           |
 | ----------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | JWT access  | Role change / authVersion bump | **Негайно** при наступному запиті, коли composition root підключив `resolveAccessUser` (starter kit за замовчуванням) |
-| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /auth/refresh`                                                                       |
+| JWT refresh | Role change / authVersion bump | **Негайно** при наступному `POST /v1/auth/refresh`                                                                    |
 | Session     | Role change / authVersion bump | **Негайно** при наступному запиті з session cookie                                                                    |
 
 **Refresh path:** `RefreshAuthSessionUseCase` завантажує користувача з `IUserRepository`, відхиляє запит при `authVersion` mismatch і видає нові токени з актуальними `email` та `roles`.

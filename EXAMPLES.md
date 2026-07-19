@@ -128,7 +128,7 @@ import { UsersController } from './controllers/users.controller';
 
 У DTO додайте typed `@ApiProperty` / `@ApiPropertyOptional`, а в controller — operation, request, success/error responses, auth, headers і cookies. Згенерований контракт має точно відображати validation та фактичні response bodies.
 
-Перевірте endpoint у Swagger UI: `http://localhost:3000/docs`, а машинозчитуваний документ — у `http://localhost:3000/docs-json`. `API_DOCS_ENABLED` за замовчуванням увімкнений у development/test і вимкнений у production.
+Перевірте endpoint у Swagger UI: `http://localhost:3000/v1/docs`, а машинозчитуваний документ — у `http://localhost:3000/v1/docs-json`. `API_DOCS_ENABLED` за замовчуванням увімкнений у development/test і вимкнений у production.
 
 Оновіть `apps/api/src/openapi/openapi-contract.spec.ts`, щоб drift check охоплював новий method/path і ключові request/response schemas.
 
@@ -136,7 +136,7 @@ import { UsersController } from './controllers/users.controller';
 
 ```bash
 npm run start:dev:api
-# GET http://localhost:3000/users/<uuid>  + Authorization: Bearer <token>
+# GET http://localhost:3000/v1/users/<uuid>  + Authorization: Bearer <token>
 ```
 
 **Правило:** controller → use case → contract (repository). Controller **не** імпортує Drizzle, Redis, `@domain` напряму. HTTP endpoint не завершений без синхронізованого OpenAPI contract.
@@ -210,7 +210,7 @@ async execute(input: RegisterInput) {
     return newUser;
   });
 
-  // Повертає лише user — auth/session створюється окремим POST /auth/login
+  // Повертає лише user — auth/session створюється окремим POST /v1/auth/login
   return {
     user: {
       id: user.id,
@@ -225,12 +225,12 @@ async execute(input: RegisterInput) {
 
 ### 4.1. Register then login
 
-`POST /auth/register` створює обліковий запис і повертає лише `user`. Для отримання auth tokens або session cookie викличте `POST /auth/login` окремим запитом (однаковий контракт для JWT і session driver).
+`POST /v1/auth/register` створює обліковий запис і повертає лише `user`. Для отримання auth tokens або session cookie викличте `POST /v1/auth/login` окремим запитом (однаковий контракт для JWT і session driver).
 
 **Register:**
 
 ```bash
-curl -X POST http://localhost:3000/auth/register \
+curl -X POST http://localhost:3000/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "new@example.com",
@@ -258,7 +258,7 @@ curl -X POST http://localhost:3000/auth/register \
 **Login (JWT driver, `AUTH_DRIVER=jwt`):**
 
 ```bash
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://localhost:3000/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "new@example.com",
@@ -270,7 +270,7 @@ curl -X POST http://localhost:3000/auth/login \
 
 **Login (session driver, `AUTH_DRIVER=session`):**
 
-Той самий `POST /auth/login`; сервер встановлює cookie `sid` (див. `README.md` §16). У тілі відповіді також є `data.auth` з session metadata; клієнт використовує cookie для наступних запитів.
+Той самий `POST /v1/auth/login`; сервер встановлює cookie `sid` (див. `README.md` §16). У тілі відповіді також є `data.auth` з session metadata; клієнт використовує cookie для наступних запитів.
 
 ---
 
@@ -300,7 +300,7 @@ async me(@CurrentUser() user: RequestUser) {
 ### Login
 
 ```bash
-curl -X POST http://localhost:3000/auth/login \
+curl -X POST http://localhost:3000/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -330,14 +330,14 @@ curl -X POST http://localhost:3000/auth/login \
 ### Поточний користувач
 
 ```bash
-curl http://localhost:3000/auth/me \
+curl http://localhost:3000/v1/auth/me \
   -H "Authorization: Bearer <access-token>"
 ```
 
 ### Refresh
 
 ```bash
-curl -X POST http://localhost:3000/auth/refresh \
+curl -X POST http://localhost:3000/v1/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{
     "refreshToken": "<current-refresh-token>"
@@ -361,7 +361,7 @@ curl -X POST http://localhost:3000/auth/refresh \
 ### Logout
 
 ```bash
-curl -X POST http://localhost:3000/auth/logout \
+curl -X POST http://localhost:3000/v1/auth/logout \
   -H "Authorization: Bearer <access-token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -381,7 +381,7 @@ curl -X POST http://localhost:3000/auth/logout \
 Якщо access token уже протермінований:
 
 ```bash
-curl -X POST http://localhost:3000/auth/logout \
+curl -X POST http://localhost:3000/v1/auth/logout \
   -H "Content-Type: application/json" \
   -d '{
     "refreshToken": "<current-refresh-token>"
@@ -460,10 +460,10 @@ Content-Type: application/json
 - можуть повертати різні успішні HTTP status codes.
 
 Тому decorator не використовується на:
-POST /auth/register
-POST /auth/login
-POST /auth/logout
-POST /auth/refresh
+POST /v1/auth/register
+POST /v1/auth/login
+POST /v1/auth/logout
+POST /v1/auth/refresh
 
 ---
 
@@ -740,7 +740,7 @@ export class ApiModule {}
 - [ ] Infrastructure: repository, mapper, міграція (за потреби)
 - [ ] API: DTO, controller і підключення feature composition-модуля
 - [ ] OpenAPI: inputs/requiredness, typed outputs, success/error statuses, auth, headers/cookies та приклади
-- [ ] OpenAPI drift test оновлено; `/docs` і `/docs-json` перевірено
+- [ ] OpenAPI drift test оновлено; `/v1/docs` і `/v1/docs-json` перевірено
 - [ ] Guards / rate limit / auth (за потреби)
 - [ ] `.env.example` оновлено
 - [ ] `npm run lint` і `npm run build:api`
