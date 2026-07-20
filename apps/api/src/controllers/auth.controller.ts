@@ -133,8 +133,16 @@ export class AuthController {
     type: ErrorEnvelopeDto,
   })
   @Post('login')
-  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const result = await this.loginUseCase.execute(dto);
+  async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.loginUseCase.execute({
+      ...dto,
+      ip: req.ip ?? null,
+      userAgent: req.get('user-agent') ?? null,
+    });
 
     this.sessionCookieService.attachIfNeeded(res, result.auth);
 

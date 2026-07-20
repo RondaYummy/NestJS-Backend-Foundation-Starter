@@ -60,16 +60,33 @@ describe('LoginUseCase', () => {
   });
 
   it('authenticates a password user and issues auth artifacts', async () => {
-    const result = await useCase.execute({ email: 'user@example.com', password: 'secret' });
+    const result = await useCase.execute({
+      email: 'user@example.com',
+      password: 'secret',
+      ip: '203.0.113.10',
+      userAgent: 'TestAgent/1.0',
+    });
 
     expect(passwordHasher.compare).toHaveBeenCalledWith('secret', 'stored-hash');
-    expect(authTokenService.createAuthSession).toHaveBeenCalledWith({
-      id: 'user-1',
-      email: 'user@example.com',
-      roles: ['user'],
-      authVersion: 1,
-    });
+    expect(authTokenService.createAuthSession).toHaveBeenCalledWith(
+      {
+        id: 'user-1',
+        email: 'user@example.com',
+        roles: ['user'],
+        authVersion: 1,
+      },
+      { ip: '203.0.113.10', userAgent: 'TestAgent/1.0' },
+    );
     expect(result.user).toEqual({ id: 'user-1', email: 'user@example.com', roles: ['user'] });
+  });
+
+  it('forwards null client meta when ip and userAgent are omitted', async () => {
+    await useCase.execute({ email: 'user@example.com', password: 'secret' });
+
+    expect(authTokenService.createAuthSession).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'user-1' }),
+      { ip: null, userAgent: null },
+    );
   });
 
   it('rejects an unknown email with INVALID_CREDENTIALS', async () => {

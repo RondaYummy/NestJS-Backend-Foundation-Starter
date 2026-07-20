@@ -4,6 +4,7 @@ import {
   RevokeAuthSessionInput,
   AuthTokens,
   ParsedRefreshToken,
+  type AuthSessionClientMeta,
 } from '@contracts/auth/auth-token.service';
 import { ISessionStore } from '@contracts/auth/session-store.service';
 import { TOKENS } from '@contracts/tokens';
@@ -34,13 +35,21 @@ export class SessionAuthTokenService implements IAuthTokenService {
     return this.options;
   }
 
-  async createAuthSession(user: CurrentUser): Promise<AuthTokens> {
+  async createAuthSession(
+    user: CurrentUser,
+    clientMeta?: AuthSessionClientMeta,
+  ): Promise<AuthTokens> {
     const { sessionTtlSeconds } = this.sessionConfig();
+    const now = new Date().toISOString();
 
     const sessionId = await this.sessionStore.create(
       {
         userId: user.id,
         authVersion: user.authVersion,
+        createdAt: now,
+        lastActivityAt: now,
+        ip: clientMeta?.ip ?? null,
+        userAgent: clientMeta?.userAgent ?? null,
       },
       sessionTtlSeconds,
     );

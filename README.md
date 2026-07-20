@@ -2318,11 +2318,37 @@ path=/
 
 Під час logout Redis-сесія видаляється, а cookie очищується.
 
+### Session management endpoints
+
+Коли `AUTH_DRIVER=session`, автентифікований користувач може керувати своїми Redis-сесіями через:
+
+| Method   | Path                   | Purpose                                      |
+| -------- | ---------------------- | -------------------------------------------- |
+| `GET`    | `/v1/sessions`         | Список власних активних сесій з метаданими   |
+| `DELETE` | `/v1/sessions/{id}`    | Відкликати одну власну сесію                 |
+| `DELETE` | `/v1/sessions/others`  | Відкликати всі сесії, крім поточної          |
+| `DELETE` | `/v1/sessions`         | Відкликати всі сесії (sign out everywhere)   |
+
+Ці маршрути **завжди зареєстровані** в API (і задокументовані в OpenAPI) з явним позначенням «only when `AUTH_DRIVER=session`». Під `AUTH_DRIVER=jwt` вони відповідають `400` з кодом `SESSION_DRIVER_REQUIRED`.
+
+Потрібна httpOnly session cookie (OpenAPI: `sessionCookie`). Видалення поточної сесії (`DELETE /v1/sessions/{id}` для поточного id або `DELETE /v1/sessions`) також очищує cookie.
+
+### Redis session keys
+
+Логічні ключі (physical keys мають prefix `{REDIS_KEY_PREFIX}:`):
+
+```txt
+sessions:{sessionId}           → JSON SessionRecord (TTL = AUTH_SESSION_TTL_SECONDS)
+sessions:user:{userId}         → SET sessionId (per-user index; stale members pruned on list)
+```
+
+`SessionRecord` містить `userId`, `authVersion`, `createdAt`, `lastActivityAt`, `ip`, `userAgent`. Розширення JSON-форми — **breaking change** для існуючих session keys: dual-read дозволяє старим записам не падати, але сесії без user-index з’являться в `GET /v1/sessions` лише після повторного login.
+
 ## Authorization freshness (`authVersion`)
 
 Кожен користувач має поле `auth_version` у таблиці `users`. Воно збільшується через `IUserRepository.incrementAuthVersion(userId)` під час подій безпеки (зміна ролей, пароля, примусовий logout тощо). Downstream-додатки **повинні** викликати цей метод при таких подіях.
 
-`authVersion` вбудовується в JWT access/refresh claims і в Redis session record (`{ userId, authVersion }`) під час login. Повний snapshot ролей у session Redis **не** зберігається.
+`authVersion` вбудовується в JWT access/refresh claims і в Redis session record (`{ userId, authVersion, createdAt, lastActivityAt, ip, userAgent }`) під час login. Повний snapshot ролей у session Redis **не** зберігається.
 
 ### Максимальна затримка відкликання
 

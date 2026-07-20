@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import ms, { type StringValue } from 'ms';
 
 import type {
+  AuthSessionClientMeta,
   AuthTokens,
   IAuthTokenService,
   ParsedRefreshToken,
@@ -64,7 +65,7 @@ export class JwtAuthTokenService implements IAuthTokenService {
     return this.options.jwt;
   }
 
-  async createAuthSession(user: CurrentUser): Promise<AuthTokens> {
+  async createAuthSession(user: CurrentUser, _clientMeta?: AuthSessionClientMeta): Promise<AuthTokens> {
     const familyId = randomUUID();
 
     const pair = await this.issueTokenPair(user, familyId);

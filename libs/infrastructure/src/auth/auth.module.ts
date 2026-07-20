@@ -92,7 +92,7 @@ export class AuthModule {
         ...AuthModule.buildSharedProviders(),
         ...AuthModule.buildAsyncDriverProviders(),
       ],
-      exports: [TOKENS.PasswordHasher, TOKENS.AuthTokenService],
+      exports: [TOKENS.PasswordHasher, TOKENS.AuthTokenService, TOKENS.SessionStore],
     };
   }
 
@@ -241,15 +241,34 @@ export class AuthModule {
   private static buildAsyncDriverProviders(): Provider[] {
     return [
       {
+        provide: TOKENS.SessionStore,
+        inject: [AUTH_MODULE_OPTIONS, RedisService],
+        useFactory: (options: AuthModuleOptions, redis: RedisService) => {
+          if (isJwtAuthOptions(options)) {
+            return null;
+          }
+
+          return new RedisSessionStore(redis);
+        },
+      },
+      {
         provide: TOKENS.AuthTokenService,
-        inject: [AUTH_MODULE_OPTIONS, JwtService, RedisService],
-        useFactory: (options: AuthModuleOptions, jwtService: JwtService, redis: RedisService) => {
+        inject: [AUTH_MODULE_OPTIONS, JwtService, RedisService, TOKENS.SessionStore],
+        useFactory: (
+          options: AuthModuleOptions,
+          jwtService: JwtService,
+          redis: RedisService,
+          sessionStore: RedisSessionStore | null,
+        ) => {
           if (isJwtAuthOptions(options)) {
             const tokenStore = new RedisJwtTokenStore(redis);
             return new JwtAuthTokenService(jwtService, options, tokenStore);
           }
 
-          const sessionStore = new RedisSessionStore(redis);
+          if (!sessionStore) {
+            throw new Error('SessionStore is required when AUTH_DRIVER=session');
+          }
+
           return new SessionAuthTokenService(sessionStore, options);
         },
       },

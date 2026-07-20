@@ -8,12 +8,18 @@ import { GetCurrentUserUseCase } from '@application/use-cases/auth/get-current-u
 import { ChangePasswordUseCase } from '@application/use-cases/auth/change-password.usecase';
 import { CompleteGoogleSignInUseCase } from '@application/use-cases/auth/complete-google-sign-in.usecase';
 import { ForgotPasswordUseCase } from '@application/use-cases/auth/forgot-password.usecase';
+import { ListSessionsUseCase } from '@application/use-cases/auth/list-sessions.usecase';
 import { ResetPasswordUseCase } from '@application/use-cases/auth/reset-password.usecase';
+import { RevokeAllSessionsUseCase } from '@application/use-cases/auth/revoke-all-sessions.usecase';
+import { RevokeOtherSessionsUseCase } from '@application/use-cases/auth/revoke-other-sessions.usecase';
+import { RevokeSessionUseCase } from '@application/use-cases/auth/revoke-session.usecase';
 
 import type { CurrentUser } from '@contracts/auth/current-user';
 import { IAuthTokenService } from '@contracts/auth/auth-token.service';
 import { IPasswordHasher } from '@contracts/auth/password-hasher.service';
 import type { IPasswordResetTokenStore } from '@contracts/auth/password-reset-token-store';
+import type { ISessionManagementService } from '@contracts/auth/session-management.service';
+import type { ISessionStore } from '@contracts/auth/session-store.service';
 import { IOutboxWriter } from '@contracts/outbox/outbox-writer';
 import type { IQueueGateway } from '@contracts/queues/queue-gateway';
 import { IUserRepository } from '@contracts/repositories/user.repository';
@@ -23,6 +29,8 @@ import type { ITransactionManager } from '@contracts/transactions/transaction-ma
 import { AuthModule } from '@infrastructure/auth/auth.module';
 import { GoogleSsoModule } from '@infrastructure/auth/google-sso.module';
 import { RedisPasswordResetTokenStore } from '@infrastructure/auth/redis-password-reset-token-store.service';
+import { RedisSessionManagementService } from '@infrastructure/auth/redis-session-management.service';
+import { UnsupportedSessionManagementService } from '@infrastructure/auth/unsupported-session-management.service';
 import { InfrastructureConfigModule } from '@infrastructure/config/infrastructure-config.module';
 import { AppConfigService } from '@infrastructure/config/app-config.service';
 import {
@@ -122,6 +130,24 @@ export class AuthApplicationCompositionModule {
       providers: [
         SessionCookieService,
         GoogleSsoFlowService,
+        {
+          provide: TOKENS.SessionManagementService,
+          inject: [AppConfigService, TOKENS.SessionStore],
+          useFactory: (
+            config: AppConfigService,
+            sessionStore: ISessionStore | null,
+          ): ISessionManagementService => {
+            if (config.auth().driver === 'session') {
+              if (!sessionStore) {
+                throw new Error('SessionStore is required when AUTH_DRIVER=session');
+              }
+
+              return new RedisSessionManagementService(sessionStore);
+            }
+
+            return new UnsupportedSessionManagementService();
+          },
+        },
         {
           provide: RegisterUseCase,
           inject: [
@@ -231,6 +257,30 @@ export class AuthApplicationCompositionModule {
             authTokens: IAuthTokenService,
           ) => new ResetPasswordUseCase(passwordResetTokens, users, passwords, authTokens),
         },
+        {
+          provide: ListSessionsUseCase,
+          inject: [TOKENS.SessionManagementService],
+          useFactory: (sessionManagement: ISessionManagementService) =>
+            new ListSessionsUseCase(sessionManagement),
+        },
+        {
+          provide: RevokeSessionUseCase,
+          inject: [TOKENS.SessionManagementService],
+          useFactory: (sessionManagement: ISessionManagementService) =>
+            new RevokeSessionUseCase(sessionManagement),
+        },
+        {
+          provide: RevokeOtherSessionsUseCase,
+          inject: [TOKENS.SessionManagementService],
+          useFactory: (sessionManagement: ISessionManagementService) =>
+            new RevokeOtherSessionsUseCase(sessionManagement),
+        },
+        {
+          provide: RevokeAllSessionsUseCase,
+          inject: [TOKENS.SessionManagementService],
+          useFactory: (sessionManagement: ISessionManagementService) =>
+            new RevokeAllSessionsUseCase(sessionManagement),
+        },
       ],
       exports: [
         authModule,
@@ -246,6 +296,10 @@ export class AuthApplicationCompositionModule {
         ForgotPasswordUseCase,
         ResetPasswordUseCase,
         CompleteGoogleSignInUseCase,
+        ListSessionsUseCase,
+        RevokeSessionUseCase,
+        RevokeOtherSessionsUseCase,
+        RevokeAllSessionsUseCase,
       ],
     };
   }

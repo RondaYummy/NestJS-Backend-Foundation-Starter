@@ -7,12 +7,13 @@ import request from 'supertest';
 
 import { AuthController } from '../controllers/auth.controller';
 import { GoogleAuthController } from '../controllers/google-auth.controller';
+import { SessionsController } from '../controllers/sessions.controller';
 import { HealthController } from '@infrastructure/health/health.controller';
 import { API_DOCS_PATH, createOpenApiDocument } from './create-openapi-document';
 
 async function createTestApp(init = true): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({
-    controllers: [AuthController, GoogleAuthController, HealthController],
+    controllers: [AuthController, GoogleAuthController, SessionsController, HealthController],
   })
     .useMocker(() => ({}))
     .compile();
@@ -47,6 +48,10 @@ describe('OpenAPI contract', () => {
         ['post', '/v1/auth/reset-password'],
         ['get', '/v1/auth/google'],
         ['get', '/v1/auth/google/callback'],
+        ['get', '/v1/sessions'],
+        ['delete', '/v1/sessions'],
+        ['delete', '/v1/sessions/others'],
+        ['delete', '/v1/sessions/{id}'],
         ['get', '/health'],
         ['get', '/health/live'],
         ['get', '/health/ready'],
@@ -90,6 +95,49 @@ describe('OpenAPI contract', () => {
       // TASK-004: Google SSO start/callback are public redirect-flow endpoints.
       expect(document.paths['/v1/auth/google']?.get?.security).toBeUndefined();
       expect(document.paths['/v1/auth/google/callback']?.get?.security).toBeUndefined();
+
+      // TASK-005: session-management routes advertise cookie auth only and
+      // document session-driver-only availability (strategy B).
+      const sessionOnlyWording = /AUTH_DRIVER=session/i;
+      for (const [method, path] of [
+        ['get', '/v1/sessions'],
+        ['delete', '/v1/sessions'],
+        ['delete', '/v1/sessions/others'],
+        ['delete', '/v1/sessions/{id}'],
+      ] as const) {
+        const operation = document.paths[path]?.[method];
+        expect(operation?.description).toEqual(expect.stringMatching(sessionOnlyWording));
+        expect(operation?.security).toEqual([{ sessionCookie: [] }]);
+        expect(operation?.responses?.['400']).toBeDefined();
+        expect(operation?.responses?.['401']).toBeDefined();
+      }
+
+      expect(document.paths['/v1/sessions']?.get?.responses?.['200']).toEqual(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            'application/json': expect.objectContaining({
+              schema: { $ref: '#/components/schemas/SessionsListResponseDto' },
+            }),
+          }),
+        }),
+      );
+      expect(document.paths['/v1/sessions/others']?.delete?.responses?.['200']).toEqual(
+        expect.objectContaining({
+          content: expect.objectContaining({
+            'application/json': expect.objectContaining({
+              schema: { $ref: '#/components/schemas/RevokeOthersResponseDto' },
+            }),
+          }),
+        }),
+      );
+      expect(document.tags).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'Sessions',
+            description: expect.stringMatching(sessionOnlyWording),
+          }),
+        ]),
+      );
 
       // TASK-004: start documents the 302 to Google and the disabled 503.
       const googleStart = document.paths['/v1/auth/google']?.get;
@@ -141,6 +189,10 @@ describe('OpenAPI contract', () => {
           ForgotPasswordDto: expect.any(Object),
           ResetPasswordDto: expect.any(Object),
           ForgotPasswordResponseDto: expect.any(Object),
+          SessionsListResponseDto: expect.any(Object),
+          RevokeOthersResponseDto: expect.any(Object),
+          SessionMutationResponseDto: expect.any(Object),
+          SessionListItemDto: expect.any(Object),
           HealthResponseDto: expect.any(Object),
           LivenessResponseDto: expect.any(Object),
         }),

@@ -73,6 +73,26 @@ export class RedisService {
     await this.redis.expire(this.toPhysicalKey(key), seconds);
   }
 
+  sadd(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) {
+      return Promise.resolve(0);
+    }
+
+    return this.redis.sadd(this.toPhysicalKey(key), ...members);
+  }
+
+  smembers(key: string): Promise<string[]> {
+    return this.redis.smembers(this.toPhysicalKey(key));
+  }
+
+  srem(key: string, ...members: string[]): Promise<number> {
+    if (members.length === 0) {
+      return Promise.resolve(0);
+    }
+
+    return this.redis.srem(this.toPhysicalKey(key), ...members);
+  }
+
   async setIfNotExists(key: string, value: string, ttlSeconds: number): Promise<boolean> {
     const result = await this.redis.set(this.toPhysicalKey(key), value, 'EX', ttlSeconds, 'NX');
 

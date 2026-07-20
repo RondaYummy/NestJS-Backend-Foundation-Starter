@@ -390,6 +390,65 @@ curl -X POST http://localhost:3000/v1/auth/logout \
 
 Refresh-token family все одно буде відкликана.
 
+## 5.1a. Session management (`AUTH_DRIVER=session`)
+
+Endpoints під `/v1/sessions` доступні **лише** коли `AUTH_DRIVER=session`. Під `AUTH_DRIVER=jwt` ті самі маршрути зареєстровані, але повертають `400` з `error.code = SESSION_DRIVER_REQUIRED`. Потрібна httpOnly session cookie (`sid` за замовчуванням).
+
+### List sessions
+
+```bash
+curl http://localhost:3000/v1/sessions \
+  -b "sid=<session-id>"
+```
+
+Приклад відповіді:
+
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "id": "<session-id>",
+        "createdAt": "2026-07-19T09:00:00.000Z",
+        "lastActivityAt": "2026-07-19T09:00:00.000Z",
+        "expiresAt": "2026-07-26T09:00:00.000Z",
+        "ip": "203.0.113.10",
+        "userAgent": "Mozilla/5.0 ...",
+        "isCurrent": true
+      }
+    ]
+  }
+}
+```
+
+### Revoke one session
+
+```bash
+curl -X DELETE http://localhost:3000/v1/sessions/<session-id> \
+  -b "sid=<current-session-id>"
+```
+
+Якщо `<session-id>` збігається з cookie — Redis-сесія видаляється і cookie очищується (`Set-Cookie` Max-Age=0).
+
+### Revoke all other sessions
+
+```bash
+curl -X DELETE http://localhost:3000/v1/sessions/others \
+  -b "sid=<current-session-id>"
+```
+
+Відповідь: `{ "success": true, "data": { "revokedCount": 2 } }`. Поточна сесія лишається дійсною.
+
+### Revoke all sessions (sign out everywhere)
+
+```bash
+curl -X DELETE http://localhost:3000/v1/sessions \
+  -b "sid=<current-session-id>"
+```
+
+Усі сесії користувача видаляються; cookie очищується.
+
 ## 5.2. Зміна та відновлення пароля
 
 ### Change password (авторизований користувач)

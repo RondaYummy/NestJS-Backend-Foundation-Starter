@@ -6,7 +6,23 @@ import { RedisKeyBuilder } from './redis-key-builder';
 import { RedisService } from './redis.service';
 
 describe('RedisService', () => {
-  let redis: jest.Mocked<Pick<Redis, 'get' | 'set' | 'del' | 'scan' | 'unlink' | 'eval' | 'exists' | 'incr' | 'expire'>>;
+  let redis: jest.Mocked<
+    Pick<
+      Redis,
+      | 'get'
+      | 'set'
+      | 'del'
+      | 'scan'
+      | 'unlink'
+      | 'eval'
+      | 'exists'
+      | 'incr'
+      | 'expire'
+      | 'sadd'
+      | 'smembers'
+      | 'srem'
+    >
+  >;
   let service: RedisService;
 
   beforeEach(() => {
@@ -20,6 +36,9 @@ describe('RedisService', () => {
       exists: jest.fn().mockResolvedValue(0),
       incr: jest.fn().mockResolvedValue(1),
       expire: jest.fn().mockResolvedValue(1),
+      sadd: jest.fn().mockResolvedValue(1),
+      smembers: jest.fn().mockResolvedValue([]),
+      srem: jest.fn().mockResolvedValue(1),
     };
 
     service = new RedisService(redis as unknown as Redis, new RedisKeyBuilder('app'));
@@ -80,5 +99,17 @@ describe('RedisService', () => {
       30_000,
       'NX',
     );
+  });
+
+  it('prefixes sadd/smembers/srem set operations', async () => {
+    redis.smembers.mockResolvedValue(['sid-1', 'sid-2']);
+
+    await service.sadd('sessions:user:u1', 'sid-1');
+    await service.smembers('sessions:user:u1');
+    await service.srem('sessions:user:u1', 'sid-1');
+
+    expect(redis.sadd).toHaveBeenCalledWith('app:sessions:user:u1', 'sid-1');
+    expect(redis.smembers).toHaveBeenCalledWith('app:sessions:user:u1');
+    expect(redis.srem).toHaveBeenCalledWith('app:sessions:user:u1', 'sid-1');
   });
 });

@@ -24,6 +24,7 @@ import { RedisModule } from '@infrastructure/redis/redis.module';
 
 import { AuthController } from './controllers/auth.controller';
 import { GoogleAuthController } from './controllers/google-auth.controller';
+import { SessionsController } from './controllers/sessions.controller';
 import { AuthApplicationCompositionModule } from './composition/auth-application.module';
 
 const redisModule = RedisModule.forRootAsync({
@@ -77,7 +78,7 @@ const healthModule = HealthModule.registerAsync({
     }),
     RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
   ],
-  controllers: [AuthController, GoogleAuthController],
+  controllers: [AuthController, GoogleAuthController, SessionsController],
   providers: [
     RateLimiterGuard,
     {

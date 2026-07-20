@@ -31,8 +31,17 @@ export interface RevokeAuthSessionInput {
   sessionId?: string;
 }
 
+/**
+ * Optional client metadata persisted into Redis sessions (AUTH_DRIVER=session).
+ * Ignored by the JWT token service.
+ */
+export type AuthSessionClientMeta = {
+  ip?: string | null;
+  userAgent?: string | null;
+};
+
 export interface IAuthTokenService {
-  createAuthSession(user: CurrentUser): Promise<AuthTokens>;
+  createAuthSession(user: CurrentUser, clientMeta?: AuthSessionClientMeta): Promise<AuthTokens>;
 
   parseRefreshToken(refreshToken: string): Promise<ParsedRefreshToken>;
 

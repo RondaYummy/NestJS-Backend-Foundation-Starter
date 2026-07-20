@@ -21,6 +21,15 @@ import {
 } from '../dto/auth/google-sso-query.dto';
 import { ResetPasswordDto } from '../dto/auth/reset-password.dto';
 import { ErrorDto, ErrorEnvelopeDto } from '../dto/common/error-envelope.dto';
+import { SessionIdParamDto } from '../dto/sessions/session-id-param.dto';
+import {
+  RevokeOthersDataDto,
+  RevokeOthersResponseDto,
+  SessionListItemDto,
+  SessionMutationResponseDto,
+  SessionsListDataDto,
+  SessionsListResponseDto,
+} from '../dto/sessions/sessions-response.dto';
 import {
   HealthResponseDto,
   HealthServicesDto,
@@ -37,9 +46,13 @@ export function createOpenApiDocument(
   const config = new DocumentBuilder()
     .setTitle('NestJS Backend Foundation API')
     .setDescription(
-      'Canonical HTTP contract for the starter kit. Business routes are URI-versioned under /v1; health endpoints stay version-neutral. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER. Optional Google SSO (GOOGLE_SSO_ENABLED) adds GET /v1/auth/google and GET /v1/auth/google/callback; while disabled these routes stay documented and return 503 with code GOOGLE_SSO_DISABLED.',
+      'Canonical HTTP contract for the starter kit. Business routes are URI-versioned under /v1; health endpoints stay version-neutral. Authentication uses either Bearer JWT or an httpOnly session cookie according to AUTH_DRIVER. Optional Google SSO (GOOGLE_SSO_ENABLED) adds GET /v1/auth/google and GET /v1/auth/google/callback; while disabled these routes stay documented and return 503 with code GOOGLE_SSO_DISABLED. Session-management endpoints under /v1/sessions are only available when AUTH_DRIVER=session; under jwt they remain registered and reject with SESSION_DRIVER_REQUIRED.',
     )
     .setVersion('1.0.0')
+    .addTag(
+      'Sessions',
+      'Manage the authenticated user’s Redis sessions. Only available when AUTH_DRIVER=session.',
+    )
     .addBearerAuth(
       {
         type: 'http',
@@ -79,6 +92,13 @@ export function createOpenApiDocument(
       ForgotPasswordResponseDto,
       GoogleSsoStartQueryDto,
       GoogleSsoCallbackQueryDto,
+      SessionIdParamDto,
+      SessionListItemDto,
+      SessionsListDataDto,
+      SessionsListResponseDto,
+      RevokeOthersDataDto,
+      RevokeOthersResponseDto,
+      SessionMutationResponseDto,
       HealthServicesDto,
       HealthResponseDto,
       LivenessResponseDto,

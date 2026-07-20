@@ -1,12 +1,17 @@
 import type { IUserRepository } from '@contracts/repositories/user.repository';
 import type { IPasswordHasher } from '@contracts/auth/password-hasher.service';
-import type { IAuthTokenService } from '@contracts/auth/auth-token.service';
+import type {
+  AuthSessionClientMeta,
+  IAuthTokenService,
+} from '@contracts/auth/auth-token.service';
 import { ValidationError } from '@domain/errors/domain-errors';
 import { Email } from '@domain/value-objects/email.vo';
 
 type LoginInput = {
   email: string;
   password: string;
+  ip?: string | null;
+  userAgent?: string | null;
 };
 
 export class LoginUseCase {
@@ -36,12 +41,20 @@ export class LoginUseCase {
       throw new ValidationError('INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
-    const auth = await this.authTokenService.createAuthSession({
-      id: user.id,
-      email: user.email.toString(),
-      roles: user.roles,
-      authVersion: user.authVersion,
-    });
+    const clientMeta: AuthSessionClientMeta = {
+      ip: input.ip ?? null,
+      userAgent: input.userAgent ?? null,
+    };
+
+    const auth = await this.authTokenService.createAuthSession(
+      {
+        id: user.id,
+        email: user.email.toString(),
+        roles: user.roles,
+        authVersion: user.authVersion,
+      },
+      clientMeta,
+    );
 
     return {
       user: {
