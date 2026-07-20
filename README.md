@@ -519,11 +519,14 @@ libs/infrastructure/src/logger
 Призначення:
 
 - structured logs;
-- structured JSON logs;
+- structured JSON logs when `NODE_ENV` is `test` or `production`;
+- human-readable pino-pretty logs when `NODE_ENV=development` (colorized, no `pid`/`hostname`);
 - requestId;
 - correlationId;
 - traceId;
-- log levels.
+- log levels (`LOGGER_LEVEL`).
+
+Pretty vs JSON is derived in infrastructure config (`logger.pretty` from `NODE_ENV === 'development'`). There is no separate `LOGGER_PRETTY` env flag. Production images that omit `devDependencies` never load `pino-pretty` because the pretty transport is only configured in development.
 
 Базові методи:
 

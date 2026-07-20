@@ -2,6 +2,7 @@ import { Injectable, type LoggerService } from '@nestjs/common';
 import pino, { type Logger as PinoLogger } from 'pino';
 
 import { AppConfigService } from '../config/app-config.service';
+import { buildPinoRootOptions } from './build-pino-options';
 import { RequestContextService } from './request-context.service';
 
 type LogContext = Record<string, unknown>;
@@ -14,9 +15,7 @@ export class AppLogger implements LoggerService {
     config: AppConfigService,
     private readonly requestContext: RequestContextService,
   ) {
-    this.logger = pino({
-      level: config.logger().level,
-    });
+    this.logger = pino(buildPinoRootOptions(config.logger().level, config.logger().pretty));
   }
 
   log(message: unknown, context?: string): void {

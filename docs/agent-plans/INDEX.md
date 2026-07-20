@@ -8,6 +8,7 @@ This index lists implementation plans under `docs/agent-plans/`.
 | TASK-003 | Password change and email reset | proposed | `docs/agent-plans/TASK-003-change-password.md` |
 | TASK-004 | Optional Google SSO auth module | proposed | `docs/agent-plans/TASK-004-google-sso-module.md` |
 | TASK-005 | Session management endpoints (`AUTH_DRIVER=session`) | proposed | `docs/agent-plans/TASK-005-session-management-endpoints.md` |
+| TASK-006 | Configure pino-pretty for development logs | proposed | `docs/agent-plans/TASK-006-pino-pretty-development.md` |
 
 ## Rules
 

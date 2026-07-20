@@ -53,7 +53,7 @@ type ConfigShape = {
   };
   jwt: { secret: string; expiresIn: string; refreshSecret: string; refreshExpiresIn: string };
   rateLimit: { ttl: number; max: number; authTtl: number; authMax: number };
-  logger: { level: string };
+  logger: { level: string; pretty: boolean };
   health: { checkTimeoutMs: number };
   outbox: OutboxProcessorOptions;
   jobExecution: JobExecutionOptions;
