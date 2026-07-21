@@ -11,6 +11,7 @@ import {
   mapAppConfigToBullMqOptions,
   mapAppConfigToDrizzleOptions,
   mapAppConfigToHealthOptions,
+  mapAppConfigToLoggerOptions,
   mapAppConfigToMailOptions,
   mapAppConfigToRedisOptions,
   mapAppConfigToStorageOptions,
@@ -37,6 +38,12 @@ import { TransactionsModule } from './transactions/transactions.module';
 @Module({})
 export class InfrastructureModule {
   static forRoot(): DynamicModule {
+    const loggerModule = LoggerModule.forRootAsync({
+      imports: [InfrastructureConfigModule],
+      inject: [AppConfigService],
+      useFactory: (config: AppConfigService) => mapAppConfigToLoggerOptions(config),
+    });
+
     const redisModule = RedisModule.forRootAsync({
       imports: [InfrastructureConfigModule],
       inject: [AppConfigService],
@@ -67,7 +74,7 @@ export class InfrastructureModule {
       module: InfrastructureModule,
       imports: [
         InfrastructureConfigModule,
-        LoggerModule,
+        loggerModule,
         redisModule,
         drizzleModule,
         bullMqConnectionModule,

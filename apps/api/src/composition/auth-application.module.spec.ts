@@ -12,6 +12,7 @@ import { TOKENS } from '@contracts/tokens';
 
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 
 import { AuthApplicationCompositionModule } from './auth-application.module';
@@ -93,7 +94,7 @@ describe('AuthApplicationCompositionModule', () => {
       });
 
       const moduleRef = await Test.createTestingModule({
-        imports: [compositionModule],
+        imports: [LoggerModule.forRoot({ level: 'error', pretty: false }), compositionModule],
       })
         .overrideProvider(AppLogger)
         .useValue({ error: jest.fn(), info: jest.fn(), warn: jest.fn(), debug: jest.fn() })

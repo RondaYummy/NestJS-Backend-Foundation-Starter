@@ -11,12 +11,19 @@ import { AppConfigService } from '@infrastructure/config/app-config.service';
 import {
   mapAppConfigToBullMqOptions,
   mapAppConfigToDrizzleOptions,
+  mapAppConfigToLoggerOptions,
   mapAppConfigToMailOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 import { QUEUES } from '@infrastructure/bullmq/queues';
+
+const loggerModule = LoggerModule.forRootAsync({
+  imports: [InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => mapAppConfigToLoggerOptions(config),
+});
 
 const redisModule = RedisModule.forRootAsync({
   imports: [InfrastructureConfigModule],
@@ -43,7 +50,7 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(
 
 @Module({
   imports: [
-    LoggerModule,
+    loggerModule,
     InfrastructureConfigModule,
     redisModule,
     drizzleModule,

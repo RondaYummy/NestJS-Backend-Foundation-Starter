@@ -3,10 +3,15 @@ import type { AuthModuleOptions } from '../auth/auth.module-options';
 import type { GoogleSsoModuleOptions } from '../auth/google-sso.module-options';
 import type { BullMqModuleOptions } from '../bullmq/bullmq.module-options';
 import type { DrizzleModuleOptions } from '../database/drizzle/drizzle.module-options';
+import type { LoggerModuleOptions } from '../logger/logger.module-options';
 import type { MailModuleOptions } from '../mail/mail.module-options';
 import type { RedisModuleOptions } from '../redis/redis.module-options';
 import type { StorageModuleOptions } from '../storage/storage.module-options';
 import type { HealthModuleOptions } from '../health/health.module-options';
+
+export function mapAppConfigToLoggerOptions(config: AppConfigService): LoggerModuleOptions {
+  return config.logger();
+}
 
 export function mapAppConfigToRedisOptions(config: AppConfigService): RedisModuleOptions {
   return config.redis();

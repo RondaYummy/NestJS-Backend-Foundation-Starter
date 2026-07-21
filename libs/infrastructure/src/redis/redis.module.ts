@@ -8,7 +8,6 @@ import Redis from 'ioredis';
 
 import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
 import { AppConfigService } from '../config/app-config.service';
-import { LoggerModule } from '../logger/logger.module';
 import { AppLogger } from '../logger/app-logger.service';
 import { RedisService } from './redis.service';
 import { RedisKeyBuilder } from './redis-key-builder';
@@ -24,7 +23,6 @@ export const { ConfigurableModuleClass, MODULE_OPTIONS_TOKEN, OPTIONS_TYPE, ASYN
     .build();
 
 @Module({
-  imports: [LoggerModule],
   providers: [
     {
       provide: REDIS_CLIENT,

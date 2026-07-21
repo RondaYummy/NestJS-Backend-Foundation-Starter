@@ -19,7 +19,7 @@ describe('RedisModule', () => {
   it('boots with typed options without InfrastructureConfigModule', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [
-        LoggerModule,
+        LoggerModule.forRoot({ level: 'info', pretty: false }),
         RedisModule.forRoot({
           host: '127.0.0.1',
           port: 6379,

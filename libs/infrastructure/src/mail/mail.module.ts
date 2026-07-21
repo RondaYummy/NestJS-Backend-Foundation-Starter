@@ -9,7 +9,6 @@ import { TOKENS } from '@contracts/tokens';
 
 import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
 import { AppConfigService } from '../config/app-config.service';
-import { LoggerModule } from '../logger/logger.module';
 import { AppLogger } from '../logger/app-logger.service';
 import { MailTemplateService } from './mail-template.service';
 import { NullMailAdapter } from './null-mail.adapter';
@@ -34,7 +33,6 @@ export class MailModule {
     return {
       module: MailModule,
       global: false,
-      imports: [LoggerModule],
       providers: [
         { provide: MAIL_MODULE_OPTIONS, useValue: options },
         MailTemplateService,
@@ -54,7 +52,7 @@ export class MailModule {
     return {
       module: MailModule,
       global: false,
-      imports: [LoggerModule, ...(asyncOptions.imports ?? [])],
+      imports: [...(asyncOptions.imports ?? [])],
       providers: [
         optionsProvider,
         MailTemplateService,

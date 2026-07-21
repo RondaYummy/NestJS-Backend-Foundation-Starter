@@ -9,10 +9,17 @@ import { OutboxProcessorOptionsModule } from '@infrastructure/outbox/outbox-proc
 import { AppConfigService } from '@infrastructure/config/app-config.service';
 import {
   mapAppConfigToBullMqOptions,
+  mapAppConfigToLoggerOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { RedisModule } from '@infrastructure/redis/redis.module';
 import { QUEUES } from '@infrastructure/bullmq/queues';
+
+const loggerModule = LoggerModule.forRootAsync({
+  imports: [InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => mapAppConfigToLoggerOptions(config),
+});
 
 const redisModule = RedisModule.forRootAsync({
   imports: [InfrastructureConfigModule],
@@ -34,7 +41,7 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues([QUEUES.OUT
   imports: [
     ScheduleModule.forRoot(),
     InfrastructureConfigModule,
-    LoggerModule,
+    loggerModule,
     redisModule,
     bullMqConnectionModule,
     bullMqQueuesModule,

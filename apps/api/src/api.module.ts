@@ -17,6 +17,7 @@ import {
   mapAppConfigToBullMqOptions,
   mapAppConfigToDrizzleOptions,
   mapAppConfigToHealthOptions,
+  mapAppConfigToLoggerOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
@@ -26,6 +27,12 @@ import { AuthController } from './controllers/auth.controller';
 import { GoogleAuthController } from './controllers/google-auth.controller';
 import { SessionsController } from './controllers/sessions.controller';
 import { AuthApplicationCompositionModule } from './composition/auth-application.module';
+
+const loggerModule = LoggerModule.forRootAsync({
+  imports: [InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => mapAppConfigToLoggerOptions(config),
+});
 
 const redisModule = RedisModule.forRootAsync({
   imports: [InfrastructureConfigModule],
@@ -62,7 +69,7 @@ const healthModule = HealthModule.registerAsync({
 
 @Module({
   imports: [
-    LoggerModule,
+    loggerModule,
     ExceptionsModule,
     InfrastructureConfigModule,
     redisModule,

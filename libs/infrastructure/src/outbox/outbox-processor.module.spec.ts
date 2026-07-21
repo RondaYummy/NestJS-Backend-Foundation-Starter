@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 import { TOKENS } from '@contracts/tokens';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
+import { LoggerModule } from '../logger/logger.module';
 import { OUTBOX_PROCESSOR_DEFAULT_OPTIONS } from './outbox-processor.defaults';
 import { OutboxProcessorModule } from './outbox-processor.module';
 
@@ -63,6 +64,7 @@ describe('OutboxProcessorModule', () => {
     await withTestEnv(async () => {
       const moduleRef = await Test.createTestingModule({
         imports: [
+          LoggerModule.forRoot({ level: 'error', pretty: false }),
           OutboxProcessorModule.forRootAsync({
             imports: [MockConnectionModule],
             useFactory: () => OUTBOX_PROCESSOR_DEFAULT_OPTIONS,
@@ -81,6 +83,7 @@ describe('OutboxProcessorModule', () => {
     await withTestEnv(async () => {
       const moduleRef = await Test.createTestingModule({
         imports: [
+          LoggerModule.forRoot({ level: 'error', pretty: false }),
           OutboxProcessorModule.forRootAsync({
             imports: [MockConnectionModule],
             useFactory: () => OUTBOX_PROCESSOR_DEFAULT_OPTIONS,

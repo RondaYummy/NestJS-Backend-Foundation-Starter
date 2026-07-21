@@ -38,7 +38,6 @@ import {
   mapAppConfigToGoogleSsoOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { AppLogger } from '@infrastructure/logger/app-logger.service';
-import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { OutboxWriterModule } from '@infrastructure/outbox/outbox-writer.module';
 import { RepositoriesModule } from '@infrastructure/repositories/repositories.module';
 import { TransactionsModule } from '@infrastructure/transactions/transactions.module';
@@ -117,7 +116,6 @@ export class AuthApplicationCompositionModule {
       imports: [
         ...(options.imports ?? []),
         InfrastructureConfigModule,
-        LoggerModule,
         redisModule,
         drizzleModule,
         options.queuesModule,

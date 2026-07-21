@@ -4,7 +4,6 @@ import { TOKENS } from '@contracts/tokens';
 
 import { AuditModule } from '../audit/audit.module';
 import { EventsModule } from '../events/events.module';
-import { LoggerModule } from '../logger/logger.module';
 import { OUTBOX_PROCESSOR_DEFAULT_OPTIONS } from './outbox-processor.defaults';
 import { DrizzleOutboxProcessor } from './drizzle-outbox-processor';
 import {
@@ -31,7 +30,6 @@ export class OutboxProcessorModule {
       ...connectionImports,
       AuditModule.register({ imports: connectionImports }),
       EventsModule.register({ imports: connectionImports }),
-      LoggerModule,
     ];
   }
 

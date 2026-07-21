@@ -4,7 +4,6 @@ import { Writable } from 'node:stream';
 
 import pino from 'pino';
 
-import type { AppConfigService } from '../config/app-config.service';
 import { AppLogger } from './app-logger.service';
 import { buildPinoRootOptions } from './build-pino-options';
 import type { RequestContextService } from './request-context.service';
@@ -19,15 +18,11 @@ describe('AppLogger', () => {
       },
     });
 
-    const config = {
-      logger: () => ({ level: 'info', pretty: false }),
-    } as unknown as AppConfigService;
-
     const requestContext = {
       get: () => ({ requestId: 'req-1' }),
     } as unknown as RequestContextService;
 
-    const logger = new AppLogger(config, requestContext);
+    const logger = new AppLogger({ level: 'info', pretty: false }, requestContext);
     // Replace internal pino instance with a destination-backed logger using the same options helper.
     (logger as unknown as { logger: pino.Logger }).logger = pino(
       buildPinoRootOptions('info', false),
@@ -52,15 +47,11 @@ describe('AppLogger', () => {
       },
     });
 
-    const config = {
-      logger: () => ({ level: 'info', pretty: false }),
-    } as unknown as AppConfigService;
-
     const requestContext = {
       get: () => ({}),
     } as unknown as RequestContextService;
 
-    const logger = new AppLogger(config, requestContext);
+    const logger = new AppLogger({ level: 'info', pretty: false }, requestContext);
     (logger as unknown as { logger: pino.Logger }).logger = pino(
       buildPinoRootOptions('info', false),
       destination,
@@ -84,15 +75,11 @@ describe('AppLogger', () => {
       },
     });
 
-    const config = {
-      logger: () => ({ level: 'info', pretty: false }),
-    } as unknown as AppConfigService;
-
     const requestContext = {
       get: () => ({}),
     } as unknown as RequestContextService;
 
-    const logger = new AppLogger(config, requestContext);
+    const logger = new AppLogger({ level: 'info', pretty: false }, requestContext);
     (logger as unknown as { logger: pino.Logger }).logger = pino(
       buildPinoRootOptions('info', false),
       destination,
