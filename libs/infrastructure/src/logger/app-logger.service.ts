@@ -24,16 +24,16 @@ export class AppLogger implements LoggerService {
     });
   }
 
-  info(message: string, context: LogContext = {}): void {
-    this.logger.info(this.buildContext(context), message);
+  info(message: string, context?: string | LogContext): void {
+    this.logger.info(this.buildContext(this.normalizeNestContext(context)), message);
   }
 
-  debug(message: string, context: LogContext = {}): void {
-    this.logger.debug(this.buildContext(context), message);
+  debug(message: string, context?: string | LogContext): void {
+    this.logger.debug(this.buildContext(this.normalizeNestContext(context)), message);
   }
 
-  warn(message: string, context: LogContext = {}): void {
-    this.logger.warn(this.buildContext(context), message);
+  warn(message: string, context?: string | LogContext): void {
+    this.logger.warn(this.buildContext(this.normalizeNestContext(context)), message);
   }
 
   error(message: string, errorOrTrace?: unknown, context?: string | LogContext): void {
@@ -61,6 +61,14 @@ export class AppLogger implements LoggerService {
 
   fatal(message: string, context: LogContext = {}): void {
     this.logger.fatal(this.buildContext(context), message);
+  }
+
+  private normalizeNestContext(context?: string | LogContext): LogContext {
+    if (typeof context === 'string') {
+      return { nestContext: context };
+    }
+
+    return context ?? {};
   }
 
   private buildContext(context: LogContext): LogContext {

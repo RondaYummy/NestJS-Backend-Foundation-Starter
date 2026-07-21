@@ -43,6 +43,38 @@ describe('AppLogger', () => {
     expect(parsed.userId).toBe('u-1');
   });
 
+  it('maps Nest string context to nestContext instead of spreading characters', () => {
+    const lines: string[] = [];
+    const destination = new Writable({
+      write(chunk, _encoding, callback) {
+        lines.push(String(chunk));
+        callback();
+      },
+    });
+
+    const config = {
+      logger: () => ({ level: 'info', pretty: false }),
+    } as unknown as AppConfigService;
+
+    const requestContext = {
+      get: () => ({}),
+    } as unknown as RequestContextService;
+
+    const logger = new AppLogger(config, requestContext);
+    (logger as unknown as { logger: pino.Logger }).logger = pino(
+      buildPinoRootOptions('info', false),
+      destination,
+    );
+
+    logger.warn('route warning', 'LegacyRouteConverter');
+
+    expect(lines.length).toBeGreaterThan(0);
+    const parsed = JSON.parse(lines[0]!) as Record<string, unknown>;
+    expect(parsed.msg).toBe('route warning');
+    expect(parsed.nestContext).toBe('LegacyRouteConverter');
+    expect(parsed['0']).toBeUndefined();
+  });
+
   it('respects LOGGER_LEVEL filtering under pretty: false', () => {
     const lines: string[] = [];
     const destination = new Writable({

@@ -90,7 +90,7 @@ const healthModule = HealthModule.registerAsync({
 export class ApiModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(RequestContextMiddleware).forRoutes({
-      path: '*',
+      path: '{*path}',
       method: RequestMethod.ALL,
     });
   }
