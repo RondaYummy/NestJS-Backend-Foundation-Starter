@@ -13,6 +13,7 @@ import {
   mapAppConfigToHealthOptions,
   mapAppConfigToLoggerOptions,
   mapAppConfigToMailOptions,
+  mapAppConfigToRateLimiterOptions,
   mapAppConfigToRedisOptions,
   mapAppConfigToStorageOptions,
 } from './config/create-starter-kit-module-options';
@@ -97,7 +98,11 @@ export class InfrastructureModule {
           inject: [AppConfigService],
           useFactory: (config: AppConfigService) => config.outbox(),
         }),
-        RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
+        RateLimiterModule.registerAsync({
+          imports: [redisModule, InfrastructureConfigModule],
+          inject: [AppConfigService],
+          useFactory: (config: AppConfigService) => mapAppConfigToRateLimiterOptions(config),
+        }),
         LocksModule.register({ imports: [redisModule] }),
         IdempotencyModule.register({ imports: [redisModule] }),
         RepositoriesModule.register({ imports: [drizzleModule] }),

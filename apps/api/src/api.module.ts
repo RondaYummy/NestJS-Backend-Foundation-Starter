@@ -18,6 +18,7 @@ import {
   mapAppConfigToDrizzleOptions,
   mapAppConfigToHealthOptions,
   mapAppConfigToLoggerOptions,
+  mapAppConfigToRateLimiterOptions,
   mapAppConfigToRedisOptions,
 } from '@infrastructure/config/create-starter-kit-module-options';
 import { DrizzleModule } from '@infrastructure/database/drizzle/drizzle.module';
@@ -67,6 +68,12 @@ const healthModule = HealthModule.registerAsync({
   useFactory: (config: AppConfigService) => mapAppConfigToHealthOptions(config),
 });
 
+const rateLimiterModule = RateLimiterModule.registerAsync({
+  imports: [redisModule, InfrastructureConfigModule],
+  inject: [AppConfigService],
+  useFactory: (config: AppConfigService) => mapAppConfigToRateLimiterOptions(config),
+});
+
 @Module({
   imports: [
     loggerModule,
@@ -83,7 +90,7 @@ const healthModule = HealthModule.registerAsync({
       drizzleModule,
       queuesModule: bullMqQueuesModule,
     }),
-    RateLimiterModule.register({ imports: [redisModule, InfrastructureConfigModule] }),
+    rateLimiterModule,
   ],
   controllers: [AuthController, GoogleAuthController, SessionsController],
   providers: [

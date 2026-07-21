@@ -12,8 +12,11 @@ import type { Request, Response } from 'express';
 import type { IRateLimiter } from '@contracts/rate-limiter/rate-limiter';
 import { TOKENS } from '@contracts/tokens';
 
-import { AppConfigService } from '../config/app-config.service';
 import { RATE_LIMIT_KEY, type RateLimitOptions } from './rate-limit.decorator';
+import {
+  RATE_LIMITER_MODULE_OPTIONS,
+  type RateLimiterModuleOptions,
+} from './rate-limiter.module-options';
 
 @Injectable()
 export class RateLimiterGuard implements CanActivate {
@@ -21,7 +24,8 @@ export class RateLimiterGuard implements CanActivate {
     @Inject(TOKENS.RateLimiter)
     private readonly limiter: IRateLimiter,
 
-    private readonly config: AppConfigService,
+    @Inject(RATE_LIMITER_MODULE_OPTIONS)
+    private readonly options: RateLimiterModuleOptions,
     private readonly reflector: Reflector,
   ) {}
 
@@ -30,22 +34,20 @@ export class RateLimiterGuard implements CanActivate {
     const req = http.getRequest<Request>();
     const res = http.getResponse<Response>();
 
-    const options = this.reflector.getAllAndOverride<RateLimitOptions | undefined>(RATE_LIMIT_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const decoratorOptions = this.reflector.getAllAndOverride<RateLimitOptions | undefined>(
+      RATE_LIMIT_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
-    const keyPrefix = options?.keyPrefix ?? 'rate';
+    const keyPrefix = decoratorOptions?.keyPrefix ?? 'rate';
 
     const isAuthEndpoint = keyPrefix.startsWith('auth:');
 
     const limit =
-      options?.limit ??
-      (isAuthEndpoint ? this.config.rateLimit().authMax : this.config.rateLimit().max);
+      decoratorOptions?.limit ?? (isAuthEndpoint ? this.options.authMax : this.options.max);
 
     const ttlSeconds =
-      options?.ttlSeconds ??
-      (isAuthEndpoint ? this.config.rateLimit().authTtl : this.config.rateLimit().ttl);
+      decoratorOptions?.ttlSeconds ?? (isAuthEndpoint ? this.options.authTtl : this.options.ttl);
 
     const result = await this.limiter.check({
       key: `${keyPrefix}:${req.ip}`,

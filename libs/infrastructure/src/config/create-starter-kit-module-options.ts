@@ -8,6 +8,7 @@ import type { MailModuleOptions } from '../mail/mail.module-options';
 import type { RedisModuleOptions } from '../redis/redis.module-options';
 import type { StorageModuleOptions } from '../storage/storage.module-options';
 import type { HealthModuleOptions } from '../health/health.module-options';
+import type { RateLimiterModuleOptions } from '../rate-limiter/rate-limiter.module-options';
 
 export function mapAppConfigToLoggerOptions(config: AppConfigService): LoggerModuleOptions {
   return config.logger();
@@ -99,6 +100,12 @@ export function mapAppConfigToMailOptions(config: AppConfigService): MailModuleO
 
 export function mapAppConfigToHealthOptions(config: AppConfigService): HealthModuleOptions {
   return config.health();
+}
+
+export function mapAppConfigToRateLimiterOptions(
+  config: AppConfigService,
+): RateLimiterModuleOptions {
+  return config.rateLimit();
 }
 
 export function mapAppConfigToStorageOptions(config: AppConfigService): StorageModuleOptions {
