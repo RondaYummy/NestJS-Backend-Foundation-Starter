@@ -18,6 +18,7 @@ import {
   mapAppConfigToStorageOptions,
 } from './config/create-starter-kit-module-options';
 import { DrizzleModule } from './database/drizzle/drizzle.module';
+import { UserRegisteredEventHandler } from './events/examples/user-registered.handler';
 import { ExceptionsModule } from './exceptions/exceptions.module';
 import { HealthModule } from './health/health.module';
 import { IdempotencyModule } from './idempotency/idempotency.module';
@@ -93,11 +94,14 @@ export class InfrastructureModule {
           useFactory: (config: AppConfigService) => mapAppConfigToStorageOptions(config),
         }),
         TransactionsModule.register({ imports: [drizzleModule] }),
-        OutboxProcessorModule.forRootAsync({
-          imports: [InfrastructureConfigModule, drizzleModule, bullMqQueuesModule],
-          inject: [AppConfigService],
-          useFactory: (config: AppConfigService) => config.outbox(),
-        }),
+        OutboxProcessorModule.forRootAsync(
+          {
+            imports: [InfrastructureConfigModule, drizzleModule, bullMqQueuesModule],
+            inject: [AppConfigService],
+            useFactory: (config: AppConfigService) => config.outbox(),
+          },
+          { eventHandlers: [UserRegisteredEventHandler] },
+        ),
         RateLimiterModule.registerAsync({
           imports: [redisModule, InfrastructureConfigModule],
           inject: [AppConfigService],

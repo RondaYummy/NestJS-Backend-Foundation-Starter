@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EmailProcessor } from './processors/email.processor';
 import { outboxProcessorProvider } from './processors/outbox-processor.provider';
+import { UserRegisteredEventHandler } from '@infrastructure/events/examples/user-registered.handler';
 import { LoggerModule } from '@infrastructure/logger/logger.module';
 import { MailModule } from '@infrastructure/mail/mail.module';
 import { OutboxProcessorModule } from '@infrastructure/outbox/outbox-processor.module';
@@ -62,11 +63,14 @@ const bullMqQueuesModule = InfrastructureBullMqModule.registerQueues(
       useFactory: (config: AppConfigService) => mapAppConfigToMailOptions(config),
     }),
     IdempotencyModule.register({ imports: [redisModule] }),
-    OutboxProcessorModule.forRootAsync({
-      imports: [InfrastructureConfigModule, drizzleModule, bullMqQueuesModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService) => config.outbox(),
-    }),
+    OutboxProcessorModule.forRootAsync(
+      {
+        imports: [InfrastructureConfigModule, drizzleModule, bullMqQueuesModule],
+        inject: [AppConfigService],
+        useFactory: (config: AppConfigService) => config.outbox(),
+      },
+      { eventHandlers: [UserRegisteredEventHandler] },
+    ),
   ],
   providers: [EmailProcessor, outboxProcessorProvider],
 })

@@ -15,6 +15,10 @@ export class DomainEventRouter implements IDomainEventRouter {
   ) {}
 
   async route(event: RoutableDomainEvent): Promise<void> {
+    if (this.handlers.length === 0) {
+      return;
+    }
+
     const handlers = this.handlers.filter((handler) => handler.supports(event.name));
 
     if (handlers.length === 0) {
