@@ -8,31 +8,30 @@ Modules do **not** all use the same registration API. Use the matrix below; do n
 
 ## Registration matrix
 
-| Module                         | Registration API                              | Notes                                                                                      |
-| ------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `LoggerModule`                 | `forRoot` / `forRootAsync`                    | Global; options `level`, `pretty`                                                          |
-| `RedisModule`                  | `forRoot` / `forRootAsync`                    | Needs `LoggerModule`; deprecated `forRootFromAppConfig`                                    |
-| `DrizzleModule`                | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
-| `InfrastructureBullMqModule`   | `forRoot` / `forRootAsync` + `registerQueues` | Deprecated `forRootFromAppConfig(queueNames)`                                              |
-| `AuthModule`                   | `forRoot` / `forRootAsync`                    | Pass Redis (or custom stores) via `imports` / providers; deprecated `forRootFromAppConfig` |
-| `GoogleSsoModule`              | `forRoot` / `forRootAsync`                    | Redis required when enabled                                                                |
-| `MailModule`                   | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
-| `StorageModule`                | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
-| `OutboxProcessorOptionsModule` | `forRoot` / `forRootAsync`                    | Cron schedule options                                                                      |
-| `OutboxProcessorModule`        | `forRoot` / `forRootAsync`                    | Optional `{ eventHandlers }`; pulls Audit + Events                                         |
-| `OutboxWriterModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
-| `HealthModule`                 | `register` / `registerAsync`                  | Needs Drizzle + Redis + OUTBOX queue                                                       |
-| `RateLimiterModule`            | `register` / `registerAsync`                  | Needs `RedisModule`; typed `defaults`                                                      |
-| `CacheModule`                  | `register` only                               | Needs `RedisModule`                                                                        |
-| `LocksModule`                  | `register` only                               | Needs `RedisModule`                                                                        |
-| `IdempotencyModule`            | `register` only                               | Needs `RedisModule`                                                                        |
-| `EventsModule`                 | `register` only                               | `register({ imports?, handlers? })` — no baked-in handlers                                 |
-| `AuditModule`                  | `register` only                               | Needs Drizzle + Logger                                                                     |
-| `TransactionsModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
-| `RepositoriesModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
-| `ExceptionsModule`             | Static `@Module`                              | Global exception filter; needs Logger                                                      |
-| `InfrastructureConfigModule`   | Static `@Module`                              | Starter-kit env → `AppConfigService`                                                       |
-| `InfrastructureModule`         | Deprecated `forRoot()`                        | Convenience facade — prefer explicit imports                                               |
+| Module                         | Registration API                              | Notes                                                                |
+| ------------------------------ | --------------------------------------------- | -------------------------------------------------------------------- |
+| `LoggerModule`                 | `forRoot` / `forRootAsync`                    | Global; options `level`, `pretty`                                    |
+| `RedisModule`                  | `forRoot` / `forRootAsync`                    | Needs `LoggerModule`                                                 |
+| `DrizzleModule`                | `forRoot` / `forRootAsync`                    | Typed options or `forRootAsync` + mapper at composition root         |
+| `InfrastructureBullMqModule`   | `forRoot` / `forRootAsync` + `registerQueues` | Separate connection module from `registerQueues`                     |
+| `AuthModule`                   | `forRoot` / `forRootAsync`                    | Pass Redis (or custom stores) via `imports` / providers              |
+| `GoogleSsoModule`              | `forRoot` / `forRootAsync`                    | Redis required when enabled                                          |
+| `MailModule`                   | `forRoot` / `forRootAsync`                    | Typed options or `forRootAsync` + mapper at composition root         |
+| `StorageModule`                | `forRoot` / `forRootAsync`                    | Typed options or `forRootAsync` + mapper at composition root         |
+| `OutboxProcessorOptionsModule` | `forRoot` / `forRootAsync`                    | Cron schedule options                                                |
+| `OutboxProcessorModule`        | `forRoot` / `forRootAsync`                    | Optional `{ eventHandlers }`; pulls Audit + Events                   |
+| `OutboxWriterModule`           | `register` only                               | Needs `DrizzleModule`                                                |
+| `HealthModule`                 | `register` / `registerAsync`                  | Needs Drizzle + Redis + OUTBOX queue                                 |
+| `RateLimiterModule`            | `register` / `registerAsync`                  | Needs `RedisModule`; typed `defaults`                                |
+| `CacheModule`                  | `register` only                               | Needs `RedisModule`                                                  |
+| `LocksModule`                  | `register` only                               | Needs `RedisModule`                                                  |
+| `IdempotencyModule`            | `register` only                               | Needs `RedisModule`                                                  |
+| `EventsModule`                 | `register` only                               | `register({ imports?, handlers? })` — no baked-in handlers           |
+| `AuditModule`                  | `register` only                               | Needs Drizzle + Logger                                               |
+| `TransactionsModule`           | `register` only                               | Needs `DrizzleModule`                                                |
+| `RepositoriesModule`           | `register` only                               | Needs `DrizzleModule`                                                |
+| `ExceptionsModule`             | `register({ imports })`                       | Global exception filter; pass configured `LoggerModule` in `imports` |
+| `InfrastructureConfigModule`   | Static `@Module`                              | Starter-kit env → `AppConfigService`                                 |
 
 ## LoggerModule
 
@@ -217,9 +216,24 @@ RedisModule.forRootAsync({
 });
 ```
 
-## Deprecated facade
+## Breaking removals (TASK-011)
 
-`InfrastructureModule.forRoot()` aggregates the full stack for backward compatibility. Prefer explicit per-module imports in new projects.
+The following deprecated facades were **removed** (no stub):
+
+- `*Module.forRootFromAppConfig` on Redis, Drizzle, BullMQ, Auth, Mail, and Storage
+- `InfrastructureModule` / `InfrastructureModule.forRoot()`
+
+Use explicit `forRoot` / `forRootAsync` / `register*` at the composition root with typed options or `mapAppConfigTo*` mappers. For HTTP exception handling:
+
+```typescript
+const loggerModule = LoggerModule.forRootAsync({/* ... */});
+
+imports: [
+  loggerModule,
+  ExceptionsModule.register({ imports: [loggerModule] }),
+  // ...
+];
+```
 
 ## Testing in isolation
 

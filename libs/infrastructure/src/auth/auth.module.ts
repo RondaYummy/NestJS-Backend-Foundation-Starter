@@ -8,8 +8,6 @@ import {
 import { JwtModule, JwtService } from '@nestjs/jwt';
 import { TOKENS } from '@contracts/tokens';
 
-import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
-import { AppConfigService } from '../config/app-config.service';
 import { RedisService } from '../redis/redis.service';
 import { BcryptPasswordHasher } from './bcrypt-password-hasher.service';
 import { JwtAuthTokenService } from './jwt-auth-token.service';
@@ -94,39 +92,6 @@ export class AuthModule {
       ],
       exports: [TOKENS.PasswordHasher, TOKENS.AuthTokenService, TOKENS.SessionStore],
     };
-  }
-
-  /**
-   * @deprecated Use `forRootAsync` at the composition root with typed options instead.
-   */
-  static forRootFromAppConfig(): DynamicModule {
-    return AuthModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService): AuthModuleOptions => {
-        const auth = config.auth();
-
-        if (auth.driver === 'session') {
-          return {
-            driver: 'session',
-            passwordSaltRounds: auth.passwordSaltRounds,
-            sessionTtlSeconds: auth.sessionTtlSeconds,
-            resolveSessionUser: () =>
-              Promise.reject(
-                new Error(
-                  'Session user resolver must be wired at the composition root (AuthApplicationCompositionModule)',
-                ),
-              ),
-          };
-        }
-
-        return {
-          driver: 'jwt',
-          passwordSaltRounds: auth.passwordSaltRounds,
-          jwt: config.jwt(),
-        };
-      },
-    });
   }
 
   private static buildSharedProviders(): Provider[] {

@@ -43,14 +43,14 @@ Suggested composition order when extracting several modules:
 
 ## Registration styles (summary)
 
-| Style                        | Modules                                                                                                                                            |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `forRoot` / `forRootAsync`   | Logger, Redis, Drizzle, BullMQ, Auth, GoogleSso, Mail, Storage, OutboxProcessorOptions, OutboxProcessor; deprecated `InfrastructureModule.forRoot` |
-| `register` / `registerAsync` | Health, RateLimiter                                                                                                                                |
-| `register` only              | Cache, Locks, Idempotency, Events, Audit, Transactions, Repositories, OutboxWriter                                                                 |
-| Static `@Module`             | Exceptions, InfrastructureConfig                                                                                                                   |
+| Style                        | Modules                                                                                                 |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `forRoot` / `forRootAsync`   | Logger, Redis, Drizzle, BullMQ, Auth, GoogleSso, Mail, Storage, OutboxProcessorOptions, OutboxProcessor |
+| `register` / `registerAsync` | Health, RateLimiter, Exceptions (`register` only — required `imports` peer)                             |
+| `register` only              | Cache, Locks, Idempotency, Events, Audit, Transactions, Repositories, OutboxWriter                      |
+| Static `@Module`             | InfrastructureConfig                                                                                    |
 
-Deprecated convenience: `*Module.forRootFromAppConfig` on Redis / Drizzle / BullMQ / Auth / Mail / Storage — prefer typed options or `*Async` + `mapAppConfigTo*` at the composition root.
+Map starter-kit env via typed options or `*Async` + `mapAppConfigTo*` at the composition root. Deprecated `forRootFromAppConfig` and `InfrastructureModule.forRoot` were removed (TASK-011).
 
 ---
 
@@ -76,7 +76,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                            |
 | -------------------- | ----------------------------------------------------------------- |
-| **API**              | `forRoot` / `forRootAsync`; deprecated `forRootFromAppConfig`     |
+| **API**              | `forRoot` / `forRootAsync`                                        |
 | **Peers**            | `LoggerModule` (`AppLogger`)                                      |
 | **Tokens / exports** | `REDIS_CLIENT`, `RedisService`, `RedisKeyBuilder`, options tokens |
 | **Config**           | `RedisModuleOptions`; `mapAppConfigToRedisOptions`                |
@@ -87,7 +87,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                                             |
 | -------------------- | ---------------------------------------------------------------------------------- |
-| **API**              | `forRoot` / `forRootAsync`; deprecated `forRootFromAppConfig`                      |
+| **API**              | `forRoot` / `forRootAsync`                                                         |
 | **Peers**            | None for the connection module; copy schema + migrations when shipping persistence |
 | **Tokens / exports** | `DRIZZLE_DB`, `PG_POOL`                                                            |
 | **Config**           | `DrizzleModuleOptions`; `mapAppConfigToDrizzleOptions`                             |
@@ -97,7 +97,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                                                                                    |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **API**              | `forRoot` / `forRootAsync` + `registerQueues(names, { imports? })`; deprecated `forRootFromAppConfig`                     |
+| **API**              | `forRoot` / `forRootAsync` + `registerQueues(names, { imports? })`                                                        |
 | **Peers**            | Own Redis connection options (does not require `RedisModule`); `registerQueues` must import the connection dynamic module |
 | **Tokens / exports** | `TOKENS.QueueGateway`, `BullQueueGateway`, `BULLMQ_*`                                                                     |
 | **Config**           | `BullMqModuleOptions`; `mapAppConfigToBullMqOptions`                                                                      |
@@ -108,7 +108,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                  | Detail                                                                                                            |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| **API**                | `forRoot(options, registration?)` / `forRootAsync`; deprecated `forRootFromAppConfig`                             |
+| **API**                | `forRoot(options, registration?)` / `forRootAsync`                                                                |
 | **Peers**              | Default Redis JWT/session stores need `RedisModule` in `imports` (or override store providers)                    |
 | **Tokens / exports**   | `TOKENS.PasswordHasher`, `TOKENS.AuthTokenService`; JWT → `TOKENS.JwtTokenStore`; session → `TOKENS.SessionStore` |
 | **Config**             | `AuthModuleOptions`; `mapAppConfigToAuthOptions`                                                                  |
@@ -119,7 +119,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                                                                                                             |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **API**              | `forRoot(options, imports?)` / `forRootAsync` (no `forRootFromAppConfig`)                                                                          |
+| **API**              | `forRoot(options, imports?)` / `forRootAsync`                                                                                                      |
 | **Peers**            | Enabled mode needs `RedisModule` for state store                                                                                                   |
 | **Tokens / exports** | `TOKENS.GoogleIdentityService`, `TOKENS.GoogleOAuthStateStore`                                                                                     |
 | **Config**           | `GoogleSsoModuleOptions`; `mapAppConfigToGoogleSsoOptions`                                                                                         |
@@ -129,7 +129,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                              |
 | -------------------- | ------------------------------------------------------------------- |
-| **API**              | `forRoot` / `forRootAsync`; deprecated `forRootFromAppConfig`       |
+| **API**              | `forRoot` / `forRootAsync`                                          |
 | **Peers**            | `LoggerModule` for async/null adapter paths                         |
 | **Tokens / exports** | `TOKENS.EmailGateway`, `MailTemplateService`                        |
 | **Config**           | `MailModuleOptions` (`null` \| `smtp`); `mapAppConfigToMailOptions` |
@@ -139,7 +139,7 @@ LoggerModule.forRoot({ level: 'info', pretty: false });
 
 | Field                | Detail                                                                   |
 | -------------------- | ------------------------------------------------------------------------ |
-| **API**              | `forRoot` / `forRootAsync`; deprecated `forRootFromAppConfig`            |
+| **API**              | `forRoot` / `forRootAsync`                                               |
 | **Peers**            | None                                                                     |
 | **Tokens / exports** | `TOKENS.StorageGateway`                                                  |
 | **Config**           | `StorageModuleOptions` (`local` \| `s3`); `mapAppConfigToStorageOptions` |
@@ -268,11 +268,17 @@ EventsModule.register({
 
 ### ExceptionsModule
 
-| Field     | Detail                                                                 |
-| --------- | ---------------------------------------------------------------------- |
-| **API**   | Static `@Module` (registers `APP_FILTER` → `GlobalExceptionFilter`)    |
-| **Peers** | `LoggerModule`                                                         |
-| **Copy**  | `libs/infrastructure/src/exceptions/` + `@domain/errors/domain-errors` |
+| Field     | Detail                                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **API**   | `register({ imports })` — required `imports` must include configured `LoggerModule.forRoot` / `forRootAsync` (registers `APP_FILTER`) |
+| **Peers** | Configured `LoggerModule` (exports `AppLogger`) — do not rely on ambient global registration alone                                    |
+| **Copy**  | `libs/infrastructure/src/exceptions/` + `@domain/errors/domain-errors`                                                                |
+
+```typescript
+const loggerModule = LoggerModule.forRoot({ level: 'error', pretty: false });
+
+imports: [loggerModule, ExceptionsModule.register({ imports: [loggerModule] })];
+```
 
 ### InfrastructureConfigModule
 
@@ -283,12 +289,9 @@ EventsModule.register({
 | **Copy**  | `libs/infrastructure/src/config/` when keeping starter-kit env mapping                                                                                                        |
 | **Note**  | Optional for portable modules — prefer typed `forRoot` / `register` options; use `create-starter-kit-module-options.ts` only at composition roots that keep this config style |
 
-### InfrastructureModule (deprecated)
+### Removed facades (do not copy)
 
-| Field        | Detail                                                            |
-| ------------ | ----------------------------------------------------------------- |
-| **API**      | Deprecated `forRoot()` convenience facade                         |
-| **Guidance** | **Do not extract** as a unit — extract individual modules instead |
+`InfrastructureModule` and `*Module.forRootFromAppConfig` were deleted (TASK-011). Extract individual modules with explicit composition-root registration instead.
 
 ---
 

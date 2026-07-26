@@ -77,7 +77,7 @@ const rateLimiterModule = RateLimiterModule.registerAsync({
 @Module({
   imports: [
     loggerModule,
-    ExceptionsModule,
+    ExceptionsModule.register({ imports: [loggerModule] }),
     InfrastructureConfigModule,
     redisModule,
     drizzleModule,

@@ -141,7 +141,6 @@ libs/
       idempotency/
       repositories/
       mappers/
-      infrastructure.module.ts
 
   shared/
     src/

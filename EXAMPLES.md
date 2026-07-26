@@ -846,8 +846,10 @@ Reuse model — **copy-kit** (не npm packages): [ADR-001](./docs/architecture/
 
 - `forRoot` / `forRootAsync`: `RedisModule`, `DrizzleModule`, `InfrastructureBullMqModule`, `AuthModule`, `MailModule`, `StorageModule`, `LoggerModule`, …
 - `register` / `registerAsync`: `HealthModule`, `RateLimiterModule`
-- `register` only: `CacheModule`, `LocksModule`, `IdempotencyModule`, `EventsModule`, `AuditModule`, …
-- Static `@Module`: `ExceptionsModule`, `InfrastructureConfigModule`
+- `register` only: `CacheModule`, `LocksModule`, `IdempotencyModule`, `EventsModule`, `AuditModule`, `ExceptionsModule` (`register({ imports: [loggerModule] })` — required Logger peer), …
+- Static `@Module`: `InfrastructureConfigModule`
+
+**Breaking (TASK-011):** `ExceptionsModule` is no longer a bare static import — use `ExceptionsModule.register({ imports: [loggerModule] })`. Deprecated `forRootFromAppConfig` and `InfrastructureModule.forRoot` were removed; wire modules explicitly at the composition root.
 
 Повні standalone-приклади та матриця: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
 

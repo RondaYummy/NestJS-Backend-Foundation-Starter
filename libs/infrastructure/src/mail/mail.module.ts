@@ -7,8 +7,6 @@ import {
 } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
 
-import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
-import { AppConfigService } from '../config/app-config.service';
 import { AppLogger } from '../logger/app-logger.service';
 import { MailTemplateService } from './mail-template.service';
 import { NullMailAdapter } from './null-mail.adapter';
@@ -65,27 +63,5 @@ export class MailModule {
       ],
       exports: [TOKENS.EmailGateway, MailTemplateService],
     };
-  }
-
-  /**
-   * @deprecated Use `forRootAsync` at the composition root with typed options instead.
-   */
-  static forRootFromAppConfig(): DynamicModule {
-    return MailModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService): MailModuleOptions => {
-        const mail = config.mail();
-
-        if (mail.driver === 'smtp') {
-          return {
-            driver: 'smtp',
-            smtp: mail.smtp,
-          };
-        }
-
-        return { driver: 'null' };
-      },
-    });
   }
 }

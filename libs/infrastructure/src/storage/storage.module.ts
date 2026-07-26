@@ -7,8 +7,6 @@ import {
 } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
 
-import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
-import { AppConfigService } from '../config/app-config.service';
 import { LocalStorageAdapter } from './local-storage.adapter';
 import { S3StorageAdapter } from './s3-storage.adapter';
 import {
@@ -63,30 +61,5 @@ export class StorageModule {
       ],
       exports: [TOKENS.StorageGateway],
     };
-  }
-
-  /**
-   * @deprecated Use `forRootAsync` at the composition root with typed options instead.
-   */
-  static forRootFromAppConfig(): DynamicModule {
-    return StorageModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService): StorageModuleOptions => {
-        const storage = config.storage();
-
-        if (storage.driver === 's3') {
-          return {
-            driver: 's3',
-            s3: storage.s3,
-          };
-        }
-
-        return {
-          driver: 'local',
-          localPath: storage.localPath,
-        };
-      },
-    });
   }
 }

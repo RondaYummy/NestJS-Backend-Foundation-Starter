@@ -8,8 +8,6 @@ import {
 } from '@nestjs/common';
 import { TOKENS } from '@contracts/tokens';
 
-import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
-import { AppConfigService } from '../config/app-config.service';
 import {
   BULLMQ_MODULE_OPTIONS,
   BULLMQ_REGISTERED_QUEUES,
@@ -107,44 +105,6 @@ export class InfrastructureBullMqModule extends ConfigurableModuleClass {
         BullModule.registerQueue(...queueNames.map((name) => ({ name }))),
       ],
       providers,
-      exports: [BullQueueGateway, TOKENS.QueueGateway, BullModule],
-    };
-  }
-
-  /**
-   * @deprecated Use `forRootAsync` and `registerQueues` at the composition root instead.
-   */
-  static forRootFromAppConfig(queueNames: readonly string[]): DynamicModule {
-    const connectionModule = InfrastructureBullMqModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService): BullMqModuleOptions => {
-        const redisConfig = config.redis();
-        const bullmqConfig = config.bullmq();
-
-        return {
-          connection: {
-            host: redisConfig.host,
-            port: redisConfig.port,
-            password: redisConfig.password,
-            db: redisConfig.db,
-            connectTimeoutMs: redisConfig.connectTimeoutMs,
-          },
-          defaultJobOptions: {
-            attempts: bullmqConfig.defaultAttempts,
-            backoffDelay: bullmqConfig.backoffDelay,
-          },
-        };
-      },
-    });
-
-    return {
-      module: InfrastructureBullMqModule,
-      global: false,
-      imports: [
-        connectionModule,
-        InfrastructureBullMqModule.registerQueues(queueNames, { imports: [connectionModule] }),
-      ],
       exports: [BullQueueGateway, TOKENS.QueueGateway, BullModule],
     };
   }

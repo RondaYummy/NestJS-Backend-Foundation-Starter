@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import Redis from 'ioredis';
 
-import { InfrastructureConfigModule } from '../config/infrastructure-config.module';
-import { AppConfigService } from '../config/app-config.service';
 import { AppLogger } from '../logger/app-logger.service';
 import { RedisService } from './redis.service';
 import { RedisKeyBuilder } from './redis-key-builder';
@@ -68,17 +66,6 @@ export class RedisModule extends ConfigurableModuleClass {
       ...super.forRootAsync(options),
       global: false,
     };
-  }
-
-  /**
-   * @deprecated Use `forRootAsync` at the composition root with typed options instead.
-   */
-  static forRootFromAppConfig(): DynamicModule {
-    return RedisModule.forRootAsync({
-      imports: [InfrastructureConfigModule],
-      inject: [AppConfigService],
-      useFactory: (config: AppConfigService) => config.redis(),
-    });
   }
 }
 
