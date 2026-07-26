@@ -1,8 +1,50 @@
 # Infrastructure module integration
 
-Each reusable infrastructure module exposes typed `forRoot` / `forRootAsync` registration. Map environment configuration at the **composition root** (API, Worker, or Cron module), not inside adapters.
+Reusable infrastructure modules are **source copy-kit modules** (path aliases), not publishable npm packages. See [ADR-001](../architecture/ADR-001-module-reuse-model.md) and the [EXTRACTION_GUIDE.md](./EXTRACTION_GUIDE.md) for peers, tokens, config touchpoints, and copy steps.
 
-Shared mappers for the starter kit live in `libs/infrastructure/src/config/create-starter-kit-module-options.ts`.
+Map environment configuration at the **composition root** (API, Worker, or Cron module), not inside adapters. Shared starter-kit mappers live in `libs/infrastructure/src/config/create-starter-kit-module-options.ts`.
+
+Modules do **not** all use the same registration API. Use the matrix below; do not assume every module has `forRoot` / `forRootAsync`.
+
+## Registration matrix
+
+| Module                         | Registration API                              | Notes                                                                                      |
+| ------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `LoggerModule`                 | `forRoot` / `forRootAsync`                    | Global; options `level`, `pretty`                                                          |
+| `RedisModule`                  | `forRoot` / `forRootAsync`                    | Needs `LoggerModule`; deprecated `forRootFromAppConfig`                                    |
+| `DrizzleModule`                | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
+| `InfrastructureBullMqModule`   | `forRoot` / `forRootAsync` + `registerQueues` | Deprecated `forRootFromAppConfig(queueNames)`                                              |
+| `AuthModule`                   | `forRoot` / `forRootAsync`                    | Pass Redis (or custom stores) via `imports` / providers; deprecated `forRootFromAppConfig` |
+| `GoogleSsoModule`              | `forRoot` / `forRootAsync`                    | Redis required when enabled                                                                |
+| `MailModule`                   | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
+| `StorageModule`                | `forRoot` / `forRootAsync`                    | Deprecated `forRootFromAppConfig`                                                          |
+| `OutboxProcessorOptionsModule` | `forRoot` / `forRootAsync`                    | Cron schedule options                                                                      |
+| `OutboxProcessorModule`        | `forRoot` / `forRootAsync`                    | Optional `{ eventHandlers }`; pulls Audit + Events                                         |
+| `OutboxWriterModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
+| `HealthModule`                 | `register` / `registerAsync`                  | Needs Drizzle + Redis + OUTBOX queue                                                       |
+| `RateLimiterModule`            | `register` / `registerAsync`                  | Needs `RedisModule`; typed `defaults`                                                      |
+| `CacheModule`                  | `register` only                               | Needs `RedisModule`                                                                        |
+| `LocksModule`                  | `register` only                               | Needs `RedisModule`                                                                        |
+| `IdempotencyModule`            | `register` only                               | Needs `RedisModule`                                                                        |
+| `EventsModule`                 | `register` only                               | `register({ imports?, handlers? })` — no baked-in handlers                                 |
+| `AuditModule`                  | `register` only                               | Needs Drizzle + Logger                                                                     |
+| `TransactionsModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
+| `RepositoriesModule`           | `register` only                               | Needs `DrizzleModule`                                                                      |
+| `ExceptionsModule`             | Static `@Module`                              | Global exception filter; needs Logger                                                      |
+| `InfrastructureConfigModule`   | Static `@Module`                              | Starter-kit env → `AppConfigService`                                                       |
+| `InfrastructureModule`         | Deprecated `forRoot()`                        | Convenience facade — prefer explicit imports                                               |
+
+## LoggerModule
+
+```typescript
+import { LoggerModule } from '@infrastructure/logger/logger.module';
+
+LoggerModule.forRoot({ level: 'info', pretty: false });
+// or
+LoggerModule.forRootAsync({
+  useFactory: () => ({ level: 'info', pretty: false }),
+});
+```
 
 ## RedisModule
 
@@ -142,6 +184,27 @@ StorageModule.forRoot({
 });
 ```
 
+## RateLimiterModule / HealthModule / EventsModule (register APIs)
+
+```typescript
+RateLimiterModule.register({
+  imports: [redisModule],
+  defaults: { max: 100, ttl: 60, authMax: 10, authTtl: 60 },
+});
+
+HealthModule.register({
+  imports: [drizzleModule, redisModule, outboxQueuesModule],
+  checkTimeoutMs: 3000,
+});
+
+EventsModule.register({
+  handlers: [/* Type<IDomainEventHandler> */],
+  imports: [/* peers handlers need */],
+});
+```
+
+Full peer lists and copy steps: [EXTRACTION_GUIDE.md](./EXTRACTION_GUIDE.md).
+
 ## Starter-kit convenience
 
 ```typescript
@@ -164,6 +227,14 @@ Each connection/adapter module has a `*.module.spec.ts` that boots without `Infr
 
 ```typescript
 await Test.createTestingModule({
-  imports: [RedisModule.forRoot({ host: '127.0.0.1', port: 6379, db: 0, connectTimeoutMs: 1000, keyPrefix: 'app' })],
+  imports: [
+    RedisModule.forRoot({
+      host: '127.0.0.1',
+      port: 6379,
+      db: 0,
+      connectTimeoutMs: 1000,
+      keyPrefix: 'app',
+    }),
+  ],
 }).compile();
 ```

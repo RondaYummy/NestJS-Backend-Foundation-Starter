@@ -656,7 +656,12 @@ await this.domainEventRouter.route({
 ```tsx
 import { Block, Layout, OtpCode, Paragraph, Signoff, Title } from '../components';
 
-export const PasswordResetEmail = ({ email, token, resetUrl, expiresInMinutes }: PasswordResetEmailProps) => (
+export const PasswordResetEmail = ({
+  email,
+  token,
+  resetUrl,
+  expiresInMinutes,
+}: PasswordResetEmailProps) => (
   <Layout>
     <Block>
       <Title>Password reset</Title>
@@ -833,9 +838,18 @@ npm run start:dev:cron
 
 ## 13. Підключити infrastructure module окремо
 
-Кожен переносимий модуль (`RedisModule`, `DrizzleModule`, `InfrastructureBullMqModule`, `AuthModule`, `MailModule`, `StorageModule`) реєструється через `forRoot` / `forRootAsync` у composition root потрібного entrypoint.
+Reuse model — **copy-kit** (не npm packages): [ADR-001](./docs/architecture/ADR-001-module-reuse-model.md), [EXTRACTION_GUIDE](./docs/infrastructure-modules/EXTRACTION_GUIDE.md).
 
-Повні standalone-приклади: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
+Не всі модулі мають `forRoot` / `forRootAsync`. Актуальна матриця реєстрації: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
+
+Типові приклади:
+
+- `forRoot` / `forRootAsync`: `RedisModule`, `DrizzleModule`, `InfrastructureBullMqModule`, `AuthModule`, `MailModule`, `StorageModule`, `LoggerModule`, …
+- `register` / `registerAsync`: `HealthModule`, `RateLimiterModule`
+- `register` only: `CacheModule`, `LocksModule`, `IdempotencyModule`, `EventsModule`, `AuditModule`, …
+- Static `@Module`: `ExceptionsModule`, `InfrastructureConfigModule`
+
+Повні standalone-приклади та матриця: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
 
 Мінімальний приклад для API:
 

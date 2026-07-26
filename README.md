@@ -2,7 +2,9 @@
 
 Starter-kit для NestJS-проєктів, побудований у стилі **Onion Architecture** та **Multi-entrypoint Architecture**.
 
-Цей проєкт не є простим boilerplate. Його ціль — бути переносимою backend foundation-платформою, яку можна копіювати в новий проєкт і одразу починати писати бізнес-логіку, не витрачаючи час на повторне налаштування базових інфраструктурних модулів.
+Цей проєкт не є простим boilerplate. Його ціль — бути переносимою backend foundation-платформою, яку можна **копіювати** (copy-kit / source archive) в новий проєкт і одразу починати писати бізнес-логіку, не витрачаючи час на повторне налаштування базових інфраструктурних модулів.
+
+**Reuse model:** documented copy-kit — **not** publishable npm packages. Libs resolve via TypeScript path aliases; distribution is `npm run release:archive`. Decision: [docs/architecture/ADR-001-module-reuse-model.md](./docs/architecture/ADR-001-module-reuse-model.md). Registration matrix: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md). Extraction steps: [docs/infrastructure-modules/EXTRACTION_GUIDE.md](./docs/infrastructure-modules/EXTRACTION_GUIDE.md).
 
 Starter включає:
 
@@ -2325,12 +2327,12 @@ path=/
 
 Коли `AUTH_DRIVER=session`, автентифікований користувач може керувати своїми Redis-сесіями через:
 
-| Method   | Path                   | Purpose                                      |
-| -------- | ---------------------- | -------------------------------------------- |
-| `GET`    | `/v1/sessions`         | Список власних активних сесій з метаданими   |
-| `DELETE` | `/v1/sessions/{id}`    | Відкликати одну власну сесію                 |
-| `DELETE` | `/v1/sessions/others`  | Відкликати всі сесії, крім поточної          |
-| `DELETE` | `/v1/sessions`         | Відкликати всі сесії (sign out everywhere)   |
+| Method   | Path                  | Purpose                                    |
+| -------- | --------------------- | ------------------------------------------ |
+| `GET`    | `/v1/sessions`        | Список власних активних сесій з метаданими |
+| `DELETE` | `/v1/sessions/{id}`   | Відкликати одну власну сесію               |
+| `DELETE` | `/v1/sessions/others` | Відкликати всі сесії, крім поточної        |
+| `DELETE` | `/v1/sessions`        | Відкликати всі сесії (sign out everywhere) |
 
 Ці маршрути **завжди зареєстровані** в API (і задокументовані в OpenAPI) з явним позначенням «only when `AUTH_DRIVER=session`». Під `AUTH_DRIVER=jwt` вони відповідають `400` з кодом `SESSION_DRIVER_REQUIRED`.
 
@@ -2921,7 +2923,7 @@ Rules не описують довгий workflow. Вони блокують а�
 - непідтверджені заяви про успішну перевірку;
 - небезпечні Git, Docker і database commands.
 
-Standalone integration examples for portable infrastructure modules: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md).
+Standalone integration examples and registration matrix for copy-kit infrastructure modules: [docs/infrastructure-modules/README.md](./docs/infrastructure-modules/README.md). Per-module extraction: [docs/infrastructure-modules/EXTRACTION_GUIDE.md](./docs/infrastructure-modules/EXTRACTION_GUIDE.md). Reuse decision: [docs/architecture/ADR-001-module-reuse-model.md](./docs/architecture/ADR-001-module-reuse-model.md).
 
 ### Рівень 3 — Skills
 
