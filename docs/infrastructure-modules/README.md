@@ -216,7 +216,7 @@ RedisModule.forRootAsync({
 });
 ```
 
-## Breaking removals (TASK-011)
+## Breaking removals
 
 The following deprecated facades were **removed** (no stub):
 

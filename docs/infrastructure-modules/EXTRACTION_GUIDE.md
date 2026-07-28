@@ -50,7 +50,7 @@ Suggested composition order when extracting several modules:
 | `register` only              | Cache, Locks, Idempotency, Events, Audit, Transactions, Repositories, OutboxWriter                      |
 | Static `@Module`             | InfrastructureConfig                                                                                    |
 
-Map starter-kit env via typed options or `*Async` + `mapAppConfigTo*` at the composition root. Deprecated `forRootFromAppConfig` and `InfrastructureModule.forRoot` were removed (TASK-011).
+Map starter-kit env via typed options or `*Async` + `mapAppConfigTo*` at the composition root. Deprecated `forRootFromAppConfig` and `InfrastructureModule.forRoot` were removed.
 
 ---
 
@@ -291,7 +291,7 @@ imports: [loggerModule, ExceptionsModule.register({ imports: [loggerModule] })];
 
 ### Removed facades (do not copy)
 
-`InfrastructureModule` and `*Module.forRootFromAppConfig` were deleted (TASK-011). Extract individual modules with explicit composition-root registration instead.
+`InfrastructureModule` and `*Module.forRootFromAppConfig` were deleted. Extract individual modules with explicit composition-root registration instead.
 
 ---
 
