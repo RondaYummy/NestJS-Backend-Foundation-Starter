@@ -16,7 +16,9 @@ describe('ResetPasswordUseCase', () => {
   let tokenStore: jest.Mocked<IPasswordResetTokenStore>;
   let userRepository: jest.Mocked<Pick<IUserRepository, 'findById' | 'update'>>;
   let passwordHasher: jest.Mocked<Pick<IPasswordHasher, 'hash'>>;
-  let authTokenService: jest.Mocked<Pick<IAuthTokenService, 'createAuthSession'>>;
+  let authTokenService: jest.Mocked<
+    Pick<IAuthTokenService, 'createAuthSession' | 'revokeAllForUser'>
+  >;
   let useCase: ResetPasswordUseCase;
 
   const rawToken = 'raw-reset-token';
@@ -50,6 +52,7 @@ describe('ResetPasswordUseCase', () => {
         sessionId: 'session-1',
         expiresAt: new Date('2026-08-01T00:00:00.000Z'),
       }),
+      revokeAllForUser: jest.fn().mockResolvedValue(undefined),
     };
     useCase = new ResetPasswordUseCase(
       tokenStore,
@@ -83,6 +86,36 @@ describe('ResetPasswordUseCase', () => {
         expiresAt: new Date('2026-08-01T00:00:00.000Z'),
       },
     });
+  });
+
+  it('purges stored auth artifacts before re-issuing the new ones (P1-02 AC-01, AC-02, AC-03)', async () => {
+    const callOrder: string[] = [];
+
+    authTokenService.revokeAllForUser.mockImplementation(() => {
+      callOrder.push('revokeAllForUser');
+
+      return Promise.resolve();
+    });
+    authTokenService.createAuthSession.mockImplementation(() => {
+      callOrder.push('createAuthSession');
+
+      return Promise.resolve({ sessionId: 'session-1' });
+    });
+
+    await useCase.execute({ token: rawToken, newPassword: 'new-password' });
+
+    expect(authTokenService.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(callOrder).toEqual(['revokeAllForUser', 'createAuthSession']);
+  });
+
+  it('does not purge auth artifacts when the reset token is rejected (P1-02)', async () => {
+    tokenStore.consume.mockResolvedValue(null);
+
+    await expect(
+      useCase.execute({ token: rawToken, newPassword: 'new-password' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    expect(authTokenService.revokeAllForUser).not.toHaveBeenCalled();
   });
 
   it('rejects an invalid, expired, or reused token with INVALID_RESET_TOKEN (AC-08)', async () => {

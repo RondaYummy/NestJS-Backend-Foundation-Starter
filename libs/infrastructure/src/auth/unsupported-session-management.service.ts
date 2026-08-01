@@ -13,7 +13,11 @@ import { ValidationError } from '@domain/errors/domain-errors';
  */
 @Injectable()
 export class UnsupportedSessionManagementService implements ISessionManagementService {
-  listForUser(_userId: string, _currentSessionId: string): Promise<SessionListItem[]> {
+  listForUser(
+    _userId: string,
+    _currentSessionId: string,
+    _currentAuthVersion: number,
+  ): Promise<SessionListItem[]> {
     return Promise.reject(this.driverError());
   }
 

@@ -298,7 +298,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Change the current user password',
     description:
-      'Verifies currentPassword, stores the new hash, and bumps authVersion so all previously issued JWT/session credentials become stale. The response re-issues fresh auth artifacts like POST /v1/auth/login; with AUTH_DRIVER=session it also sets a new session cookie.',
+      'Verifies currentPassword, stores the new hash, and bumps authVersion. Before re-issuing, the server eagerly purges the user’s stored auth artifacts in Redis: all indexed sessions with AUTH_DRIVER=session, all indexed refresh-token families with AUTH_DRIVER=jwt. Already issued JWT access tokens are not denylisted: they are rejected on the next request only when the composition root wires resolveAccessUser (starter-kit default), otherwise they stay usable until expiry. The response re-issues fresh auth artifacts like POST /v1/auth/login; with AUTH_DRIVER=session it also sets a new session cookie.',
   })
   @ApiBearerAuth('bearerAuth')
   @ApiCookieAuth('sessionCookie')
@@ -401,7 +401,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Reset the password with a one-time token',
     description:
-      'Consumes the emailed one-time reset token, stores the new password hash, and bumps authVersion so prior credentials become stale. The response re-issues fresh auth artifacts like POST /v1/auth/login; with AUTH_DRIVER=session it also sets a new session cookie.',
+      'Consumes the emailed one-time reset token, stores the new password hash, and bumps authVersion. Before re-issuing, the server eagerly purges the user’s stored auth artifacts in Redis: all indexed sessions with AUTH_DRIVER=session, all indexed refresh-token families with AUTH_DRIVER=jwt. Already issued JWT access tokens are not denylisted: they are rejected on the next request only when the composition root wires resolveAccessUser (starter-kit default), otherwise they stay usable until expiry. The response re-issues fresh auth artifacts like POST /v1/auth/login; with AUTH_DRIVER=session it also sets a new session cookie.',
   })
   @ApiOkResponse({
     description: 'Password reset; fresh auth artifacts issued for the calling client.',

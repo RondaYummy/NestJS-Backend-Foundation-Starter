@@ -88,6 +88,14 @@ export class SessionAuthTokenService implements IAuthTokenService {
     await this.sessionStore.delete(input.sessionId);
   }
 
+  async revokeAllForUser(userId: string): Promise<void> {
+    const entries = await this.sessionStore.listByUserId(userId);
+
+    for (const entry of entries) {
+      await this.sessionStore.delete(entry.id);
+    }
+  }
+
   async parseRefreshToken(_refreshToken: string): Promise<ParsedRefreshToken> {
     return Promise.reject(
       new AuthenticationError(

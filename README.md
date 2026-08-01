@@ -2271,12 +2271,15 @@ Redis використовується для:
 ```txt
 {prefix}auth:refresh-token:<refresh-jti>
 {prefix}auth:refresh-family:<family-id>
+{prefix}auth:refresh-families:user:<user-id>
 {prefix}auth:revoked-access-token:<access-jti>
 ```
 
 За замовчуванням `REDIS_KEY_PREFIX=app`, тобто `app:auth:refresh-token:…`.
 
 Усі ключі мають TTL.
+
+`auth:refresh-families:user:<user-id>` — SET `familyId` (per-user індекс). Він наповнюється під час `saveRefreshToken` / успішного `rotateRefreshToken`, дозволяє відкликати всі families користувача без сканування Redis і не скорочує власний TTL коротшою новою family (TTL = `max(залишок TTL індексу, новий refresh TTL)`; Redis TTL `-1`/`-2` → новий TTL). Families, видані до появи індексу, у ньому відсутні: вони не відкликаються еагерно, а помирають через `authVersion` і TTL.
 
 ## JWT logout
 
@@ -2369,6 +2372,21 @@ sessions:user:{userId}         → SET sessionId (per-user index; TTL = max rema
 **Session path:** `verifyAccessToken` завантажує користувача через `resolveSessionUser` у composition root і порівнює `authVersion` з session record.
 
 **Legacy JWT:** токени без claim `authVersion` трактуються як версія `0`.
+
+### Зміна пароля: очищення сховища + freshness
+
+`POST /v1/auth/change-password` і `POST /v1/auth/reset-password` не покладаються тільки на bump `authVersion`. Після збереження нового hash і **до** видачі нових артефактів use case викликає `IAuthTokenService.revokeAllForUser(userId)`:
+
+| Driver    | Що видаляється еагерно                                                            | Що лишається до TTL                                                                               |
+| --------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `session` | усі проіндексовані сесії користувача (`sessions:user:{userId}` → `sessions:{id}`) | сесії, відсутні в user-index (не потрапляють у `GET /v1/sessions`, відхиляються за `authVersion`) |
+| `jwt`     | усі проіндексовані refresh-token families (`auth:refresh-families:user:{userId}`) | видані access JWT; families без запису в індексі (створені до апгрейду)                           |
+
+Порядок важливий: purge виконується перед `createAuthSession`, інакше видалявся б і щойно створений артефакт.
+
+Access JWT **не** додаються в blacklist під час зміни пароля. Вони відхиляються на наступному запиті, коли composition root підключив `resolveAccessUser` (starter kit за замовчуванням); без нього залишаються чинними до закінчення TTL.
+
+`GET /v1/sessions` додатково фільтрує записи зі stale `authVersion`, тому неактуальна сесія не показується як активна навіть якщо її ключ ще існує в Redis.
 
 **Breaking change (session):** після деплою формат Redis session змінюється — існуючі сесії стають невалідними; користувачі повинні виконати login повторно.
 

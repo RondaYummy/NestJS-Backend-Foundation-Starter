@@ -3,7 +3,7 @@ import type { ISessionManagementService } from '@contracts/auth/session-manageme
 export class ListSessionsUseCase {
   constructor(private readonly sessionManagement: ISessionManagementService) {}
 
-  execute(userId: string, currentSessionId: string) {
-    return this.sessionManagement.listForUser(userId, currentSessionId);
+  execute(userId: string, currentSessionId: string, currentAuthVersion: number) {
+    return this.sessionManagement.listForUser(userId, currentSessionId, currentAuthVersion);
   }
 }

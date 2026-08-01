@@ -38,6 +38,11 @@ export class ResetPasswordUseCase {
 
     await this.userRepository.update(updatedUser);
 
+    // Purge stored sessions / refresh families before re-issuing, otherwise the
+    // artifacts created below would be revoked too. The bumped authVersion stays
+    // as defense in depth for credentials the store cannot reach.
+    await this.authTokenService.revokeAllForUser(updatedUser.id);
+
     const auth = await this.authTokenService.createAuthSession({
       id: updatedUser.id,
       email: updatedUser.email.toString(),

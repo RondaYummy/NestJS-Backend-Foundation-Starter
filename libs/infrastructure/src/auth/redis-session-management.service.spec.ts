@@ -11,18 +11,18 @@ describe('RedisSessionManagementService', () => {
   let sessionStore: jest.Mocked<ISessionStore>;
   let service: RedisSessionManagementService;
 
-  const record = (userId = 'user-1'): SessionRecord => ({
+  const record = (userId = 'user-1', authVersion = 1): SessionRecord => ({
     userId,
-    authVersion: 1,
+    authVersion,
     createdAt: '2026-07-19T09:00:00.000Z',
     lastActivityAt: '2026-07-19T09:00:00.000Z',
     ip: '203.0.113.10',
     userAgent: 'Mozilla/5.0',
   });
 
-  const entry = (id: string, userId = 'user-1'): SessionListEntry => ({
+  const entry = (id: string, userId = 'user-1', authVersion = 1): SessionListEntry => ({
     id,
-    record: record(userId),
+    record: record(userId, authVersion),
     expiresAt: new Date('2026-07-26T09:00:00.000Z'),
   });
 
@@ -39,13 +39,25 @@ describe('RedisSessionManagementService', () => {
   it('lists sessions and marks exactly the current id as isCurrent', async () => {
     sessionStore.listByUserId.mockResolvedValue([entry('sid-a'), entry('sid-b')]);
 
-    const listed = await service.listForUser('user-1', 'sid-b');
+    const listed = await service.listForUser('user-1', 'sid-b', 1);
 
     expect(listed).toEqual([
       expect.objectContaining({ id: 'sid-a', isCurrent: false, ip: '203.0.113.10' }),
       expect.objectContaining({ id: 'sid-b', isCurrent: true }),
     ]);
     expect(listed.filter((item) => item.isCurrent)).toHaveLength(1);
+  });
+
+  it('omits sessions whose stored authVersion is stale (P1-02 AC-01)', async () => {
+    sessionStore.listByUserId.mockResolvedValue([
+      entry('stale', 'user-1', 1),
+      entry('fresh', 'user-1', 2),
+    ]);
+
+    const listed = await service.listForUser('user-1', 'fresh', 2);
+
+    expect(listed).toEqual([expect.objectContaining({ id: 'fresh', isCurrent: true })]);
+    expect(sessionStore.delete).not.toHaveBeenCalled();
   });
 
   it('revokeOne deletes an owned non-current session', async () => {
@@ -82,11 +94,7 @@ describe('RedisSessionManagementService', () => {
   });
 
   it('revokeOthers deletes every session except the current one', async () => {
-    sessionStore.listByUserId.mockResolvedValue([
-      entry('keep'),
-      entry('drop-1'),
-      entry('drop-2'),
-    ]);
+    sessionStore.listByUserId.mockResolvedValue([entry('keep'), entry('drop-1'), entry('drop-2')]);
 
     await expect(service.revokeOthers('user-1', 'keep')).resolves.toEqual({ revokedCount: 2 });
     expect(sessionStore.delete).toHaveBeenCalledWith('drop-1');
@@ -108,7 +116,7 @@ describe('UnsupportedSessionManagementService', () => {
   const service = new UnsupportedSessionManagementService();
 
   it.each([
-    ['listForUser', () => service.listForUser('u', 's')],
+    ['listForUser', () => service.listForUser('u', 's', 1)],
     ['revokeOne', () => service.revokeOne('u', 's', 's')],
     ['revokeOthers', () => service.revokeOthers('u', 's')],
     ['revokeAll', () => service.revokeAll('u')],

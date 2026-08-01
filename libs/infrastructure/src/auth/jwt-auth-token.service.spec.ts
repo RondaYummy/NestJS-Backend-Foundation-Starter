@@ -40,6 +40,7 @@ describe('JwtAuthTokenService', () => {
       saveRefreshToken: jest.fn().mockResolvedValue(undefined),
       rotateRefreshToken: jest.fn().mockResolvedValue(true),
       revokeRefreshTokenFamily: jest.fn().mockResolvedValue(undefined),
+      revokeAllRefreshTokenFamilies: jest.fn().mockResolvedValue(undefined),
       revokeAccessToken: jest.fn().mockResolvedValue(undefined),
       isAccessTokenRevoked: jest.fn().mockResolvedValue(false),
     };
@@ -125,6 +126,13 @@ describe('JwtAuthTokenService', () => {
       }),
       expect.any(Object),
     );
+  });
+
+  it('revokeAllForUser delegates to the store user-family purge (P1-02 AC-02)', async () => {
+    await service.revokeAllForUser('user-1');
+
+    expect(tokenStore.revokeAllRefreshTokenFamilies).toHaveBeenCalledWith('user-1');
+    expect(tokenStore.revokeRefreshTokenFamily).not.toHaveBeenCalled();
   });
 
   it('verifyAccessToken treats missing authVersion claim as 0', async () => {

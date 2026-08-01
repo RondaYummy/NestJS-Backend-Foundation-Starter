@@ -95,7 +95,11 @@ export class SessionsController {
     @Req() req: Request,
   ): Promise<SessionsListResponseDto> {
     const currentSessionId = this.requireSessionCookie(req);
-    const sessions = await this.listSessionsUseCase.execute(user.id, currentSessionId);
+    const sessions = await this.listSessionsUseCase.execute(
+      user.id,
+      currentSessionId,
+      user.authVersion,
+    );
 
     this.logger.info('Sessions listed', {
       userId: user.id,
@@ -237,8 +241,7 @@ export class SessionsController {
     },
   })
   @ApiBadRequestResponse({
-    description:
-      'Invalid path param, or AUTH_DRIVER is not session (SESSION_DRIVER_REQUIRED).',
+    description: 'Invalid path param, or AUTH_DRIVER is not session (SESSION_DRIVER_REQUIRED).',
     type: ErrorEnvelopeDto,
   })
   @ApiUnauthorizedResponse({
@@ -266,11 +269,7 @@ export class SessionsController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<SessionMutationResponseDto> {
     const currentSessionId = this.requireSessionCookie(req);
-    const result = await this.revokeSessionUseCase.execute(
-      user.id,
-      params.id,
-      currentSessionId,
-    );
+    const result = await this.revokeSessionUseCase.execute(user.id, params.id, currentSessionId);
 
     if (result.clearedCurrent) {
       this.sessionCookieService.clear(res);
@@ -292,9 +291,7 @@ export class SessionsController {
     const requestWithCookies = req as Request & {
       cookies?: Record<string, unknown>;
     };
-    const sessionId = this.sessionCookieService.getSessionIdFromCookies(
-      requestWithCookies.cookies,
-    );
+    const sessionId = this.sessionCookieService.getSessionIdFromCookies(requestWithCookies.cookies);
 
     if (!sessionId) {
       throw new UnauthorizedException('Unauthorized');

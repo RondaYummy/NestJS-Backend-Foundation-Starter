@@ -6,7 +6,7 @@ import { ValidationError } from '@domain/errors/domain-errors';
 import { ListSessionsUseCase } from './list-sessions.usecase';
 
 describe('ListSessionsUseCase', () => {
-  it('delegates to the management port with user and current session id', async () => {
+  it('delegates to the management port with user, current session id and authVersion', async () => {
     const sessions = [
       {
         id: 'sid-1',
@@ -26,8 +26,8 @@ describe('ListSessionsUseCase', () => {
       sessionManagement as unknown as ISessionManagementService,
     );
 
-    await expect(useCase.execute('user-1', 'sid-1')).resolves.toEqual(sessions);
-    expect(sessionManagement.listForUser).toHaveBeenCalledWith('user-1', 'sid-1');
+    await expect(useCase.execute('user-1', 'sid-1', 4)).resolves.toEqual(sessions);
+    expect(sessionManagement.listForUser).toHaveBeenCalledWith('user-1', 'sid-1', 4);
   });
 
   it('propagates SESSION_DRIVER_REQUIRED from the JWT stub', async () => {
@@ -46,7 +46,9 @@ describe('ListSessionsUseCase', () => {
       sessionManagement as unknown as ISessionManagementService,
     );
 
-    const error: unknown = await useCase.execute('user-1', 'sid-1').catch((caught: unknown) => caught);
+    const error: unknown = await useCase
+      .execute('user-1', 'sid-1', 4)
+      .catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(ValidationError);
     expect((error as ValidationError).code).toBe('SESSION_DRIVER_REQUIRED');

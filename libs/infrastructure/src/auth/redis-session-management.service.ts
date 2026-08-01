@@ -12,18 +12,24 @@ import { NotFoundError } from '@domain/errors/domain-errors';
 export class RedisSessionManagementService implements ISessionManagementService {
   constructor(private readonly sessionStore: ISessionStore) {}
 
-  async listForUser(userId: string, currentSessionId: string): Promise<SessionListItem[]> {
+  async listForUser(
+    userId: string,
+    currentSessionId: string,
+    currentAuthVersion: number,
+  ): Promise<SessionListItem[]> {
     const entries = await this.sessionStore.listByUserId(userId);
 
-    return entries.map((entry) => ({
-      id: entry.id,
-      createdAt: entry.record.createdAt,
-      lastActivityAt: entry.record.lastActivityAt,
-      expiresAt: entry.expiresAt.toISOString(),
-      ip: entry.record.ip,
-      userAgent: entry.record.userAgent,
-      isCurrent: entry.id === currentSessionId,
-    }));
+    return entries
+      .filter((entry) => entry.record.authVersion === currentAuthVersion)
+      .map((entry) => ({
+        id: entry.id,
+        createdAt: entry.record.createdAt,
+        lastActivityAt: entry.record.lastActivityAt,
+        expiresAt: entry.expiresAt.toISOString(),
+        ip: entry.record.ip,
+        userAgent: entry.record.userAgent,
+        isCurrent: entry.id === currentSessionId,
+      }));
   }
 
   async revokeOne(

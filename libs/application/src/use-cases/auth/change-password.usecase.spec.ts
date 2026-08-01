@@ -12,7 +12,9 @@ import { ChangePasswordUseCase } from './change-password.usecase';
 describe('ChangePasswordUseCase', () => {
   let userRepository: jest.Mocked<Pick<IUserRepository, 'findById' | 'update'>>;
   let passwordHasher: jest.Mocked<Pick<IPasswordHasher, 'compare' | 'hash'>>;
-  let authTokenService: jest.Mocked<Pick<IAuthTokenService, 'createAuthSession'>>;
+  let authTokenService: jest.Mocked<
+    Pick<IAuthTokenService, 'createAuthSession' | 'revokeAllForUser'>
+  >;
   let useCase: ChangePasswordUseCase;
 
   const existingUser = () =>
@@ -40,6 +42,7 @@ describe('ChangePasswordUseCase', () => {
         accessToken: 'new-access',
         refreshToken: 'new-refresh',
       }),
+      revokeAllForUser: jest.fn().mockResolvedValue(undefined),
     };
     useCase = new ChangePasswordUseCase(
       userRepository as unknown as IUserRepository,
@@ -73,6 +76,44 @@ describe('ChangePasswordUseCase', () => {
       user: { id: 'user-1', email: 'user@example.com', roles: ['user'] },
       auth: { accessToken: 'new-access', refreshToken: 'new-refresh' },
     });
+  });
+
+  it('purges stored auth artifacts before re-issuing the new ones (P1-02 AC-01, AC-02, AC-03)', async () => {
+    const callOrder: string[] = [];
+
+    authTokenService.revokeAllForUser.mockImplementation(() => {
+      callOrder.push('revokeAllForUser');
+
+      return Promise.resolve();
+    });
+    authTokenService.createAuthSession.mockImplementation(() => {
+      callOrder.push('createAuthSession');
+
+      return Promise.resolve({ accessToken: 'new-access', refreshToken: 'new-refresh' });
+    });
+
+    await useCase.execute({
+      userId: 'user-1',
+      currentPassword: 'old-password',
+      newPassword: 'new-password',
+    });
+
+    expect(authTokenService.revokeAllForUser).toHaveBeenCalledWith('user-1');
+    expect(callOrder).toEqual(['revokeAllForUser', 'createAuthSession']);
+  });
+
+  it('does not purge auth artifacts when the password change fails (P1-02)', async () => {
+    passwordHasher.compare.mockResolvedValue(false);
+
+    await expect(
+      useCase.execute({
+        userId: 'user-1',
+        currentPassword: 'wrong-password',
+        newPassword: 'new-password',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    expect(authTokenService.revokeAllForUser).not.toHaveBeenCalled();
   });
 
   it('never exposes passwordHash or plaintext passwords in the result (AC-09)', async () => {

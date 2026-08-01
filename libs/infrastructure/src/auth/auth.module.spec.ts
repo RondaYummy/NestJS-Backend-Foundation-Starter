@@ -88,6 +88,7 @@ describe('AuthModule', () => {
       saveRefreshToken: jest.fn(),
       rotateRefreshToken: jest.fn(),
       revokeRefreshTokenFamily: jest.fn(),
+      revokeAllRefreshTokenFamilies: jest.fn(),
       revokeAccessToken: jest.fn(),
       isAccessTokenRevoked: jest.fn(),
     };

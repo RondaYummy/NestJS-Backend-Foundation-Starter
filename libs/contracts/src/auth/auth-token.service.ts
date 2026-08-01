@@ -52,4 +52,15 @@ export interface IAuthTokenService {
   verifyAccessToken(tokenOrSessionId: string): Promise<CurrentUser | null>;
 
   revoke(input: RevokeAuthSessionInput): Promise<void>;
+
+  /**
+   * Eagerly revokes every stored auth artifact of the user:
+   * Redis sessions (AUTH_DRIVER=session) or refresh-token families
+   * (AUTH_DRIVER=jwt).
+   *
+   * Callers that re-issue credentials in the same request (password
+   * change/reset) must call this BEFORE `createAuthSession`, otherwise the
+   * freshly issued artifact is purged as well.
+   */
+  revokeAllForUser(userId: string): Promise<void>;
 }

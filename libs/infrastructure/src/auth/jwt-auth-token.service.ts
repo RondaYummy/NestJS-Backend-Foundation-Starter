@@ -65,7 +65,10 @@ export class JwtAuthTokenService implements IAuthTokenService {
     return this.options.jwt;
   }
 
-  async createAuthSession(user: CurrentUser, _clientMeta?: AuthSessionClientMeta): Promise<AuthTokens> {
+  async createAuthSession(
+    user: CurrentUser,
+    _clientMeta?: AuthSessionClientMeta,
+  ): Promise<AuthTokens> {
     const familyId = randomUUID();
 
     const pair = await this.issueTokenPair(user, familyId);
@@ -227,6 +230,15 @@ export class JwtAuthTokenService implements IAuthTokenService {
     const ttlSeconds = this.getRemainingTtlSeconds(accessPayload.exp);
 
     await this.tokenStore.revokeAccessToken(accessPayload.jti, ttlSeconds);
+  }
+
+  /**
+   * Outstanding access tokens are not denylisted here: deployments that wire
+   * `resolveAccessUser` reject them on the next request via `authVersion`,
+   * portable deployments without it keep accepting them until expiry.
+   */
+  async revokeAllForUser(userId: string): Promise<void> {
+    await this.tokenStore.revokeAllRefreshTokenFamilies(userId);
   }
 
   private async issueTokenPair(user: CurrentUser, familyId: string): Promise<TokenPair> {

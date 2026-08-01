@@ -21,13 +21,18 @@ export type RevokeOthersResult = {
  * JWT driver wires an unsupported stub that throws SESSION_DRIVER_REQUIRED.
  */
 export interface ISessionManagementService {
-  listForUser(userId: string, currentSessionId: string): Promise<SessionListItem[]>;
-
-  revokeOne(
+  /**
+   * Sessions whose stored `authVersion` differs from `currentAuthVersion`
+   * are omitted: they no longer authenticate and must not be reported as
+   * active after a password change or role update.
+   */
+  listForUser(
     userId: string,
-    sessionId: string,
     currentSessionId: string,
-  ): Promise<RevokeOneResult>;
+    currentAuthVersion: number,
+  ): Promise<SessionListItem[]>;
+
+  revokeOne(userId: string, sessionId: string, currentSessionId: string): Promise<RevokeOneResult>;
 
   revokeOthers(userId: string, currentSessionId: string): Promise<RevokeOthersResult>;
 

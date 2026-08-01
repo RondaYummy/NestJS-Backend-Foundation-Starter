@@ -117,6 +117,48 @@ describe('SessionAuthTokenService', () => {
     await expect(service.verifyAccessToken('session-id')).resolves.toBeNull();
   });
 
+  it('revokeAllForUser deletes every indexed session of the user (P1-02 AC-01)', async () => {
+    sessionStore.listByUserId.mockResolvedValue([
+      {
+        id: 'session-a',
+        record: {
+          userId: 'user-1',
+          authVersion: 1,
+          createdAt: '2026-07-19T09:00:00.000Z',
+          lastActivityAt: '2026-07-19T09:00:00.000Z',
+          ip: null,
+          userAgent: null,
+        },
+        expiresAt: new Date('2026-07-26T09:00:00.000Z'),
+      },
+      {
+        id: 'session-b',
+        record: {
+          userId: 'user-1',
+          authVersion: 1,
+          createdAt: '2026-07-19T09:00:00.000Z',
+          lastActivityAt: '2026-07-19T09:00:00.000Z',
+          ip: null,
+          userAgent: null,
+        },
+        expiresAt: new Date('2026-07-26T09:00:00.000Z'),
+      },
+    ]);
+
+    await service.revokeAllForUser('user-1');
+
+    expect(sessionStore.listByUserId).toHaveBeenCalledWith('user-1');
+    expect(sessionStore.delete).toHaveBeenCalledWith('session-a');
+    expect(sessionStore.delete).toHaveBeenCalledWith('session-b');
+    expect(sessionStore.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('revokeAllForUser is a no-op when the user has no indexed sessions', async () => {
+    await service.revokeAllForUser('user-1');
+
+    expect(sessionStore.delete).not.toHaveBeenCalled();
+  });
+
   it('verifyAccessToken returns null when user no longer exists', async () => {
     sessionStore.get.mockResolvedValue({
       userId: 'user-1',

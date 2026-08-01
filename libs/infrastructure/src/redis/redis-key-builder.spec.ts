@@ -47,7 +47,16 @@ describe('RedisKeyBuilder', () => {
       ['lock', 'lock:outbox-cron', 'app:lock:outbox-cron'],
       ['auth refresh token', 'auth:refresh-token:jti-1', 'app:auth:refresh-token:jti-1'],
       ['auth refresh family', 'auth:refresh-family:family-1', 'app:auth:refresh-family:family-1'],
-      ['auth revoked access', 'auth:revoked-access-token:jti-1', 'app:auth:revoked-access-token:jti-1'],
+      [
+        'auth refresh family user index',
+        'auth:refresh-families:user:user-1',
+        'app:auth:refresh-families:user:user-1',
+      ],
+      [
+        'auth revoked access',
+        'auth:revoked-access-token:jti-1',
+        'app:auth:revoked-access-token:jti-1',
+      ],
       ['session', 'sessions:session-1', 'app:sessions:session-1'],
       ['idempotency lock', 'idem:api:req-1:lock', 'app:idem:api:req-1:lock'],
       ['idempotency result', 'idem:api:req-1:result', 'app:idem:api:req-1:result'],
