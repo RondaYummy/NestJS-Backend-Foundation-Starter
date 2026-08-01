@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 
 import type {
   IJwtTokenStore,
-  RefreshTokenRecord,
   RotateRefreshTokenInput,
   SaveRefreshTokenInput,
 } from '@contracts/auth/jwt-token-store.service';
@@ -166,22 +165,49 @@ export class RedisJwtTokenStore implements IJwtTokenStore {
 
   async revokeRefreshTokenFamily(familyId: string): Promise<void> {
     const familyKey = this.getRefreshFamilyKey(familyId);
-    const currentTokenId = await this.redis.get(familyKey);
 
-    if (currentTokenId) {
-      const tokenKey = this.getRefreshTokenKey(currentTokenId);
-      const rawRecord = await this.redis.get(tokenKey);
+    // Derive physical token / user-index keys from KEYS[1] prefix so a
+    // configured RedisModule keyPrefix stays consistent with RedisService.eval.
+    const script = `
+      local familyMarker = "auth:refresh-family:"
+      local markerStart = string.find(KEYS[1], familyMarker, 1, true)
 
-      await this.redis.del(tokenKey);
+      if not markerStart then
+        redis.call("DEL", KEYS[1])
+        return 0
+      end
 
-      const userId = this.readUserId(rawRecord);
+      local prefix = string.sub(KEYS[1], 1, markerStart - 1)
+      local currentTokenId = redis.call("GET", KEYS[1])
 
-      if (userId) {
-        await this.redis.srem(this.getUserFamilyIndexKey(userId), familyId);
-      }
-    }
+      if currentTokenId then
+        local tokenKey = prefix .. "auth:refresh-token:" .. currentTokenId
+        local rawRecord = redis.call("GET", tokenKey)
 
-    await this.redis.del(familyKey);
+        redis.call("DEL", tokenKey)
+
+        if rawRecord then
+          local ok, record = pcall(cjson.decode, rawRecord)
+
+          if ok and type(record) == "table" then
+            local userId = record["userId"]
+
+            if type(userId) == "string" and userId ~= "" then
+              redis.call(
+                "SREM",
+                prefix .. "auth:refresh-families:user:" .. userId,
+                ARGV[1]
+              )
+            end
+          end
+        end
+      end
+
+      redis.call("DEL", KEYS[1])
+      return 1
+    `;
+
+    await this.redis.eval(script, 1, familyKey, familyId);
   }
 
   async revokeAllRefreshTokenFamilies(userId: string): Promise<void> {
@@ -225,19 +251,5 @@ export class RedisJwtTokenStore implements IJwtTokenStore {
 
   private getRevokedAccessTokenKey(tokenId: string): string {
     return `auth:revoked-access-token:${tokenId}`;
-  }
-
-  private readUserId(rawRecord: string | null): string | null {
-    if (!rawRecord) {
-      return null;
-    }
-
-    try {
-      const parsed = JSON.parse(rawRecord) as Partial<RefreshTokenRecord>;
-
-      return typeof parsed.userId === 'string' && parsed.userId.length > 0 ? parsed.userId : null;
-    } catch {
-      return null;
-    }
   }
 }
