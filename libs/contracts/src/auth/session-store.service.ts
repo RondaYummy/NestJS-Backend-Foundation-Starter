@@ -11,7 +11,10 @@ export type SessionListEntry = {
  *
  * Logical keys:
  * - `sessions:{sessionId}` — JSON {@link SessionRecord}, TTL = session TTL
- * - `sessions:user:{userId}` — SET of sessionId members (per-user index)
+ * - `sessions:user:{userId}` — SET of sessionId members (per-user index);
+ *   index TTL must cover the longest remaining indexed session
+ *   (`max(currentIndexTtl, newSessionTtl)` on create; never blindly replaced
+ *   by the newest member’s TTL alone)
  *
  * `listByUserId` reads the user SET (no `KEYS *` / unbounded session SCAN) and
  * prunes stale index members whose session key has expired or been deleted.

@@ -1,10 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
-import {
-  ISessionStore,
-  type SessionListEntry,
-} from '@contracts/auth/session-store.service';
+import { ISessionStore, type SessionListEntry } from '@contracts/auth/session-store.service';
 import type { SessionRecord } from '@contracts/auth/session-record';
 
 const LEGACY_CREATED_AT_FALLBACK = '1970-01-01T00:00:00.000Z';
@@ -20,7 +17,14 @@ export class RedisSessionStore implements ISessionStore {
 
     await this.redisService.set(sessionKey, JSON.stringify(record), ttlSeconds);
     await this.redisService.sadd(userIndexKey, sessionId);
-    await this.redisService.expire(userIndexKey, ttlSeconds);
+
+    // Keep index TTL at least as long as any indexed session: never shorten
+    // remaining TTL with a shorter new member. Redis TTL -1 (no expiry, e.g.
+    // fresh SET after SADD) or -2 (missing) → set finite ttlSeconds.
+    const currentIndexTtl = await this.redisService.ttl(userIndexKey);
+    const indexTtlSeconds =
+      currentIndexTtl < 0 ? ttlSeconds : Math.max(currentIndexTtl, ttlSeconds);
+    await this.redisService.expire(userIndexKey, indexTtlSeconds);
 
     return sessionId;
   }
@@ -63,9 +67,7 @@ export class RedisSessionStore implements ISessionStore {
 
       const ttlSeconds = await this.redisService.ttl(this.sessionKey(sessionId));
       const expiresAt =
-        ttlSeconds > 0
-          ? new Date(Date.now() + ttlSeconds * 1000)
-          : new Date(Date.now());
+        ttlSeconds > 0 ? new Date(Date.now() + ttlSeconds * 1000) : new Date(Date.now());
 
       entries.push({ id: sessionId, record, expiresAt });
     }

@@ -2343,7 +2343,7 @@ path=/
 
 ```txt
 sessions:{sessionId}           → JSON SessionRecord (TTL = AUTH_SESSION_TTL_SECONDS)
-sessions:user:{userId}         → SET sessionId (per-user index; stale members pruned on list)
+sessions:user:{userId}         → SET sessionId (per-user index; TTL = max remaining / new session TTL; stale members pruned on list)
 ```
 
 `SessionRecord` містить `userId`, `authVersion`, `createdAt`, `lastActivityAt`, `ip`, `userAgent`. Розширення JSON-форми — **breaking change** для існуючих session keys: dual-read дозволяє старим записам не падати, але сесії без user-index з’являться в `GET /v1/sessions` лише після повторного login.

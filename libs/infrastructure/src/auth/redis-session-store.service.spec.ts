@@ -36,6 +36,9 @@ describe('RedisSessionStore', () => {
   });
 
   it('create writes session JSON and indexes the id under the user SET', async () => {
+    // Fresh SET after SADD has no expiry yet (Redis TTL -1).
+    redis.ttl.mockResolvedValue(-1);
+
     const sessionId = await store.create(fullRecord(), 3600);
 
     expect(sessionId).toEqual(expect.any(String));
@@ -45,7 +48,54 @@ describe('RedisSessionStore', () => {
       3600,
     );
     expect(redis.sadd).toHaveBeenCalledWith('sessions:user:user-1', sessionId);
+    expect(redis.ttl).toHaveBeenCalledWith('sessions:user:user-1');
     expect(redis.expire).toHaveBeenCalledWith('sessions:user:user-1', 3600);
+  });
+
+  it('create does not shorten index TTL when a shorter session is added (AC-01/AC-03)', async () => {
+    redis.ttl
+      .mockResolvedValueOnce(-1) // first create: fresh index
+      .mockResolvedValueOnce(3000); // second create: remaining index TTL
+
+    const firstId = await store.create(fullRecord(), 3600);
+    const secondId = await store.create(fullRecord(), 60);
+
+    expect(firstId).not.toBe(secondId);
+    expect(redis.expire).toHaveBeenNthCalledWith(1, 'sessions:user:user-1', 3600);
+    // Must keep remaining 3000, not overwrite with shorter 60.
+    expect(redis.expire).toHaveBeenNthCalledWith(2, 'sessions:user:user-1', 3000);
+    expect(redis.expire).not.toHaveBeenCalledWith('sessions:user:user-1', 60);
+  });
+
+  it('create extends index TTL when a longer session is added', async () => {
+    redis.ttl.mockResolvedValue(100);
+
+    await store.create(fullRecord(), 3600);
+
+    expect(redis.expire).toHaveBeenCalledWith('sessions:user:user-1', 3600);
+  });
+
+  it('listByUserId still returns both sessions after mixed-TTL creates (AC-02)', async () => {
+    redis.ttl
+      .mockResolvedValueOnce(-1)
+      .mockResolvedValueOnce(3000)
+      // listByUserId: per-session key TTLs
+      .mockResolvedValue(3600);
+
+    const firstId = await store.create(fullRecord(), 3600);
+    const secondId = await store.create(fullRecord(), 60);
+
+    redis.smembers.mockResolvedValue([firstId, secondId]);
+    redis.get.mockImplementation((key: string) => {
+      if (key === `sessions:${firstId}` || key === `sessions:${secondId}`) {
+        return Promise.resolve(JSON.stringify(fullRecord()));
+      }
+      return Promise.resolve(null);
+    });
+
+    const listed = await store.listByUserId('user-1');
+
+    expect(listed.map((e) => e.id).sort()).toEqual([firstId, secondId].sort());
   });
 
   it('get dual-reads legacy JSON missing metadata fields', async () => {

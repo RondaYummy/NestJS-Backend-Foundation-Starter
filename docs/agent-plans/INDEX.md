@@ -2,8 +2,12 @@
 
 This index lists implementation plans under `docs/agent-plans/`.
 
-| ID  | Title | Status | Plan |
-| --- | ----- | ------ | ---- |
+| ID    | Title                                                                  | Status   | Plan                                                                                                 |
+| ----- | ---------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| P1-03 | Harden idempotency so side effects are not re-run after lock loss      | proposed | [P1-03-harden-idempotency-lock-loss.md](./P1-03-harden-idempotency-lock-loss.md)                     |
+| P1-04 | Make JWT refresh-family revoke atomic                                  | proposed | [P1-04-atomic-jwt-refresh-family-revoke.md](./P1-04-atomic-jwt-refresh-family-revoke.md)             |
+| P1-01 | Fix Redis session user-index TTL overwrite                             | approved | [P1-01-redis-session-user-index-ttl-overwrite.md](./P1-01-redis-session-user-index-ttl-overwrite.md) |
+| P1-02 | Purge Redis sessions and JWT refresh families on password change/reset | proposed | [P1-02-purge-sessions-on-password-change.md](./P1-02-purge-sessions-on-password-change.md)           |
 
 ## Rules
 
