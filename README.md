@@ -200,6 +200,8 @@ When API documentation is enabled, the API exposes:
 
 `API_DOCS_ENABLED` controls both routes. The default is `true` in `development` and `test`, and `false` in `production`; production requires an explicit `API_DOCS_ENABLED=true` opt-in. Startup logs state whether documentation is enabled and show only the route paths, never credentials.
 
+`SECURITY_HEADERS_ENABLED` (default `true` in all environments) applies Helmet security headers on the API HTTP server. CSP and cross-origin embedder policy are disabled so Swagger UI remains usable; set `SECURITY_HEADERS_ENABLED=false` when an edge proxy already injects equivalent headers.
+
 The generated OpenAPI document is the canonical HTTP contract for request bodies, validation, responses, errors, authentication, headers and cookies. Manual examples should link to it instead of duplicating a conflicting contract. Every task that adds or changes an HTTP endpoint must update its typed OpenAPI schemas/decorators and the drift test in the same change.
 
 ---
@@ -2600,6 +2602,8 @@ repository inside transaction
 ```env
 NODE_ENV=development
 APP_PORT=3000
+API_DOCS_ENABLED=true
+SECURITY_HEADERS_ENABLED=true
 
 DATABASE_URL=postgresql://app:app@localhost:5432/app
 

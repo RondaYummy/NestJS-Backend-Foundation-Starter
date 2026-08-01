@@ -37,6 +37,7 @@ export const envSchema = z
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     APP_PORT: z.coerce.number().default(3000),
     API_DOCS_ENABLED: optionalBoolean,
+    SECURITY_HEADERS_ENABLED: optionalBoolean,
     DATABASE_URL: z.string().url(),
     REDIS_HOST: z.string().default('localhost'),
     REDIS_PORT: z.coerce.number().default(6379),
@@ -250,6 +251,7 @@ export const envSchema = z
   .transform((env) => ({
     ...env,
     API_DOCS_ENABLED: env.API_DOCS_ENABLED ?? env.NODE_ENV !== 'production',
+    SECURITY_HEADERS_ENABLED: env.SECURITY_HEADERS_ENABLED ?? true,
   }));
 
 export type Env = z.infer<typeof envSchema>;

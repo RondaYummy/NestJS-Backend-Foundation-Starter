@@ -152,6 +152,8 @@ export class AuthController {
     };
   }
 
+  @UseGuards(RateLimiterGuard)
+  @RateLimit({ keyPrefix: 'auth:logout' })
   @ApiOperation({
     summary: 'Revoke an auth session',
     description:
@@ -178,6 +180,10 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: 'Provided auth credential is invalid.',
+    type: ErrorEnvelopeDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: 'Logout rate limit exceeded.',
     type: ErrorEnvelopeDto,
   })
   @ApiInternalServerErrorResponse({

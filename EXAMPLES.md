@@ -360,6 +360,8 @@ curl -X POST http://localhost:3000/v1/auth/refresh \
 
 ### Logout
 
+`POST /v1/auth/logout` is rate-limited like other auth mutations (`auth:logout`, defaults from `RATE_LIMIT_AUTH_*`).
+
 ```bash
 curl -X POST http://localhost:3000/v1/auth/logout \
   -H "Authorization: Bearer <access-token>" \
@@ -553,6 +555,9 @@ import { RateLimit } from '@infrastructure/rate-limiter/rate-limit.decorator';
 @RateLimit({ keyPrefix: 'auth:login' }) // для auth:* — ліміти з RATE_LIMIT_AUTH_*
 @Post('login')
 async login() { /* ... */ }
+
+// Logout uses the same auth:* defaults with a dedicated prefix:
+// @RateLimit({ keyPrefix: 'auth:logout' })
 
 // Жорсткіший ліміт на конкретний route:
 @RateLimit({ keyPrefix: 'api:heavy', limit: 10, ttlSeconds: 60 })

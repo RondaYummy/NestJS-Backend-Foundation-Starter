@@ -79,6 +79,8 @@ describe('OpenAPI contract', () => {
         }),
       );
 
+      expect(document.paths['/v1/auth/logout']?.post?.responses?.['429']).toBeDefined();
+
       expect(document.paths['/v1/auth/me']?.get?.security).toEqual(
         expect.arrayContaining([{ bearerAuth: [] }, { sessionCookie: [] }]),
       );

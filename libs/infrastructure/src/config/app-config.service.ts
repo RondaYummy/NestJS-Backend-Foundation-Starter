@@ -5,7 +5,13 @@ import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.
 import type { JobExecutionOptions } from '@contracts/idempotency/job-execution.options';
 
 type ConfigShape = {
-  app: { env: string; port: number; allowedOrigins: string; apiDocsEnabled: boolean };
+  app: {
+    env: string;
+    port: number;
+    allowedOrigins: string;
+    apiDocsEnabled: boolean;
+    securityHeadersEnabled: boolean;
+  };
   database: { url: string };
   redis: {
     host: string;

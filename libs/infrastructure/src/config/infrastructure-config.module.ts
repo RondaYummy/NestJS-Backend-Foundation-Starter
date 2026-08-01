@@ -19,6 +19,7 @@ import { mapJobExecutionEnvToOptions } from '../idempotency/job-execution.option
             port: e.APP_PORT,
             allowedOrigins: e.CORS_ORIGINS,
             apiDocsEnabled: e.API_DOCS_ENABLED,
+            securityHeadersEnabled: e.SECURITY_HEADERS_ENABLED,
           },
           database: { url: e.DATABASE_URL },
           redis: {

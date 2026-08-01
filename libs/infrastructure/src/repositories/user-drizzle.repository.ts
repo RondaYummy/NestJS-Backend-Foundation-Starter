@@ -11,6 +11,7 @@ import type { User } from '@domain/entities/user.entity';
 
 import { DRIZZLE_DB } from '../database/drizzle/drizzle.tokens';
 import type { DrizzleDb, DrizzleExecutor } from '../database/drizzle/drizzle.types';
+import { getViolatedConstraint, isUniqueViolation } from '../database/drizzle/pg-error.util';
 import { UserMapper } from '../mappers/user.mapper';
 import { resolveDrizzleExecutor } from '../transactions/drizzle-transaction-context';
 import { users } from '../database/drizzle/schema/users.schema';
@@ -116,23 +117,4 @@ export class UserDrizzleRepository implements IUserRepository {
   private resolveDb(trx?: TransactionContext): DrizzleExecutor {
     return resolveDrizzleExecutor(this.db, trx);
   }
-}
-
-function isUniqueViolation(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code: string }).code === '23505'
-  );
-}
-
-function getViolatedConstraint(error: unknown): string | undefined {
-  if (typeof error === 'object' && error !== null && 'constraint' in error) {
-    const constraint = (error as { constraint?: unknown }).constraint;
-
-    return typeof constraint === 'string' ? constraint : undefined;
-  }
-
-  return undefined;
 }

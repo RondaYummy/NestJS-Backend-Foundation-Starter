@@ -185,3 +185,37 @@ Family revoke is a multi-key Redis mutation without a single atomic script/trans
 - **AC-03:** Regression coverage exists for revoke racing with rotate (or documented equivalent mock of atomic script behavior).
 
 ---
+
+## P1-05. Unwrap Drizzle unique violations so duplicate register returns 409
+
+**Severity:** High  
+**Classification:** Confirmed defect  
+**Source:** local runtime (`docker compose`) — duplicate `POST` register for `user@example.com`
+
+### Evidence
+
+- Postgres correctly rejects duplicate email: `duplicate key value violates unique constraint "users_email_unique"`.
+- API logs `Unexpected error` from `UserDrizzleRepository.insert` → `RegisterUseCase` with a Drizzle `Failed query: …` wrapper (includes insert params such as password hash in logs).
+- `UserDrizzleRepository.isUniqueViolation` / `getViolatedConstraint` only inspect the top-level error for `code === '23505'` / `constraint`.
+- Drizzle wraps the native `pg` error in `DrizzleQueryError` and puts the original on `error.cause` (`node_modules/drizzle-orm/errors.js` / `pg-core/session.js` `queryWithCache`).
+- Application already maps `DuplicateRecordError` → `ConflictError('USER_ALREADY_EXISTS')` in `RegisterUseCase` and `CompleteGoogleSignInUseCase`; `GlobalExceptionFilter` maps `ConflictError` → HTTP 409; OpenAPI already documents `@ApiConflictResponse` on register.
+
+### Root cause
+
+Unique-violation detection does not unwrap Drizzle’s `DrizzleQueryError.cause`, so `DuplicateRecordError` is never thrown and the conflict path never runs. The raw wrapper becomes HTTP 500 / `INTERNAL_SERVER_ERROR`.
+
+### Required change
+
+1. Detect Postgres unique violations (`code === '23505'`) and read `constraint` by walking the error `cause` chain (bounded), not only the top-level object.
+2. Keep throwing `DuplicateRecordError` from `UserDrizzleRepository.insert` / `update` so existing use-case mapping stays unchanged.
+3. Add unit coverage for wrapped (`cause`) and unwrapped unique-violation shapes.
+4. Do not change public HTTP contracts beyond making documented 409 behavior actually occur.
+
+### Acceptance criteria
+
+- **AC-01:** A Drizzle-wrapped Postgres unique violation on `users` insert/update is mapped to `DuplicateRecordError` (not rethrown as `DrizzleQueryError`).
+- **AC-02:** Duplicate email register yields `ConflictError('USER_ALREADY_EXISTS')` → HTTP 409 via the existing filter path (no unexpected-error log for that case).
+- **AC-03:** Unit tests cover top-level `23505` and `DrizzleQueryError`-style `{ cause: { code: '23505', constraint } }` detection.
+- **AC-04:** Non-unique DB errors still propagate unchanged.
+
+---

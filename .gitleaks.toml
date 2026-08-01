@@ -1,12 +1,16 @@
 title = "NestJS Starter Kit gitleaks config"
 
-[allowlist]
+[extend]
+# Keep default detection rules; this file only adds project allowlists.
+useDefault = true
+
+[[allowlists]]
 description = "Documented dev placeholders in tracked env template"
 paths = [
   '''(?i)\.env\.example$''',
 ]
 
-[allowlist.regexes]
+[[allowlists]]
 description = "Known non-production placeholder assignments"
 regexTarget = "match"
 regexes = [

@@ -17,6 +17,7 @@ import {
   API_DOCS_PATH,
   createOpenApiDocument,
 } from './openapi/create-openapi-document';
+import { applyApiSecurityHeaders } from './security/apply-api-security-headers';
 
 let application: NestExpressApplication | undefined;
 
@@ -28,6 +29,17 @@ async function bootstrap(): Promise<void> {
   });
 
   application.set('trust proxy', 1);
+
+  const config = application.get(AppConfigService);
+  const logger = application.get(AppLogger);
+
+  applyApiSecurityHeaders(application, {
+    enabled: config.app().securityHeadersEnabled,
+  });
+  if (config.app().securityHeadersEnabled) {
+    logger.info('API security headers enabled');
+  }
+
   application.use(cookieParser());
 
   application.enableShutdownHooks();
@@ -45,9 +57,6 @@ async function bootstrap(): Promise<void> {
   application.setGlobalPrefix('v1', {
     exclude: ['health', 'health/live', 'health/ready'],
   });
-
-  const config = application.get(AppConfigService);
-  const logger = application.get(AppLogger);
 
   if (config.app().apiDocsEnabled) {
     const document = createOpenApiDocument(application, config.auth().sessionCookieName);

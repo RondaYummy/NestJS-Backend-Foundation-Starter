@@ -220,6 +220,50 @@ describe('envSchema API_DOCS_ENABLED', () => {
   });
 });
 
+describe('envSchema SECURITY_HEADERS_ENABLED', () => {
+  const baseEnv = {
+    DATABASE_URL: 'postgresql://user:pass@localhost:5432/app',
+    JWT_SECRET: 'dev-secret',
+    JWT_REFRESH_SECRET: 'dev-refresh-secret',
+  };
+
+  it.each(['development', 'test', 'production'] as const)(
+    'enables security headers by default in %s',
+    (NODE_ENV) => {
+      const parsed =
+        NODE_ENV === 'production'
+          ? envSchema.parse(minimalProductionEnv())
+          : envSchema.parse({ ...baseEnv, NODE_ENV });
+
+      expect(parsed.SECURITY_HEADERS_ENABLED).toBe(true);
+    },
+  );
+
+  it.each([
+    ['true', true],
+    ['1', true],
+    ['false', false],
+    ['0', false],
+  ])('parses explicit override %s', (SECURITY_HEADERS_ENABLED, expected) => {
+    const parsed = envSchema.parse({
+      ...baseEnv,
+      NODE_ENV: 'development',
+      SECURITY_HEADERS_ENABLED,
+    });
+
+    expect(parsed.SECURITY_HEADERS_ENABLED).toBe(expected);
+  });
+
+  it('rejects unsupported boolean values', () => {
+    const parsed = envSchema.safeParse({
+      ...baseEnv,
+      SECURITY_HEADERS_ENABLED: 'yes',
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
 describe('envSchema outbox cross-field validation', () => {
   const baseEnv = {
     NODE_ENV: 'development',

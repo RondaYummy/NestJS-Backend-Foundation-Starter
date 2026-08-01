@@ -6,6 +6,7 @@
 | P1-02    | High     | Confirmed defect | Purge Redis sessions and JWT refresh families on password change/reset |
 | P1-03    | High     | Confirmed defect | Harden idempotency so side effects are not re-run after lock loss      |
 | P1-04    | High     | Likely defect    | Make JWT refresh-family revoke atomic                                  |
+| P1-05    | High     | Confirmed defect | Unwrap Drizzle unique violations so duplicate register returns 409     |
 
 ## Rules
 

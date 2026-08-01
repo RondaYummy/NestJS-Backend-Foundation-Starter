@@ -4,8 +4,8 @@ This index contains new features and technical tasks.
 
 | Task ID  | Title                                               | Type      | Status   | Specification                                                                                                      |
 | -------- | --------------------------------------------------- | --------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| TASK-001 | API security headers (Helmet) and logout rate limit | technical | proposed | [TASK-001-api-security-headers-and-logout-rate-limit.md](./TASK-001-api-security-headers-and-logout-rate-limit.md) |
-| TASK-002 | Postman collection and agent keep-in-sync workflow  | technical | proposed | [TASK-002-postman-collection-and-agent-sync.md](./TASK-002-postman-collection-and-agent-sync.md)                   |
+| TASK-001 | API security headers (Helmet) and logout rate limit | technical | approved | [TASK-001-api-security-headers-and-logout-rate-limit.md](./TASK-001-api-security-headers-and-logout-rate-limit.md) |
+| TASK-002 | Postman collection and agent keep-in-sync workflow  | technical | approved | [TASK-002-postman-collection-and-agent-sync.md](./TASK-002-postman-collection-and-agent-sync.md)                   |
 
 ## Rules
 
