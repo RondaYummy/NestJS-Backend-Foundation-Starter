@@ -112,4 +112,75 @@ describe('RedisService', () => {
     expect(redis.smembers).toHaveBeenCalledWith('app:sessions:user:u1');
     expect(redis.srem).toHaveBeenCalledWith('app:sessions:user:u1', 'sid-1');
   });
+
+  it('acquires lock and fence atomically with prefixed keys', async () => {
+    redis.eval.mockResolvedValue(1);
+
+    const acquired = await service.acquireIdempotencyLockWithFence({
+      lockKey: 'idem:scope:key:lock',
+      fenceKey: 'idem:scope:key:fence',
+      lockToken: 'token',
+      lockTtlSeconds: 30,
+      fenceValue: 'hash-a',
+      fenceTtlSeconds: 3600,
+    });
+
+    expect(acquired).toBe(true);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining('set'),
+      2,
+      'app:idem:scope:key:lock',
+      'app:idem:scope:key:fence',
+      'token',
+      '30',
+      'hash-a',
+      '3600',
+    );
+  });
+
+  it('persists idempotency result best-effort and clears fence', async () => {
+    redis.eval.mockResolvedValue('{"requestHash":"hash-a","response":1}');
+
+    const payload = await service.persistIdempotencyResultBestEffort({
+      resultKey: 'idem:scope:key:result',
+      fenceKey: 'idem:scope:key:fence',
+      serializedResult: '{"requestHash":"hash-a","response":1}',
+      resultTtlSeconds: 3600,
+    });
+
+    expect(payload).toBe('{"requestHash":"hash-a","response":1}');
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining('del'),
+      2,
+      'app:idem:scope:key:result',
+      'app:idem:scope:key:fence',
+      '{"requestHash":"hash-a","response":1}',
+      '3600',
+    );
+  });
+
+  it('completeIdempotency clears fence when fence key is provided', async () => {
+    redis.eval.mockResolvedValue(1);
+
+    const completed = await service.completeIdempotency(
+      'idem:scope:key:lock',
+      'token',
+      'idem:scope:key:result',
+      '{"ok":true}',
+      3600,
+      'idem:scope:key:fence',
+    );
+
+    expect(completed).toBe(true);
+    expect(redis.eval).toHaveBeenCalledWith(
+      expect.stringContaining('del'),
+      3,
+      'app:idem:scope:key:lock',
+      'app:idem:scope:key:result',
+      'app:idem:scope:key:fence',
+      'token',
+      '{"ok":true}',
+      '3600',
+    );
+  });
 });

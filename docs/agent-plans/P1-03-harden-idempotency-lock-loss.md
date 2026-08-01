@@ -1,6 +1,6 @@
 ---
 issue_id: P1-03
-status: proposed
+status: approved
 owner: human-approval-required
 ---
 
@@ -12,25 +12,32 @@ owner: human-approval-required
 - Index: `docs/agent-backlog/INDEX.md` — High / Confirmed defect
 - Full section: `docs/agent-backlog/NESTJS_STARTER_KIT_REQUIRED_FIXES.md` — “P1-03. Harden idempotency so side effects are not re-run after lock loss”
 - Review evidence: `docs/agent-reports/full-review-2026-07-28.md`
-- Branch at planning time: `main` (unrelated staged docs for TASK-001/TASK-002 and backlog; no production code changes for this issue yet)
+- Branch at planning: `main` @ `79959e8` (ahead of `origin/main` by 1 commit — unrelated `P1-02`)
+- Working tree at planning: only this plan file under `docs/agent-plans/` (staged); **no production code changes for P1-03**
+- Re-validated: 2026-08-01 against `RedisIdempotencyService.execute`, `RedisService.completeIdempotency`, `IdempotencyInterceptor`, `IIdempotencyService`, `EXAMPLES.md` §7, `README.md` §5.17
 
 ## Current behavior
 
 `RedisIdempotencyService.execute` (`libs/infrastructure/src/idempotency/idempotency.service.ts`):
 
 1. Reads `idem:<scope>:<key>:result`; on hit, returns stored response (hash mismatch → `IDEMPOTENCY_KEY_REUSED`).
-2. Acquires `idem:<scope>:<key>:lock` via `SET NX EX 30` with a UUID token; starts a 10s heartbeat that extends TTL only while the token still owns the lock.
+2. Acquires `idem:<scope>:<key>:lock` via `RedisService.setIfNotExists` (`SET NX EX 30`) with a UUID token; starts a 10s heartbeat that calls `compareAndExpire` only while the token still owns the lock.
 3. Double-checks the result key, then runs `handler()` **before** any durable result write.
-4. If `lockLost` is true after the handler returns, or `RedisService.completeIdempotency` returns `false`, throws `ConflictError('IDEMPOTENCY_LOCK_LOST', …)` **without** storing the handler outcome.
-5. `finally` clears the heartbeat and, when `lockCompleted` is false, calls `compareAndDelete` on the lock (no-op if ownership already lost).
+4. If `lockLost` is true after the handler returns, throws `ConflictError('IDEMPOTENCY_LOCK_LOST', …)` **without** writing the result (lines 85–90).
+5. Otherwise calls `RedisService.completeIdempotency` (Lua: require lock ownership → `SET` result → `DEL` lock). If it returns `false`, throws the same `IDEMPOTENCY_LOCK_LOST` **without** storing the handler outcome (lines 105–111).
+6. `finally` clears the heartbeat and, when `lockCompleted` is false, calls `compareAndDelete` on the lock (releases ownership if still held; no-op if already expired).
 
-`IdempotencyInterceptor` wraps `@Idempotent()` HTTP handlers with this `execute` path. Redis errors on get/set/eval continue to reject (fail-closed). There are **no** unit tests for `RedisIdempotencyService`. `EXAMPLES.md` §7 describes happy-path replay but does **not** document lock-loss / unknown-outcome retry semantics.
+`waitForResult` (concurrent waiter path): polls result; if lock disappears with no result before timeout, throws `IDEMPOTENCY_REQUEST_IN_PROGRESS` — which does **not** mark the key as “already executed,” so a subsequent client retry can acquire a fresh lock and re-enter `handler()`.
+
+`IdempotencyInterceptor` wraps `@Idempotent()` HTTP handlers with this `execute` path (`ttlSeconds: 86400`). Redis errors on get/set/eval continue to reject (fail-closed). `ConflictError` → HTTP 409 via `GlobalExceptionFilter.status`.
+
+There are **no** unit tests for `RedisIdempotencyService` (`idempotency.service.spec.ts` does not exist). `EXAMPLES.md` §7 describes happy-path replay only; it does **not** document lock-loss / unknown-outcome retry semantics. `README.md` §5.17 lists only `:lock` and `:result` keys and documents a `lockTtlSeconds` field that is **absent** from `IIdempotencyService`.
 
 ## Confirmed root cause
 
-The side-effecting `handler()` can complete successfully while the outcome is never written to the result key. After lock expiry/loss, a client retry with the same key+hash acquires a fresh lock and re-enters the handler. The only Redis keys today are `:lock` and `:result`; nothing durable marks “execution already ran / outcome unknown,” so lock loss after success is indistinguishable from “never started.”
+The side-effecting `handler()` can complete successfully while the outcome is never written to the result key. After lock expiry/loss (or failed `completeIdempotency`), the client receives `IDEMPOTENCY_LOCK_LOST`, `finally` may clear the lock, and a retry with the same key+hash acquires a fresh lock and re-enters the handler. The only Redis keys today are `:lock` and `:result`; nothing durable marks “execution already ran / outcome unknown,” so lock loss after success is indistinguishable from “never started.”
 
-Root cause **still present** in current `main` (verified by reading `RedisIdempotencyService.execute` and `RedisService.completeIdempotency`).
+Root cause **still present** on current `main` (re-read `RedisIdempotencyService.execute` lines 83–122 and `RedisService.completeIdempotency`; no fence/reserve key; no best-effort persist after ownership loss; no `idempotency.service.spec.ts`).
 
 ## Dependency/runtime flow
 
@@ -39,11 +46,14 @@ HTTP @Idempotent() endpoint
   -> IdempotencyInterceptor (Idempotency-Key, scope, requestHash, ttlSeconds=86400)
     -> TOKENS.IdempotencyService (RedisIdempotencyService)
       -> RedisService.get / setIfNotExists / compareAndExpire / completeIdempotency / compareAndDelete
-        -> Redis keys: idem:<scope>:<key>:lock | :result
+        -> Redis keys today: idem:<scope>:<key>:lock | :result
   -> ConflictError -> GlobalExceptionFilter -> HTTP 409
 ```
 
-Composition: `IdempotencyModule.register` in `apps/api/src/api.module.ts` (and Worker for `JobExecutionStore` only — **out of scope** for this HTTP/API idempotency path).
+Composition:
+
+- `IdempotencyModule.register` in `apps/api/src/api.module.ts` (global `IdempotencyInterceptor`) — **in scope** for HTTP idempotency hardening.
+- Worker also registers `IdempotencyModule` for `JobExecutionStore` only — **out of scope** for this HTTP/API idempotency path (`RedisJobExecutionStore` already has `sent-ambiguous`).
 
 Contract: `IIdempotencyService` in `libs/contracts/src/idempotency/idempotency-service.ts` — single `execute` method; no DI token change required for the recommended fix.
 
@@ -72,6 +82,8 @@ Close the “successful side effect without durable idempotency outcome” windo
 - P1-04 JWT refresh-family revoke and any other backlog issues.
 - Weakening fail-closed Redis error behavior into silent fail-open.
 - Making financial exactly-once guarantees beyond Redis best-effort + fence semantics.
+- Aligning README’s documented `lockTtlSeconds` onto the TypeScript port (see open questions; default out of scope).
+- OpenAPI schema changes (no new/changed HTTP routes; error envelope remains `{ success: false, error: … }` via existing `ConflictError` mapping).
 
 ## Files to create
 
@@ -82,9 +94,10 @@ Close the “successful side effect without durable idempotency outcome” windo
 ## Files to modify
 
 | Path                                                         | Symbol / responsibility                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `libs/infrastructure/src/idempotency/idempotency.service.ts` | `RedisIdempotencyService.execute` (+ private helpers): introduce fence/reserve key; after successful handler attempt owned `completeIdempotency`, then best-effort persist if ownership lost; refuse re-execution when fence present without result; emit documented conflict/unknown outcome instead of allowing silent re-entry; only clear fence on pre-success failure paths. |
-| `libs/infrastructure/src/redis/redis.service.ts`             | Add focused helpers (names may vary): atomic lock+fence acquire; best-effort `SET` result when lock ownership is gone (e.g. NX + read-back); optional fence delete with ownership; keep existing `completeIdempotency` for happy path.                                                                                                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `libs/infrastructure/src/idempotency/idempotency.service.ts` | `RedisIdempotencyService.execute` (+ private helpers, including `waitForResult`): introduce fence/reserve key; after successful handler attempt owned `completeIdempotency`, then best-effort persist if ownership lost; refuse re-execution when fence present without result; emit documented conflict/unknown outcome instead of allowing silent re-entry; only clear fence on pre-success failure paths. |
+| `libs/infrastructure/src/redis/redis.service.ts`             | Add focused helpers (suggested names): `acquireIdempotencyLockWithFence` (atomic lock+fence); `persistIdempotencyResultBestEffort` (SET result without requiring lock ownership, with read-back / NX semantics); optional `deleteIdempotencyFence`; extend `completeIdempotency` Lua to also `DEL` fence on successful owned complete when fence key is passed. Keep fail-closed eval/get/set behavior. |
+| `libs/infrastructure/src/redis/redis.service.spec.ts`        | Cover new/extended Lua helpers (lock+fence acquire; best-effort persist; complete clears fence) with mocked `ioredis`/`eval`, following existing physical-key prefix assertions.                                                                                                                                                                                                    |
 | `EXAMPLES.md`                                                | §7 Idempotency: document when clients may safely retry, when to treat outcome as unknown / not re-issue as a new execution, and the relevant error codes.                                                                                                                                                                                                                         |
 | `README.md`                                                  | §5.17: document third key `idem:<scope>:<key>:fence` (or chosen name) and short retry/unknown-outcome note so module docs match runtime.                                                                                                                                                                                                                                          |
 | `libs/infrastructure/src/redis/redis-key-builder.spec.ts`    | Add example row for the fence logical key prefix (prefixing behavior only; no algorithm change).                                                                                                                                                                                                                                                                                  |
@@ -96,7 +109,7 @@ None.
 ## Contract and DI changes
 
 | Item                                                                            | Change                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `IIdempotencyService` (`libs/contracts/src/idempotency/idempotency-service.ts`) | **No required signature change.** Keep `execute({ key, scope, requestHash, ttlSeconds, handler })`. Optional later: surface `lockTtlSeconds` (already mentioned in `README.md` but absent from the interface) — **not required** for AC; only add if implementer needs configurable lock TTL without hardcoding (see open questions).                                                                                                          |
 | `TOKENS.IdempotencyService`                                                     | Unchanged; still `useExisting: RedisIdempotencyService`.                                                                                                                                                                                                                                                                                                                                                                                       |
 | `IdempotencyModule`                                                             | No provider/export changes expected.                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -105,20 +118,20 @@ None.
 ## Implementation steps
 
 1. **Reserve/fence semantics (primary AC-01 control)**
-   - On successful lock acquisition (before `handler`), set durable fence key `idem:<scope>:<key>:fence` with value including `requestHash` (and optionally lock token), TTL = result `ttlSeconds` (recommended default). Prefer a single Lua/eval so lock+fence are not torn.
-   - On **handler failure** (exception before successful return): delete lock (token-safe) **and** fence so a deliberate retry can re-run.
+   - On successful lock acquisition (before `handler`), set durable fence key `idem:<scope>:<key>:fence` with value including `requestHash` (and optionally lock token), TTL = result `ttlSeconds` (recommended default). Prefer a single Lua/eval so lock+fence are not torn (`acquireIdempotencyLockWithFence`).
+   - On **handler failure** (exception before successful return): delete lock (token-safe via `compareAndDelete`) **and** fence so a deliberate retry can re-run.
    - On **handler success**: do not clear fence until result is stored (or leave fence until TTL; result presence remains the happy-path source of truth).
 
-2. **Post-success completion path**
-   - After `handler()` resolves: if ownership still held, call existing `completeIdempotency` (SET result + DEL lock). On success, clear fence (or rely on result+TTL) and return result.
-   - If `lockLost` or `completeIdempotency` returns false: **best-effort** persist result without requiring lock ownership (Lua: if result missing, SET with EX; if present, return existing payload for hash compare).
+2. **Post-success completion path (AC-01 / AC-02)**
+   - After `handler()` resolves: if ownership still held, call `completeIdempotency` (SET result + DEL lock [+ DEL fence]). On success, return result.
+   - If `lockLost` or `completeIdempotency` returns false: **best-effort** persist result without requiring lock ownership (`persistIdempotencyResultBestEffort`: if result missing, SET with EX; if present, return existing payload for hash compare).
      - Persist OK / existing same hash → return stored/handler result (no throw).
      - Existing different hash → `IDEMPOTENCY_KEY_REUSED`.
      - Persist cannot be confirmed (Redis error or unexpected state) → throw `IDEMPOTENCY_OUTCOME_UNKNOWN`; **leave fence in place**.
 
-3. **Re-entry / wait path**
-   - Before running `handler` on a new attempt: if result exists → replay; if fence exists without result → do **not** run handler; throw `IDEMPOTENCY_OUTCOME_UNKNOWN` (or wait briefly for result then unknown — prefer documented conflict over re-execution).
-   - Concurrent waiters (`waitForResult`): if lock disappears and fence remains without result until timeout → same unknown/conflict outcome, not a new execution.
+3. **Re-entry / wait path (AC-01)**
+   - Before running `handler` on a new attempt: if result exists → replay; if fence exists without result → do **not** run handler; throw `IDEMPOTENCY_OUTCOME_UNKNOWN` (prefer documented conflict over re-execution).
+   - Concurrent waiters (`waitForResult`): if lock disappears and fence remains without result until timeout → same unknown/conflict outcome, not a new execution and not a bare `IDEMPOTENCY_REQUEST_IN_PROGRESS` that invites blind retry-as-new-execution.
 
 4. **TTL / heartbeat hygiene (secondary mitigation)**
    - Keep heartbeat; ensure lock TTL and heartbeat interval remain consistent (today: 30s TTL / 10s interval). Optionally increase default lock TTL or make it a named constant shared by acquire/heartbeat so long handlers are less likely to lose the lock; do not treat longer TTL as sufficient alone.
@@ -126,12 +139,22 @@ None.
 5. **Fail-closed**
    - Do not catch Redis transport/eval errors and proceed into `handler`. Propagate errors as today.
 
-6. **Documentation**
-   - Update `EXAMPLES.md` §7 with an explicit client contract table/list: safe retry after network timeout only if treating as unknown until a successful replay returns stored body; never assume “409 lock lost” means “safe to treat as never executed”; map codes to actions.
+6. **Documentation (AC-04)**
+   - Update `EXAMPLES.md` §7 with an explicit client contract table/list: safe retry after network timeout only if treating as unknown until a successful replay returns stored body; never assume “409 lock lost / outcome unknown” means “safe to treat as never executed”; map codes to actions.
    - Align `README.md` §5.17 key list and short semantics note.
 
-7. **Tests**
-   - Mock `RedisService` methods; assert handler call counts and thrown codes for: happy complete + second call replay; simulated lock-lost after success with best-effort store; simulated lock-lost after success with store failure → fence blocks second handler; hash mismatch unchanged.
+7. **Tests (AC-03)**
+   - Mock `RedisService` methods; assert handler call counts and thrown codes for: happy complete + second call replay; simulated lock-lost after success with best-effort store; simulated lock-lost after success with store failure → fence blocks second handler; hash mismatch unchanged; Redis get/set/eval failure does not enter handler (fail-closed).
+   - Add/extend `redis.service.spec.ts` coverage for new Lua helpers.
+
+### Acceptance criteria → steps / verification map
+
+| Criterion | Implementation steps | Verification |
+| --------- | -------------------- | ------------ |
+| **AC-01** | Steps 1–3 (fence before handler; best-effort persist; refuse re-entry on fence-without-result) | Unit: lock-lost after success → second `execute` does not call `handler` again; asserts unknown/conflict code |
+| **AC-02** | Step 2 happy path (`completeIdempotency` success + result replay) | Unit: first call stores; second call returns cached response with `handler` call count = 1 |
+| **AC-03** | Step 7 | `idempotency.service.spec.ts` covers lock-loss-after-success and happy-path replay (minimum); run targeted Jest |
+| **AC-04** | Step 6 | Inspect `EXAMPLES.md` §7 (and `README.md` §5.17) for accurate retry / unknown-outcome contract |
 
 ## Migration and rollout concerns
 
@@ -139,12 +162,14 @@ None.
 - **Behavior change for clients:** post-success lock-loss may return `IDEMPOTENCY_OUTCOME_UNKNOWN` instead of `IDEMPOTENCY_LOCK_LOST`, and retries that previously re-executed may now get 409 until fence/result TTL. Document as intentional.
 - **No `package-lock.json` or env schema changes** expected unless optional `lockTtlSeconds` wiring is approved.
 - Worker / Cron entrypoints unaffected for this HTTP idempotency path.
+- Residual crash window remains if the process dies after external side effects but before fence write — mitigate by writing fence **before** `handler` (step 1).
 
 ## Targeted verification
 
 | Command                                                                                                 | Purpose                                                          |
 | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `npx jest --config jest.unit.config.ts libs/infrastructure/src/idempotency/idempotency.service.spec.ts` | New unit coverage for lock-loss / replay / hash collision.       |
+| `npx jest --config jest.unit.config.ts libs/infrastructure/src/redis/redis.service.spec.ts`             | New/extended Lua helper coverage.                                |
 | `npx jest --config jest.unit.config.ts libs/infrastructure/src/redis/redis-key-builder.spec.ts`         | Fence key prefix example still valid.                            |
 | `npm run build` or at least `npm run build:api`                                                         | Shared infra + API compile after Redis helper / service changes. |
 | `npm run lint`                                                                                          | Lint changed TS files.                                           |
@@ -176,7 +201,7 @@ Bootstrap of API is optional for this change (logic is unit-testable with mocked
 
 ## Rollback strategy
 
-- Revert the commit(s) touching `idempotency.service.ts`, `redis.service.ts`, docs, and the new spec.
+- Revert the commit(s) touching `idempotency.service.ts`, `redis.service.ts`, docs, and the new/updated specs.
 - Orphan `:fence` keys expire via TTL; no migration rollback required.
 - No schema or lockfile rollback expected.
 

@@ -163,13 +163,114 @@ export class RedisService {
     return Number(result) === 1;
   }
 
+  async acquireIdempotencyLockWithFence(input: {
+    lockKey: string;
+    fenceKey: string;
+    lockToken: string;
+    lockTtlSeconds: number;
+    fenceValue: string;
+    fenceTtlSeconds: number;
+  }): Promise<boolean> {
+    const script = `
+      if redis.call("set", KEYS[1], ARGV[1], "EX", ARGV[2], "NX") then
+        redis.call("set", KEYS[2], ARGV[3], "EX", ARGV[4])
+        return 1
+      end
+
+      return 0
+    `;
+
+    const result = await this.eval(
+      script,
+      2,
+      input.lockKey,
+      input.fenceKey,
+      input.lockToken,
+      input.lockTtlSeconds.toString(),
+      input.fenceValue,
+      input.fenceTtlSeconds.toString(),
+    );
+
+    return Number(result) === 1;
+  }
+
+  async persistIdempotencyResultBestEffort(input: {
+    resultKey: string;
+    fenceKey: string;
+    serializedResult: string;
+    resultTtlSeconds: number;
+  }): Promise<string> {
+    const script = `
+      local existing = redis.call("get", KEYS[1])
+
+      if existing then
+        return existing
+      end
+
+      redis.call("set", KEYS[1], ARGV[1], "EX", ARGV[2])
+      redis.call("del", KEYS[2])
+
+      return ARGV[1]
+    `;
+
+    const result = await this.eval(
+      script,
+      2,
+      input.resultKey,
+      input.fenceKey,
+      input.serializedResult,
+      input.resultTtlSeconds.toString(),
+    );
+
+    return String(result);
+  }
+
+  async deleteIdempotencyFence(fenceKey: string): Promise<void> {
+    await this.del(fenceKey);
+  }
+
   async completeIdempotency(
     lockKey: string,
     expectedLockToken: string,
     resultKey: string,
     serializedResult: string,
     resultTtlSeconds: number,
+    fenceKey?: string,
   ): Promise<boolean> {
+    if (fenceKey) {
+      const script = `
+        if redis.call("get", KEYS[1]) ~= ARGV[1] then
+          return 0
+        end
+
+        redis.call(
+          "set",
+          KEYS[2],
+          ARGV[2],
+          "EX",
+          ARGV[3]
+        )
+
+        redis.call("del", KEYS[1])
+        redis.call("del", KEYS[3])
+
+        return 1
+      `;
+
+      const result = await this.eval(
+        script,
+        3,
+        lockKey,
+        resultKey,
+        fenceKey,
+        expectedLockToken,
+        serializedResult,
+        resultTtlSeconds.toString(),
+      );
+
+      return Number(result) === 1;
+    }
+
     const script = `
       if redis.call("get", KEYS[1]) ~= ARGV[1] then
         return 0

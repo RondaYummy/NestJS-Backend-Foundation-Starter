@@ -1442,14 +1442,19 @@ libs/infrastructure/src/idempotency
 
 Поточна idempotency-реалізація використовує Redis. Вона добре підходить для звичайних API-операцій. Для фінансово критичних операцій рекомендується durable PostgreSQL implementation.
 
-Redis-реалізація використовує два типи ключів:
+Redis-реалізація використовує три типи ключів:
 
 ```txt
 idem:<scope>:<idempotency-key>:lock
+idem:<scope>:<idempotency-key>:fence
 idem:<scope>:<idempotency-key>:result
 ```
 
-lock не дозволяє двом однаковим запитам одночасно виконати handler.
+`lock` не дозволяє двом однаковим запитам одночасно виконати handler.
+
+`fence` резервує ключ перед запуском handler (TTL = result TTL). Якщо fence існує без `:result`, повторне виконання handler блокується і клієнт отримує `IDEMPOTENCY_OUTCOME_UNKNOWN` (HTTP 409) — outcome треба вважати unknown, а не «ніколи не виконувалось».
+
+`result` зберігає успішну відповідь для replay з тим самим `requestHash`.
 
 Контракт:
 

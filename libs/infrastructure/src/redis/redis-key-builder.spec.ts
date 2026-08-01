@@ -60,6 +60,7 @@ describe('RedisKeyBuilder', () => {
       ['session', 'sessions:session-1', 'app:sessions:session-1'],
       ['idempotency lock', 'idem:api:req-1:lock', 'app:idem:api:req-1:lock'],
       ['idempotency result', 'idem:api:req-1:result', 'app:idem:api:req-1:result'],
+      ['idempotency fence', 'idem:api:req-1:fence', 'app:idem:api:req-1:fence'],
       ['job execution', 'job-execution:welcome:user-1', 'app:job-execution:welcome:user-1'],
       ['rate limit', 'auth:login:127.0.0.1', 'app:auth:login:127.0.0.1'],
     ])('%s logical key %s becomes %s', (_label, logicalKey, physicalKey) => {

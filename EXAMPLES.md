@@ -602,6 +602,18 @@ Content-Type: application/json
 
 Повторний запит з тим самим ключем і тим самим payload поверне збережене тіло відповіді.
 
+### Client retry contract
+
+| Situation | Typical error code (HTTP 409) | Safe client action |
+| --- | --- | --- |
+| Missing / invalid `Idempotency-Key` | `IDEMPOTENCY_KEY_REQUIRED` / validation codes | Fix the header and retry once |
+| Same key, different payload hash | `IDEMPOTENCY_KEY_REUSED` | Do **not** reuse the key; send a new key for a new intent |
+| Concurrent in-flight request (no durable fence/result yet) | `IDEMPOTENCY_REQUEST_IN_PROGRESS` | Retry the **same** key+payload after short backoff; do not invent a new key for the same intent |
+| Lock lost / result not confirmed after the handler may have run | `IDEMPOTENCY_OUTCOME_UNKNOWN` | Treat outcome as **unknown**. Retry the **same** key+payload only to obtain a stored replay or the same conflict — **never** assume “never executed” and start a fresh execution under a new key |
+| Happy-path replay | *(success)* | Use the returned stored body; handler does not run again |
+
+After a network timeout, treat the outcome as unknown until a later request with the same `Idempotency-Key` and payload either returns the stored success body or a documented conflict. A `409` with `IDEMPOTENCY_OUTCOME_UNKNOWN` means a prior attempt may already have applied side effects.
+
 ### Коли не використовувати `@Idempotent()`
 
 `@Idempotent()` не слід застосовувати до endpoint-ів, які:
