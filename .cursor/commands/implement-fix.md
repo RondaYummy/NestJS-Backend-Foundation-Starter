@@ -18,3 +18,4 @@ status: approved
 ```
 
 Implement only the approved scope, run required commands and create an implementation report under `docs/agent-reports/`.
+When the fix adds or changes HTTP endpoints, update OpenAPI and the Postman collection in the same change set.

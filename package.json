@@ -33,6 +33,7 @@
     "test:release": "node node_modules/jest/bin/jest.js --config jest.release.config.ts",
     "test:all": "npm run test:unit && npm run test:module && npm run test:release",
     "test:int": "jest --config jest.integration.config.ts",
+    "test:postman-coverage": "node node_modules/jest/bin/jest.js --config jest.unit.config.ts --testPathPatterns=postman-coverage",
     "start:prod:api": "node dist/apps/api/apps/api/src/main.js",
     "start:prod:worker": "node dist/apps/worker/apps/worker/src/main.js",
     "start:prod:cron": "node dist/apps/cron/apps/cron/src/main.js",

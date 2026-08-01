@@ -2,168 +2,163 @@
 
 ## Verdict
 
-changes-required
+approved
 
 ## Approved specification
 
 - Path: `docs/agent-tasks/TASK-001-api-security-headers-and-logout-rate-limit.md`
-- Index: `docs/agent-tasks/INDEX.md` — TASK-001 status **approved**
+- Index: `docs/agent-tasks/INDEX.md` — TASK-001 technical / **approved**
 - Spec frontmatter: `status: approved`
 - Scope: (1) configurable Helmet/security headers on API bootstrap; (2) `RateLimiterGuard` + OpenAPI `429` alignment on `POST /v1/auth/logout`
-- Implementation report: **none** (`docs/agent-reports/TASK-001*` absent)
+- Implementation report: `docs/agent-reports/TASK-001-implementation.md` (present; not trusted without code/diff inspection)
 
 ## Approved plan
 
 - Path: `docs/agent-plans/TASK-001-api-security-headers-and-logout-rate-limit.md`
 - Plan frontmatter: `status: approved`, `task_id: TASK-001`
-- Note: file is **untracked** in git (`??`); **not listed** in `docs/agent-plans/INDEX.md` (index currently shows P1-* rows only). Frontmatter approval is still present and was treated as the approved plan for this verification.
-- Planned deliverables include: `helmet` ^8.x, `SECURITY_HEADERS_ENABLED` config, `apply-api-security-headers.ts` (+ spec), `main.ts` wiring, logout `@UseGuards` / `@RateLimit({ keyPrefix: 'auth:logout' })` / `@ApiTooManyRequestsResponse`, OpenAPI contract assert, `.env.example` / README / EXAMPLES notes
+- Architecture decisions confirmed in code: Helmet `^8.3.0`; `SECURITY_HEADERS_ENABLED` default `true`; Swagger-safe CSP/COEP off; CORP `cross-origin`; logout prefix `auth:logout` with default `RATE_LIMIT_AUTH_*`; `@ApiTooManyRequestsResponse` on logout
 
 ## Scope checked
 
 | Check | Result |
 | --- | --- |
 | Spec approved | Yes |
-| Plan approved | Yes (frontmatter); INDEX row missing / plan untracked |
-| Exactly one task implemented | **No implementation of TASK-001 found** |
-| Diff free of unrelated work | **No** — staged working tree is **P1-05** (pg-error util, user repository, backlog/docs) plus `.gitleaks.toml` and task-index edits; not TASK-001 production code |
-| Plan deviations documented | N/A — nothing implemented |
-| ACs removed/weakened | No (spec/plan unchanged; unmet) |
+| Plan approved | Yes |
+| Exactly one task ID for this verification | Yes — TASK-001 only |
+| Working-tree uncommitted TASK-001 diff | **None** — `git status` clean; branch ahead of `origin/main` by 1 commit (`a9fa92a` message `P1-05`) |
+| TASK-001 deliverables present in HEAD vs `origin/main` | Yes — all planned production/test/docs paths present |
+| Diff free of unrelated work (commit hygiene) | **Mixed commit** — HEAD also contains P1-05 (`pg-error.util`, user repository unwrap, backlog docs, `.gitleaks.toml`). TASK-001 file set itself matches the plan; unrelated P1-05 is noted under Findings (process), not as a failed AC |
+| Plan deviations | Documented CORP `{ policy: 'cross-origin' }` — allowed by plan (“adjust … only if needed” for NFR-04) |
+| Acceptance criteria removed/weakened | No |
+
+Prior report at this path concluded `changes-required` when implementation was missing; that verdict is superseded by this re-verification.
 
 ## Actual changed files
 
-**TASK-001 production / planned code:** none present.
+TASK-001-relevant paths vs `origin/main` (working tree clean; evidence from `git diff origin/main...HEAD` scoped to these files):
 
-**Working tree at verification time (staged unless noted):**
-
-| Path | Relation to TASK-001 |
+| Path | Change |
 | --- | --- |
-| `.gitleaks.toml` | Unrelated |
-| `docs/agent-backlog/INDEX.md` | Unrelated (P1-05) |
-| `docs/agent-backlog/NESTJS_STARTER_KIT_REQUIRED_FIXES.md` | Unrelated (P1-05) |
-| `docs/agent-plans/INDEX.md` | Unrelated (P1-05); no TASK-001 row |
-| `docs/agent-plans/P1-05-unwrap-drizzle-unique-violation.md` | Unrelated |
-| `docs/agent-reports/P1-05-implementation.md` | Unrelated |
-| `docs/agent-reports/P1-05-verification.md` | Unrelated |
-| `docs/agent-tasks/INDEX.md` | Mentions TASK-001 as approved (docs only) |
-| `libs/infrastructure/src/database/drizzle/pg-error.util.ts` | Unrelated (P1-05) |
-| `libs/infrastructure/src/database/drizzle/pg-error.util.spec.ts` | Unrelated (P1-05) |
-| `libs/infrastructure/src/repositories/user-drizzle.repository.ts` | Unrelated (P1-05) |
-| `docs/agent-plans/TASK-001-api-security-headers-and-logout-rate-limit.md` | Untracked plan doc only |
-
-**Absent planned TASK-001 files / symbols (confirmed by glob/grep):**
-
-- `apps/api/src/security/apply-api-security-headers.ts` — missing
-- `apps/api/src/security/apply-api-security-headers.spec.ts` — missing
-- `helmet` in `package.json` — missing
-- `SECURITY_HEADERS_ENABLED` / `securityHeadersEnabled` in config / `.env.example` — missing
-- Helmet / `applyApiSecurityHeaders` call in `apps/api/src/main.ts` — missing
-- Logout rate-limit decorations — missing
+| `package.json` / `package-lock.json` | Add `helmet` `^8.3.0` (lock resolved `8.3.0`) |
+| `libs/infrastructure/src/config/env.schema.ts` | `SECURITY_HEADERS_ENABLED` + default `true` |
+| `libs/infrastructure/src/config/env.schema.spec.ts` | Default / override / reject cases |
+| `libs/infrastructure/src/config/infrastructure-config.module.ts` | Map `securityHeadersEnabled` |
+| `libs/infrastructure/src/config/app-config.service.ts` | `app.securityHeadersEnabled: boolean` |
+| `apps/api/src/security/apply-api-security-headers.ts` | **new** Helmet helper |
+| `apps/api/src/security/apply-api-security-headers.spec.ts` | **new** enabled/disabled header tests |
+| `apps/api/src/main.ts` | Conditional early `applyApiSecurityHeaders` + info log |
+| `apps/api/src/controllers/auth.controller.ts` | Logout guard + `@RateLimit({ keyPrefix: 'auth:logout' })` + `429` OpenAPI |
+| `apps/api/src/openapi/openapi-contract.spec.ts` | Assert logout `responses['429']` |
+| `.env.example` | Document `SECURITY_HEADERS_ENABLED` |
+| `README.md` | §3.1.1 note + §21 env sample |
+| `EXAMPLES.md` | Logout rate-limit note; §6 `auth:logout` comment |
+| `docs/agent-reports/TASK-001-implementation.md` | Implementer report |
 
 ## Requirements matrix
 
 | Requirement | Evidence | Result |
 | --- | --- | --- |
-| FR-01 Security headers via Helmet (or equivalent) | `main.ts` has cookie parser, CORS, trust proxy only; no Helmet/middleware helper | failed |
-| FR-02 Configurable enable/disable via typed config | No `SECURITY_HEADERS_ENABLED` in env schema, `AppConfigService`, or mapping | failed |
-| FR-03 Safe defaults / Swagger-safe profile | No Helmet options wired | failed |
-| FR-04 Logout uses `RateLimiterGuard` like siblings | `auth.controller.ts` `@Post('logout')` has no `@UseGuards(RateLimiterGuard)` / `@RateLimit` | failed |
-| FR-05 OpenAPI logout aligns with sibling `429` docs | Logout lacks `@ApiTooManyRequestsResponse`; siblings have it; `openapi-contract.spec.ts` lists logout path but does not assert `429` | failed |
-| NFR-01 No secrets in header config | N/A — no header config implemented | failed (unimplemented) |
-| NFR-02 Portable disable/tune without editing Helmet internals | No env knob | failed |
-| NFR-03 Minimal `helmet` dependency + lockfile | `package.json` has no `helmet` | failed |
-| NFR-04 Do not break CORS/cookies | Not exercised; no Helmet options present to evaluate | not-confirmed |
+| FR-01 Security headers via Helmet (nosniff, frameguard, referrer-policy, hide X-Powered-By) | `apply-api-security-headers.ts` uses `helmet` + `app.disable('x-powered-by')`; unit spec asserts headers | passed |
+| FR-02 Configurable enable/disable via typed config | `SECURITY_HEADERS_ENABLED` → `config.app().securityHeadersEnabled`; `main.ts` gates middleware | passed |
+| FR-03 Safe local defaults; Swagger not broken by CSP | Default `true`; `contentSecurityPolicy: false`, `crossOriginEmbedderPolicy: false`; documented | passed |
+| FR-04 Logout uses existing `RateLimiterGuard` / `@RateLimit` | `auth.controller.ts` mirrors siblings; prefix `auth:logout`; guard uses `RATE_LIMIT_AUTH_*` for `auth:*` | passed |
+| FR-05 OpenAPI logout documents `429` like siblings | `@ApiTooManyRequestsResponse`; contract assert on `document.paths['/v1/auth/logout'].post.responses['429']` | passed |
+| NFR-01 No secrets in header config | Boolean flag + fixed Helmet options only | passed |
+| NFR-02 Portable disable/tune without editing Helmet internals | Env flag; options exported as `API_SECURITY_HEADERS_HELMET_OPTIONS` | passed |
+| NFR-03 Minimal dependency churn; helmet pin compatible | `helmet@^8.3.0` only intentional dep/lock churn for this task | passed |
+| NFR-04 Do not break CORS/cookies | Cookie/CORS code unchanged; CORP set `cross-origin` per plan allowance | passed |
 
 ## Acceptance criteria matrix
 
 | AC | Evidence | Result |
 | --- | --- | --- |
-| AC-01 Headers present when enabled | No helper, no middleware, no unit/integration assertion | failed |
-| AC-02 Disable via config/env | No `SECURITY_HEADERS_ENABLED` | failed |
-| AC-03 Logout guarded with `RateLimiterGuard` | Static read of `logout` handler: no guard/decorator | failed |
-| AC-04 OpenAPI drift + logout `429` docs | No decorator; contract spec does not assert logout `429` | failed |
-| AC-05 `build:api`, lint, relevant unit tests | Not run for TASK-001 — no TASK-001 code to gate; would not prove ACs | failed |
-| AC-06 `.env.example` + schema document knob | Grep of `.env.example` and config: no matches | failed |
+| AC-01 Headers present when enabled | `apply-api-security-headers.spec.ts` (nosniff, SAMEORIGIN, referrer-policy, no X-Powered-By); wired in `main.ts` | passed |
+| AC-02 Disable via config/env | Schema override tests (`false`/`0`); helper no-op when `enabled: false`; `.env.example` documents flag | passed |
+| AC-03 Logout guarded like siblings | `@UseGuards(RateLimiterGuard)` + `@RateLimit({ keyPrefix: 'auth:logout' })` on `POST logout` | passed |
+| AC-04 OpenAPI drift + logout `429` | `openapi-contract.spec.ts` assert + suite green (OpenAPI drift covered by this unit gate) | passed |
+| AC-05 `build:api`, `lint`, relevant unit tests | Commands below all succeeded (full unit: 42 suites / 273 tests) | passed |
+| AC-06 `.env.example` + schema document knob | `.env.example` + `env.schema.ts` transform default `true` | passed |
 
-**ACs passed: 0 of 6**
+**Acceptance summary:** 6 passed / 0 failed / 0 not-confirmed
 
 ## Architecture and DI verification
 
-- Plan requires API-only helper + config mapping; no new tokens.
-- Actual state: no TASK-001 DI/composition changes.
-- Domain/Application boundaries: unchanged (and unused by this task).
-- Entrypoints Worker/Cron/Migrations: correctly untouched for TASK-001 (also no API changes).
-- Unrelated P1-05 repository/error-util changes are in the same working tree and are **out of TASK-001 scope**.
+- Dependency direction preserved: API entrypoint helper + config mapping only; no Domain/Application pollution.
+- No new tokens; reuses `RateLimiterModule` / `RateLimiterGuard` already registered in `ApiModule`.
+- Helmet applied only in API `main.ts` (Worker/Cron/Migrations untouched).
+- Config follows existing `optionalBoolean` + `AppConfigService.app()` pattern (same family as `API_DOCS_ENABLED`).
+- `auth:logout` is an `auth:*` prefix → `RateLimiterGuard` applies `authMax` / `authTtl` when limit/ttl omitted (verified in guard source).
 
 ## Database and migration verification
 
-None required by TASK-001. No migration files in TASK-001 scope. No TASK-001 DB changes observed.
+None required / none present. N/A — passed by absence.
 
 ## Security verification
 
-| Expected (plan/spec) | Observed |
+| Topic | Assessment |
 | --- | --- |
-| FR-01 response headers when enabled | Not applied |
-| Config-gated opt-out | Not present |
-| Logout IP-keyed rate limit (`auth:logout`) | Not present — logout remains unguarded vs login/refresh/forgot/reset |
-| Cookie/CORS semantics unchanged | Unchanged by absence of TASK-001 work |
-
-Security gaps described in the approved spec remain open.
+| Defense-in-depth headers | Present when enabled; do not replace authn/authz |
+| Secrets | No secrets in header config |
+| Logout rate limit | IP-keyed `auth:logout:${req.ip}` via existing Redis limiter; `trust proxy` already set in bootstrap |
+| Cookie / CORS | Unchanged attach/clear semantics; Helmet CORP adjusted for credentialed clients |
+| OpenAPI auth/cookie docs on logout | Pre-existing logout auth/cookie/OpenAPI success & error docs retained; `429` added |
 
 ## Commands executed
 
 ```text
-Command: git status --short / git status --porcelain
-Result: Staged P1-05 + docs; untracked TASK-001 plan; no TASK-001 production files
-Conclusion: Working tree is not a TASK-001 implementation
+Command: git status
+Result: clean working tree; branch ahead of origin/main by 1 commit (a9fa92a P1-05)
+Conclusion: No uncommitted TASK-001 diff; verified committed HEAD vs origin/main for TASK-001 paths
 
-Command: git diff --cached --stat / git diff --stat
-Result: 11 staged files (P1-05 + docs/.gitleaks); empty unstaged diff
-Conclusion: Diff is unrelated to TASK-001 Helmet/logout work
+Command: git diff origin/main...HEAD -- <TASK-001 scoped paths>
+Result: TASK-001 production/test/docs changes present and match plan
+Conclusion: Implementation is in tree; commit also mixes P1-05 (process note)
 
-Command: git log -5 --oneline
-Result: Recent commits are P1-04 … P1-01 / docs cleanup — no TASK-001 commit
-Conclusion: No merged TASK-001 implementation on recent history inspected
+Command: npm run test:unit -- --testPathPatterns="env.schema.spec" --testPathPatterns="apply-api-security-headers" --testPathPatterns="openapi-contract"
+Result: 3 suites / 47 tests passed
+Conclusion: Config knob, Helmet helper, and OpenAPI logout 429/drift checks green
+(Note: openapi routing test logs expected mock DI TypeErrors for RateLimiterGuard/HealthService; assertions still pass)
 
-Command: Glob **/apply-api-security-headers*
-Result: 0 files
-Conclusion: Planned helper/spec absent
+Command: npm run build:api
+Result: exit 0
+Conclusion: API compiles with Helmet wiring
 
-Command: Grep helmet|SECURITY_HEADERS_ENABLED|applyApiSecurityHeaders|auth:logout (ts/js/json/md/example)
-Result: Matches only in TASK-001 spec/plan docs
-Conclusion: No production/config usage
+Command: npm run lint
+Result: exit 0 (--max-warnings=0)
+Conclusion: No lint regressions
 
-Command: Grep/read apps/api/src/main.ts, auth.controller.ts logout, package.json, config, .env.example, openapi-contract.spec.ts
-Result: Gaps confirmed as in matrices above
-Conclusion: Static evidence sufficient that implementation is missing
+Command: npm run test:unit
+Result: first attempt failed with Windows `spawn EPERM` (Jest worker / environment — not a project defect)
+Conclusion: Retried below
 
-Command: npm run build:api / lint / test:unit (plan gates)
-Result: Not executed
-Conclusion: Inappropriate as TASK-001 success evidence when implementation is absent; would only reflect unrelated tree state
+Command: node node_modules/jest/bin/jest.js --config jest.unit.config.ts --runInBand
+Result: 42 suites / 273 tests passed
+Conclusion: Full unit gate green (equivalent to `npm run test:unit` with --runInBand after env flake)
 ```
+
+Manual `curl -sI /health` with live API bootstrap was **not** run (optional / Redis+Postgres dependent per plan). AC-01 is covered by the isolated Helmet helper unit tests.
 
 ## Findings
 
-1. **TASK-001 is not implemented.** Spec and plan are approved, but none of the planned production files, dependency, config knob, bootstrap wiring, or logout rate-limit/OpenAPI changes exist.
-2. **Working tree conflates unrelated P1-05 work** with TASK-001 planning docs; verifier must not treat P1-05 as TASK-001 progress.
-3. **Logout remains unprotected** relative to sibling auth mutations (`RateLimiterGuard` / `@RateLimit` / `@ApiTooManyRequestsResponse` missing on `POST logout`).
-4. **API bootstrap still has no security-header middleware** (`main.ts` unchanged relative to plan expectations).
-5. **No implementation report** under `docs/agent-reports/TASK-001*`.
-6. **Plans index hygiene:** approved TASK-001 plan file is untracked and not indexed in `docs/agent-plans/INDEX.md` (documentation process gap; does not substitute for code).
+1. **Process — mixed commit (low/medium, non-blocking for AC):** HEAD commit `a9fa92a` (`P1-05`) includes both TASK-001 and P1-05 production/docs changes. TASK-001 code quality and ACs are satisfied; commit hygiene does not match “one task/issue at a time” workflow preference.
+2. **Requested diff source mismatch (informational):** Custom instructions asked for uncommitted changes; working tree was clean. Verification used `origin/main...HEAD` for TASK-001-scoped files instead.
+3. **No high-impact functional defects** found against the approved specification or plan.
 
 ## Documentation alignment
 
-- Spec/plan correctly describe the pre-implementation gaps; those gaps still match the codebase.
-- `.env.example`, `README.md`, `EXAMPLES.md` were not updated for `SECURITY_HEADERS_ENABLED` or logout rate limiting (plan phases 1/4 incomplete).
-- Task index lists TASK-001 as approved (specification only).
+- `.env.example`, `README.md`, and `EXAMPLES.md` document the new knob and logout rate limit as planned.
+- OpenAPI logout operation documents `429` consistently with sibling auth mutations.
+- Spec open questions were resolved by the approved plan recommendations and implemented accordingly.
+- Minor: `docs/agent-plans/INDEX.md` currently lists only P1-* rows and does **not** list the TASK-001 plan file (plan file itself is present with `status: approved`). Non-blocking for AC.
 
 ## Remaining risks
 
-- Production API continues without standard security headers and without logout rate limiting as called out in the approved task.
-- Risk of starting implementation while P1-05 changes share the working tree — scope mixing.
+- Full API bootstrap + live Helmet headers on `/health` not exercised (optional; Redis assert blocks unit-style `main.ts` boot).
+- Runtime logout `429` under Redis abuse not load-tested (decorator/guard pattern matches proven siblings).
+- Helmet may still emit HSTS on HTTPS; preload/certificate management remain out of scope.
+- Credentialed SPA + CORP interaction validated by conservative options + unit headers, not live CORS login curl.
 
 ## Unverified areas
 
-- Runtime header assertions via curl/`/health` (no middleware to test; API bootstrap not started).
-- CORS/cookie interaction with Helmet options (NFR-04) — not applicable until Helmet is wired.
-- Full `build:api` / `lint` / `test:unit` greenness of the current mixed tree — intentionally not used as TASK-001 evidence.
+- Manual `curl -sI http://localhost:3000/health` with `SECURITY_HEADERS_ENABLED` true/false against a running API.
+- End-to-end Redis-backed logout rate-limit trip to HTTP 429.

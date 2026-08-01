@@ -2,9 +2,10 @@
 
 This index lists implementation plans under `docs/agent-plans/`.
 
-| ID    | Title                                                                  | Status   | Plan                                                                                                 |
-| ----- | ---------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
-| P1-05 | Unwrap Drizzle unique violations so duplicate register returns 409     | proposed | [P1-05-unwrap-drizzle-unique-violation.md](./P1-05-unwrap-drizzle-unique-violation.md)               |
+| ID       | Title                                                                  | Status   | Plan                                                                                                 |
+| -------- | ---------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| TASK-002 | Postman collection and agent keep-in-sync workflow                     | approved | [TASK-002-postman-collection-and-agent-sync.md](./TASK-002-postman-collection-and-agent-sync.md)     |
+| P1-05    | Unwrap Drizzle unique violations so duplicate register returns 409     | proposed | [P1-05-unwrap-drizzle-unique-violation.md](./P1-05-unwrap-drizzle-unique-violation.md)               |
 | P1-03 | Harden idempotency so side effects are not re-run after lock loss      | proposed | [P1-03-harden-idempotency-lock-loss.md](./P1-03-harden-idempotency-lock-loss.md)                     |
 | P1-04 | Make JWT refresh-family revoke atomic                                  | proposed | [P1-04-atomic-jwt-refresh-family-revoke.md](./P1-04-atomic-jwt-refresh-family-revoke.md)             |
 | P1-01 | Fix Redis session user-index TTL overwrite                             | approved | [P1-01-redis-session-user-index-ttl-overwrite.md](./P1-01-redis-session-user-index-ttl-overwrite.md) |

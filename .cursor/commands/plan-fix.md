@@ -12,5 +12,6 @@ docs/agent-backlog/INDEX.md
 ```
 
 Confirm the issue still exists in the current branch.
+When the fix adds or changes HTTP endpoints, plan OpenAPI and Postman (`docs/postman/`) updates with coverage verification.
 Do not edit production code.
 Create a proposed plan under `docs/agent-plans/` with exact file paths and acceptance criteria.

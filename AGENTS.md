@@ -306,7 +306,7 @@ rough request
 
 - Use exactly one new request.
 - Inspect the current codebase before defining requirements.
-- If the task adds or changes an HTTP endpoint, include explicit OpenAPI requirements and acceptance criteria for inputs, outputs, status codes, errors, auth, headers and cookies.
+- If the task adds or changes an HTTP endpoint, include explicit OpenAPI requirements and acceptance criteria for inputs, outputs, status codes, errors, auth, headers and cookies, plus Postman collection update requirements under `docs/postman/`.
 - Do not edit production code.
 - Create a specification under `docs/agent-tasks/`.
 - Update `docs/agent-tasks/INDEX.md`.
@@ -333,7 +333,7 @@ A task planner must not plan an unapproved specification.
 - Work on exactly one approved `TASK-xxx` specification.
 - Do not edit production code.
 - Map every acceptance criterion to implementation steps and verification.
-- For HTTP contract changes, list the exact OpenAPI decorators/schema files, canonical documentation updates and drift-test verification.
+- For HTTP contract changes, list the exact OpenAPI decorators/schema files, canonical documentation updates, drift-test verification, and Postman collection/item updates with coverage verification.
 - Create a plan under `docs/agent-plans/`.
 - Leave plan status as `proposed`.
 
@@ -341,7 +341,7 @@ A task planner must not plan an unapproved specification.
 
 - Implement only when both specification and plan are human-approved.
 - Do not change approved requirements silently.
-- Add or update typed OpenAPI schemas and endpoint documentation in the same task as every HTTP contract change.
+- Add or update typed OpenAPI schemas, endpoint documentation, and the Postman collection under `docs/postman/` in the same task as every HTTP contract change.
 - Do not combine another task or backlog issue.
 - Stop and request a revised plan when a material unplanned change is required.
 
@@ -349,7 +349,7 @@ A task planner must not plan an unapproved specification.
 
 - Use a fresh verifier context when possible.
 - Verify approved requirements, approved plan, actual diff and runtime evidence.
-- For HTTP contract changes, compare generated OpenAPI with controllers, validation DTOs, response bodies and exception mapping, then run the OpenAPI drift test.
+- For HTTP contract changes, compare generated OpenAPI with controllers, validation DTOs, response bodies and exception mapping, then run the OpenAPI drift test and Postman coverage check (`npm run test:postman-coverage`).
 - Do not modify implementation code.
 - Return `approved`, `changes-required` or `not-confirmed`.
 
@@ -363,6 +363,6 @@ A new task is complete only when:
 4. all affected contracts, providers, consumers and entrypoints are consistent;
 5. migrations and rollout behavior are safe where applicable;
 6. required build, lint, test and bootstrap checks are executed;
-7. public behavior and documentation are aligned, including generated OpenAPI for every added or changed HTTP endpoint;
+7. public behavior and documentation are aligned, including generated OpenAPI and the Postman collection under `docs/postman/` for every added or changed HTTP endpoint;
 8. independent verification returns `approved`;
 9. remaining risks and unverified areas are explicitly documented.

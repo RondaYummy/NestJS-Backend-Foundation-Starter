@@ -73,7 +73,7 @@ Identify:
 - non-functional requirements;
 - architecture boundaries;
 - API, event, queue or CLI contracts;
-- for every added or changed HTTP endpoint, OpenAPI requirements and acceptance criteria covering inputs, outputs, statuses, errors, auth, headers and cookies;
+- for every added or changed HTTP endpoint, OpenAPI requirements and acceptance criteria covering inputs, outputs, statuses, errors, auth, headers and cookies, plus Postman collection update requirements/acceptance criteria under `docs/postman/` (route present, method/path/variables aligned, no secrets);
 - data model and migration needs;
 - security and authorization requirements;
 - entrypoints affected;

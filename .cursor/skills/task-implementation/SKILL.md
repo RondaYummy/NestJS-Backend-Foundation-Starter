@@ -58,8 +58,8 @@ For each phase:
 3. keep controllers, processors, cron handlers and CLI handlers thin;
 4. preserve independent API, Worker, Cron and Migrations composition;
 5. add or update documentation when public behavior changes;
-6. when an HTTP endpoint is added or changed, update its typed OpenAPI schemas/decorators in the same task and do not mark the phase complete if generated documentation is missing;
-7. add or update tests where the repository has an applicable testing pattern or the plan requires them, including the OpenAPI drift check for HTTP contract changes;
+6. when an HTTP endpoint is added or changed, update its typed OpenAPI schemas/decorators **and** the Postman collection under `docs/postman/` in the same task; do not mark the phase complete if generated documentation or collection alignment is missing;
+7. add or update tests where the repository has an applicable testing pattern or the plan requires them, including the OpenAPI drift check and `npm run test:postman-coverage` for HTTP contract changes;
 8. inspect `git diff`;
 9. run the narrowest relevant verification.
 

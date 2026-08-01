@@ -55,6 +55,7 @@ Determine:
 - Domain, Application, Contracts, Infrastructure and Interface changes;
 - API, DTO, event, queue or CLI contract changes;
 - exact OpenAPI decorator/schema files, canonical documentation updates and drift-test checks for every HTTP endpoint addition or change;
+- exact Postman collection/item updates under `docs/postman/` and Postman coverage verification (`npm run test:postman-coverage`) for every HTTP endpoint addition or change;
 - database schema and migration sequence;
 - transaction and Outbox boundaries;
 - idempotency and retry behavior;

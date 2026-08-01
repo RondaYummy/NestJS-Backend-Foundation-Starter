@@ -202,7 +202,7 @@ When API documentation is enabled, the API exposes:
 
 `SECURITY_HEADERS_ENABLED` (default `true` in all environments) applies Helmet security headers on the API HTTP server. CSP and cross-origin embedder policy are disabled so Swagger UI remains usable; set `SECURITY_HEADERS_ENABLED=false` when an edge proxy already injects equivalent headers.
 
-The generated OpenAPI document is the canonical HTTP contract for request bodies, validation, responses, errors, authentication, headers and cookies. Manual examples should link to it instead of duplicating a conflicting contract. Every task that adds or changes an HTTP endpoint must update its typed OpenAPI schemas/decorators and the drift test in the same change.
+The generated OpenAPI document is the canonical HTTP contract for request bodies, validation, responses, errors, authentication, headers and cookies. Manual examples should link to it instead of duplicating a conflicting contract. Every task that adds or changes an HTTP endpoint must update its typed OpenAPI schemas/decorators and the drift test in the same change. For interactive testing, import the checked-in Postman collection from [`docs/postman/README.md`](docs/postman/README.md) and keep it aligned with OpenAPI.
 
 ---
 

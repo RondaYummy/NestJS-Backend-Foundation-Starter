@@ -54,7 +54,7 @@ Verify, where applicable:
 
 Check every functional and non-functional requirement.
 
-For every added or changed HTTP endpoint, compare generated OpenAPI with the controller method/path, validation DTO, actual success body, exception envelope, auth, headers and cookies, and run the repository OpenAPI drift test.
+For every added or changed HTTP endpoint, compare generated OpenAPI with the controller method/path, validation DTO, actual success body, exception envelope, auth, headers and cookies, and run the repository OpenAPI drift test. Also verify the changed routes appear in `docs/postman/` with matching method/path/variables, run `npm run test:postman-coverage` (or the unit gate that includes it), and reject committed secrets in the collection or environment template.
 
 Create an acceptance matrix:
 

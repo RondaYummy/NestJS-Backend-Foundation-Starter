@@ -14,6 +14,6 @@ status: approved
 ```
 
 Inspect the current codebase.
-For HTTP endpoint changes, plan exact OpenAPI schema/decorator updates, canonical documentation changes and drift-test verification.
+For HTTP endpoint changes, plan exact OpenAPI schema/decorator updates, canonical documentation changes, drift-test verification, and Postman collection/item updates under `docs/postman/` with coverage verification (`npm run test:postman-coverage`).
 Do not edit production code.
 Create one proposed plan under `docs/agent-plans/`.

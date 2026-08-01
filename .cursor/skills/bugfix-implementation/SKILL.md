@@ -39,6 +39,7 @@ If it is `proposed`, `rejected`, missing or ambiguous, do not edit production co
 - After a contract or token change, immediately update all implementations and consumers.
 - Keep controllers, workers and schedules thin.
 - Preserve independent API, Worker, Cron and Migrations composition.
+- When the fix adds or changes HTTP endpoints, update typed OpenAPI schemas/decorators and the Postman collection under `docs/postman/` in the same change set; run OpenAPI drift and `npm run test:postman-coverage` when applicable.
 
 After each logical phase:
 

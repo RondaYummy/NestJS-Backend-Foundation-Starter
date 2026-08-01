@@ -43,7 +43,8 @@ Identify:
 - all affected composition roots;
 - migration or rollout impact;
 - compatibility risks;
-- targeted and full verification commands.
+- targeted and full verification commands;
+- when the fix adds or changes HTTP endpoints: exact OpenAPI decorator/schema updates and Postman collection updates under `docs/postman/` with coverage verification.
 
 ### 3. Create the plan
 

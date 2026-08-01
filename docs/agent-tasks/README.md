@@ -54,4 +54,4 @@ TASK-001-short-slug.md
 
 Each specification must contain numbered requirements and acceptance criteria.
 
-Any task that adds or changes an HTTP endpoint must treat the generated OpenAPI document as the canonical contract and include requirements and acceptance criteria for its inputs, outputs, statuses, errors, auth, headers and cookies.
+Any task that adds or changes an HTTP endpoint must treat the generated OpenAPI document as the canonical **machine** contract and the Postman collection under `docs/postman/` as the canonical **manual-test** artifact. Include requirements and acceptance criteria for OpenAPI inputs, outputs, statuses, errors, auth, headers and cookies, and for Postman route coverage (method/path/variables aligned, no secrets).

@@ -14,7 +14,7 @@ docs/agent-tasks/INDEX.md
 ```
 
 Inspect the current repository before defining requirements.
-If the request adds or changes an HTTP endpoint, include OpenAPI contract requirements and acceptance criteria for inputs, outputs, statuses, errors, auth, headers and cookies.
+If the request adds or changes an HTTP endpoint, include OpenAPI contract requirements and acceptance criteria for inputs, outputs, statuses, errors, auth, headers and cookies, plus Postman collection update requirements/acceptance criteria under `docs/postman/` (route present, method/path/variables aligned, no secrets).
 Do not edit production code.
 Create one proposed specification under `docs/agent-tasks/`.
 Update `docs/agent-tasks/INDEX.md`.

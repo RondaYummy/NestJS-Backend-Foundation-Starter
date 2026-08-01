@@ -54,6 +54,8 @@ Check every acceptance criterion individually and classify it:
 
 Static inspection is insufficient where runtime behavior is part of the criterion.
 
+When the fix added or changed HTTP endpoints, verify generated OpenAPI against controllers/DTOs/responses/auth and confirm Postman collection coverage (`npm run test:postman-coverage`); reject secrets in collection/env.
+
 ### 4. Commands
 
 Execute targeted commands from the plan, then required full checks.
