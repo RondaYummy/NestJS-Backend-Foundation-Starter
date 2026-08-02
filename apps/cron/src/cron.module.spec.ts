@@ -13,12 +13,23 @@ import { AppLogger } from '@infrastructure/logger/app-logger.service';
 import { CronModule } from './cron.module';
 import { OutboxSchedule } from './schedules/outbox.schedule';
 
-jest.mock('ioredis', () =>
-  jest.fn().mockImplementation(() => ({
+jest.mock('ioredis', () => {
+  const RedisMock = jest.fn().mockImplementation(() => ({
     on: jest.fn(),
+    off: jest.fn(),
+    removeListener: jest.fn(),
+    getMaxListeners: jest.fn().mockReturnValue(10),
+    setMaxListeners: jest.fn(),
+    status: 'ready',
+    info: jest.fn().mockResolvedValue('redis_version:6.2.0\r\n'),
+    defineCommand: jest.fn(),
+    connect: jest.fn().mockResolvedValue(undefined),
     quit: jest.fn().mockResolvedValue('OK'),
-  })),
-);
+    disconnect: jest.fn(),
+  }));
+
+  return { __esModule: true, default: RedisMock };
+});
 
 const TEST_ENV: Record<string, string> = {
   NODE_ENV: 'test',
