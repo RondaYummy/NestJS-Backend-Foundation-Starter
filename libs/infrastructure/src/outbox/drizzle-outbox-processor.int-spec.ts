@@ -13,6 +13,7 @@ import type { OutboxProcessorOptions } from '@contracts/outbox/outbox-processor.
 import type { DrizzleDb } from '../database/drizzle/drizzle.types';
 import { outboxEvents } from '../database/drizzle/schema/outbox-events.schema';
 import type { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { assertPostgresAvailable } from '../../../../test/integration/infra-availability';
 import { DrizzleOutboxProcessor } from './drizzle-outbox-processor';
 
 const DATABASE_URL =
@@ -29,28 +30,6 @@ const TEST_OPTIONS: OutboxProcessorOptions = {
   concurrency: 1,
   retryDelaySeconds: () => 30,
 };
-
-async function isPostgresAvailable(): Promise<boolean> {
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-    connectionTimeoutMillis: 2_000,
-    max: 1,
-  });
-
-  try {
-    await pool.query('SELECT 1 FROM outbox_events LIMIT 1');
-    await pool.end();
-    return true;
-  } catch {
-    try {
-      await pool.end();
-    } catch {
-      // ignore cleanup errors when PostgreSQL is unavailable
-    }
-
-    return false;
-  }
-}
 
 function createProcessor(
   db: DrizzleDb,
@@ -81,22 +60,21 @@ function createProcessor(
 }
 
 describe('DrizzleOutboxProcessor integration', () => {
-  let postgresAvailable = false;
+  let infraReady = false;
   let pool: Pool;
   let db: DrizzleDb;
 
   beforeAll(async () => {
-    postgresAvailable = await isPostgresAvailable();
-
-    if (!postgresAvailable) {
-      console.warn(
-        `Skipping DrizzleOutboxProcessor integration tests: PostgreSQL unavailable at ${DATABASE_URL}`,
-      );
-    }
+    await assertPostgresAvailable({
+      databaseUrl: DATABASE_URL,
+      probeSql: 'SELECT 1 FROM outbox_events LIMIT 1',
+    });
+    infraReady = true;
   });
 
   beforeEach(() => {
-    if (!postgresAvailable) {
+    // Skip resource setup only when beforeAll already failed closed.
+    if (!infraReady) {
       return;
     }
 
@@ -109,7 +87,7 @@ describe('DrizzleOutboxProcessor integration', () => {
   });
 
   afterEach(async () => {
-    if (!postgresAvailable) {
+    if (!pool) {
       return;
     }
 
@@ -117,10 +95,6 @@ describe('DrizzleOutboxProcessor integration', () => {
   });
 
   it('prevents a second worker from reclaiming an event while heartbeat renews the lease', async () => {
-    if (!postgresAvailable) {
-      return;
-    }
-
     const eventId = randomUUID();
     const routeCount = { value: 0 };
 
@@ -165,10 +139,6 @@ describe('DrizzleOutboxProcessor integration', () => {
   }, 20_000);
 
   it('prevents reclaim while timed-out handler is still running (V-09 / P2-04)', async () => {
-    if (!postgresAvailable) {
-      return;
-    }
-
     const timeoutOptions: OutboxProcessorOptions = {
       ...TEST_OPTIONS,
       lockTtlMs: 3_000,

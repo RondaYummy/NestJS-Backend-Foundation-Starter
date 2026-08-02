@@ -152,7 +152,7 @@ npm run test:int
 - **Before merge / full check:** `npm run test:all` (chains `test:unit`, `test:module`, `test:release`).
 - **Module/bootstrap DI wiring:** `npm run test:module` — `*.module.spec.ts`; use `--detectOpenHandles` when auditing lifecycle.
 - **Release policy tooling:** `npm run test:release` — `scripts/release/**/*.spec.ts`.
-- **Infra integration:** `npm run test:int` — `*.int-spec.ts`; requires PostgreSQL and Redis when run.
+- **Infra integration:** `npm run test:int` — `*.int-spec.ts`; requires PostgreSQL and Redis when run. Missing PostgreSQL or Redis **fails** the suite (non-zero exit / failed tests); a green `test:int` means asserts against live infra actually ran. `test:all` still excludes `test:int`. Treat a missing-infra failure as infrastructure unavailability, not a product defect — but do not claim integration verification from a soft-skipped green path.
 
 Jest npm scripts invoke `node node_modules/jest/bin/jest.js` to avoid intermittent Windows npm wrapper crashes (see P2-08, P2-11).
 

@@ -2,6 +2,7 @@
 
 import Redis from 'ioredis';
 
+import { assertRedisAvailable } from '../../../../test/integration/infra-availability';
 import { RedisCacheGateway } from './redis-cache.gateway';
 import { RedisKeyBuilder } from '../redis/redis-key-builder';
 import { RedisService } from '../redis/redis.service';
@@ -14,51 +15,25 @@ const REDIS_DB = Number(process.env.REDIS_DB ?? 0);
 const TEST_PREFIX = 'app:cache:p2-03:';
 const OTHER_KEY = 'app:cache:other:c';
 
-async function isRedisAvailable(): Promise<boolean> {
-  const client = new Redis({
-    host: REDIS_HOST,
-    port: REDIS_PORT,
-    password: REDIS_PASSWORD,
-    db: REDIS_DB,
-    connectTimeout: 2_000,
-    maxRetriesPerRequest: 1,
-    lazyConnect: true,
-  });
-
-  try {
-    await client.connect();
-    await client.ping();
-    await client.quit();
-    return true;
-  } catch {
-    try {
-      await client.quit();
-    } catch {
-      // ignore cleanup errors when Redis is unavailable
-    }
-
-    return false;
-  }
-}
-
 describe('RedisCacheGateway integration (V-08)', () => {
-  let redisAvailable = false;
+  let infraReady = false;
   let redisClient: Redis;
   let redisService: RedisService;
   let gateway: RedisCacheGateway;
 
   beforeAll(async () => {
-    redisAvailable = await isRedisAvailable();
-
-    if (!redisAvailable) {
-      console.warn(
-        `Skipping RedisCacheGateway integration tests: Redis unavailable at ${REDIS_HOST}:${REDIS_PORT}`,
-      );
-    }
+    await assertRedisAvailable({
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      password: REDIS_PASSWORD,
+      db: REDIS_DB,
+    });
+    infraReady = true;
   });
 
   beforeEach(() => {
-    if (!redisAvailable) {
+    // Skip resource setup only when beforeAll already failed closed.
+    if (!infraReady) {
       return;
     }
 
@@ -75,7 +50,7 @@ describe('RedisCacheGateway integration (V-08)', () => {
   });
 
   afterEach(async () => {
-    if (!redisAvailable) {
+    if (!redisClient) {
       return;
     }
 
@@ -84,10 +59,6 @@ describe('RedisCacheGateway integration (V-08)', () => {
   });
 
   it('forgetByPattern removes matching keys and preserves unrelated keys', async () => {
-    if (!redisAvailable) {
-      return;
-    }
-
     await redisClient.set(`${TEST_PREFIX}a`, '1');
     await redisClient.set(`${TEST_PREFIX}b`, '2');
     await redisClient.set(OTHER_KEY, '3');

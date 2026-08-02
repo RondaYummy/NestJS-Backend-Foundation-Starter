@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { Pool } from 'pg';
 
+import { assertPostgresAvailable } from '../../../test/integration/infra-availability';
 import { acquireMigrationAdvisoryLock, releaseMigrationAdvisoryLock } from './migration-lock';
 import { runMigrations } from './run-migrations';
 
@@ -15,34 +16,11 @@ const MIGRATIONS_FOLDER = path.join(
   'libs/infrastructure/src/database/drizzle/migrations',
 );
 
-async function isPostgresAvailable(): Promise<boolean> {
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-    connectionTimeoutMillis: 2_000,
-    max: 1,
-  });
-
-  try {
-    await pool.query('SELECT 1');
-    await pool.end();
-    return true;
-  } catch {
-    try {
-      await pool.end();
-    } catch {
-      // ignore cleanup errors when PostgreSQL is unavailable
-    }
-
-    return false;
-  }
-}
-
 describe('runMigrations integration (V-06)', () => {
-  let postgresAvailable: boolean;
   const originalMigrationsFolder = process.env.MIGRATIONS_FOLDER;
 
   beforeAll(async () => {
-    postgresAvailable = await isPostgresAvailable();
+    await assertPostgresAvailable({ databaseUrl: DATABASE_URL });
   });
 
   beforeEach(() => {
@@ -59,10 +37,6 @@ describe('runMigrations integration (V-06)', () => {
   });
 
   it('serializes concurrent advisory lock acquisition', async () => {
-    if (!postgresAvailable) {
-      return;
-    }
-
     const pool = new Pool({
       connectionString: DATABASE_URL,
       max: 2,
@@ -94,10 +68,6 @@ describe('runMigrations integration (V-06)', () => {
   });
 
   it('runs two parallel migration processes safely', async () => {
-    if (!postgresAvailable) {
-      return;
-    }
-
     const results = await Promise.allSettled([runMigrations(), runMigrations()]);
 
     for (const result of results) {
@@ -121,10 +91,6 @@ describe('runMigrations integration (V-06)', () => {
   });
 
   it('releases advisory lock when migration fails', async () => {
-    if (!postgresAvailable) {
-      return;
-    }
-
     process.env.MIGRATIONS_FOLDER = path.join(process.cwd(), 'nonexistent-migrations-folder');
 
     await expect(runMigrations()).rejects.toThrow();

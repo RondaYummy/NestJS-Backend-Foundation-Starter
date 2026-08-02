@@ -15,6 +15,7 @@ import { RedisKeyBuilder } from '@infrastructure/redis/redis-key-builder';
 import type { MailTemplateService } from '@infrastructure/mail/mail-template.service';
 import type { AppConfigService } from '@infrastructure/config/app-config.service';
 import type { AppLogger } from '@infrastructure/logger/app-logger.service';
+import { assertRedisAvailable } from '../../../../test/integration/infra-availability';
 
 const REDIS_HOST = process.env.REDIS_HOST ?? 'localhost';
 const REDIS_PORT = Number(process.env.REDIS_PORT ?? 6379);
@@ -27,39 +28,12 @@ const TEST_JOB_EXECUTION_OPTIONS: JobExecutionOptions = {
   completedRetentionTtlSeconds: 60,
 };
 
-async function isRedisAvailable(): Promise<boolean> {
-  const client = new Redis({
-    host: REDIS_HOST,
-    port: REDIS_PORT,
-    password: REDIS_PASSWORD,
-    db: REDIS_DB,
-    connectTimeout: 2_000,
-    maxRetriesPerRequest: 1,
-    lazyConnect: true,
-  });
-
-  try {
-    await client.connect();
-    await client.ping();
-    await client.quit();
-    return true;
-  } catch {
-    try {
-      await client.quit();
-    } catch {
-      // ignore cleanup errors when Redis is unavailable
-    }
-
-    return false;
-  }
-}
-
 function buildJob(payload: EmailJobPayload): Job<EmailJobPayload> {
   return { data: payload } as Job<EmailJobPayload>;
 }
 
 describe('EmailProcessor integration (V-03)', () => {
-  let redisAvailable = false;
+  let infraReady = false;
   let redisClient: Redis;
   let executionStore: RedisJobExecutionStore;
   let sendDelayMs: number;
@@ -69,17 +43,18 @@ describe('EmailProcessor integration (V-03)', () => {
   let processor: EmailProcessor;
 
   beforeAll(async () => {
-    redisAvailable = await isRedisAvailable();
-
-    if (!redisAvailable) {
-      console.warn(
-        `Skipping EmailProcessor integration tests: Redis unavailable at ${REDIS_HOST}:${REDIS_PORT}`,
-      );
-    }
+    await assertRedisAvailable({
+      host: REDIS_HOST,
+      port: REDIS_PORT,
+      password: REDIS_PASSWORD,
+      db: REDIS_DB,
+    });
+    infraReady = true;
   });
 
   beforeEach(() => {
-    if (!redisAvailable) {
+    // Skip resource setup only when beforeAll already failed closed.
+    if (!infraReady) {
       return;
     }
 
@@ -128,7 +103,7 @@ describe('EmailProcessor integration (V-03)', () => {
   });
 
   afterEach(async () => {
-    if (!redisAvailable) {
+    if (!redisClient) {
       return;
     }
 
@@ -142,10 +117,6 @@ describe('EmailProcessor integration (V-03)', () => {
   });
 
   it('allows only one gateway send when a duplicate delivery overlaps a long-running job', async () => {
-    if (!redisAvailable) {
-      return;
-    }
-
     const idempotencyKey = `v03-${randomUUID()}`;
     const payload: EmailJobPayload = {
       to: 'recipient@example.com',
@@ -167,10 +138,6 @@ describe('EmailProcessor integration (V-03)', () => {
   }, 20_000);
 
   it('blocks duplicate send after post-send complete failure writes sent-ambiguous marker', async () => {
-    if (!redisAvailable) {
-      return;
-    }
-
     const idempotencyKey = `post-send-complete-failure-${randomUUID()}`;
     const payload: EmailJobPayload = {
       to: 'recipient@example.com',

@@ -2880,6 +2880,7 @@ npm run lint
 - `test:module` — `*.module.spec.ts` (Nest DI wiring); для audit lifecycle: `npm run test:module -- --detectOpenHandles`.
 - `test:release` — release-policy scripts (`scripts/release/**/*.spec.ts`).
 - `test:all` — unit + module + release (без `test:int`; для integration потрібні PostgreSQL/Redis).
+- `test:int` — `*.int-spec.ts`; **fail-closed**: відсутність PostgreSQL або Redis дає non-zero / failed suite. Зелений `test:int` означає, що asserts проти live infra реально виконались (не soft-skip).
 
 # 27. Cursor Agent Architecture
 
